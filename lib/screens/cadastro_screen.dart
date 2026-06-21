@@ -42,7 +42,8 @@ class CadastroScreen extends StatelessWidget {
                           height: 129,
                         ),
 
-                        //Precisa de espaçamento
+                        const SizedBox(height: 12),
+
                         const Text(
                           'Seu espaço de bem-estar e autocuidado',
                           style: TextStyle(
@@ -55,7 +56,7 @@ class CadastroScreen extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 48),
 
                   //======================
                   // BTNS
@@ -71,6 +72,8 @@ class CadastroScreen extends StatelessWidget {
                         onPressed: () {},
                       ),
 
+                      const SizedBox(width: 8),
+
                       //Precisa de espaçamento
                       AppFilledButton(
                         text: 'Criar Conta',
@@ -84,7 +87,8 @@ class CadastroScreen extends StatelessWidget {
                   //=======================
                   // FORM
                   //======================
-                  //Precisa de espaçamento
+                  const SizedBox(height: 24),
+
                   Form(
                     child: Column(
                       children: [
@@ -97,45 +101,52 @@ class CadastroScreen extends StatelessWidget {
                           backgroundColor: const Color(0xFFFAF9F6),
                         ),
 
-                        //Espaçamento
+                        const SizedBox(height: 20),
                         //Campo Senha
                         AppTextFormFieldPassword(
                           labelText: 'Senha',
                           labelColor: const Color(0xFFFAF9F6),
                           hintColor: const Color(0xFF28174E),
-                          hintText: '',
+                          hintText: 'Mínimo de 8 caracteres',
                           backgroundColor: const Color(0xFFFAF9F6),
                           ImageDirectory: 'assets/icons/Eye_Purple.png',
                         ),
 
-                        //Espaçamento
+                        const SizedBox(height: 20),
                         //Campo confirmar senha
                         AppTextFormFieldPassword(
                           labelText: 'Confirmar senha',
                           labelColor: const Color(0xFFFAF9F6),
                           hintColor: const Color(0xFF28174E),
-                          hintText: '',
+                          hintText: 'As senhas devem ser iguais',
                           backgroundColor: const Color(0xFFFAF9F6),
                           ImageDirectory: 'assets/icons/Eye_Purple.png',
                         ),
 
-                        //espaçamento
-                        //barra divisória
+                        const SizedBox(height: 32),
+
+                        const Divider(color: Color(0xFFFAF9F6), thickness: 1),
+
+                        const SizedBox(height: 32),
+
                         AppTextFormField(
-                          labelText: 'Como Gostaria de ser chamado',
+                          labelText: 'Como Gostaria de ser chamado ?',
                           labelColor: const Color(0xFFFAF9F6),
                           hintColor: const Color(0xFF28174E),
                           hintText: '',
                           backgroundColor: const Color(0xFFFAF9F6),
                         ),
 
-                        //espaçamento
-                        //ajustar tamanho do btn, para cobrir todo o espaço disponível
-                        AppOutlinedButton(
-                          text: 'Avançar',
-                          borderColor: const Color(0xFFFAF9F6),
-                          textColor: const Color(0xFFFAF9F6),
-                          onPressed: () {},
+                        const SizedBox(height: 32),
+
+                        SizedBox(
+                          width: double.infinity,
+                          child: AppOutlinedButton(
+                            text: 'Avançar',
+                            borderColor: const Color(0xFFFAF9F6),
+                            textColor: const Color(0xFFFAF9F6),
+                            onPressed: () {},
+                          ),
                         ),
                       ],
                     ),
