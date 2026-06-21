@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:iris/screens/qrCode_screen.dart';
+import 'package:iris/screens/home_screen.dart';
+//import 'package:iris/screens/qrCode_screen.dart';
 //import 'package:iris/screens/cadastro_screen.dart';
 //import 'package:iris/screens/login_screen.dart';
 
@@ -12,6 +13,6 @@ void main() {
 class Iris_app extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: QrcodeScreen());
+    return MaterialApp(debugShowCheckedModeBanner: false, home: HomeScreen());
   }
 }
