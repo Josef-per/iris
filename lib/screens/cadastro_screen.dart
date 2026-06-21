@@ -4,13 +4,12 @@ import 'package:iris/widgets/app_outlined_button.dart';
 import 'package:iris/widgets/app_text_form_field.dart';
 import 'package:iris/widgets/app_text_form_field_password.dart';
 
-class LoginScreen extends StatelessWidget {
-  const LoginScreen({super.key});
+class CadastroScreen extends StatelessWidget {
+  const CadastroScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      //Começar com o container pra poder estilizar a tela dps
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -20,20 +19,14 @@ class LoginScreen extends StatelessWidget {
             colors: [Color(0XFF7D6AC6), Color(0xFF28174E)],
           ),
         ),
-        //Isso faz com que a altura e a largura da tela sejam totalmente ocupados
         width: double.infinity,
         height: double.infinity,
 
-        //Começar a tela
-        //Campo de defesa da barra de notificações
         child: SafeArea(
-          //Scroll
           child: SingleChildScrollView(
-            //Pading que cobre toda a tela pra não ficar ruim de ver
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
 
-              //Aqui que realmente tudo começa, igual a estrutura que vemos no figma
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -49,8 +42,7 @@ class LoginScreen extends StatelessWidget {
                           height: 129,
                         ),
 
-                        const SizedBox(height: 12),
-
+                        //Precisa de espaçamento
                         const Text(
                           'Seu espaço de bem-estar e autocuidado',
                           style: TextStyle(
@@ -65,48 +57,48 @@ class LoginScreen extends StatelessWidget {
 
                   const SizedBox(height: 40),
 
-                  //====================
-                  // BOTÕES LOGIN / CADASTRO
-                  //====================
+                  //======================
+                  // BTNS
+                  //======================
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      AppFilledButton(
+                      //Btn de login
+                      AppOutlinedButton(
                         text: 'Login',
-                        backgroundColor: const Color(0xFFFAF9F6),
-                        textColor: const Color(0xFF28174E),
+                        borderColor: const Color(0xFFFAF9F6),
+                        textColor: const Color(0xFFFAF9F6),
                         onPressed: () {},
                       ),
 
-                      const SizedBox(width: 8),
-
-                      AppOutlinedButton(
+                      //Precisa de espaçamento
+                      AppFilledButton(
                         text: 'Criar Conta',
-                        borderColor: const Color(0xFFFAF9F6),
-                        textColor: const Color(0xFFFAF9F6),
+                        backgroundColor: const Color(0xFFFAF9F6),
+                        textColor: const Color(0xFF28174E),
                         onPressed: () {},
                       ),
                     ],
                   ),
 
-                  const SizedBox(height: 45),
-
-                  //====================
-                  // FORMULÁRIO
-                  //====================
+                  //=======================
+                  // FORM
+                  //======================
+                  //Precisa de espaçamento
                   Form(
                     child: Column(
                       children: [
+                        //Campo de Email
                         AppTextFormField(
                           labelText: 'Email',
                           labelColor: const Color(0xFFFAF9F6),
                           hintColor: const Color(0xFF28174E),
-                          hintText: 'seuemail@email.com',
+                          hintText: 'seuemail@gmail.com',
                           backgroundColor: const Color(0xFFFAF9F6),
                         ),
 
-                        const SizedBox(height: 20),
-
+                        //Espaçamento
+                        //Campo Senha
                         AppTextFormFieldPassword(
                           labelText: 'Senha',
                           labelColor: const Color(0xFFFAF9F6),
@@ -116,16 +108,34 @@ class LoginScreen extends StatelessWidget {
                           ImageDirectory: 'assets/icons/Eye_Purple.png',
                         ),
 
-                        const SizedBox(height: 35),
+                        //Espaçamento
+                        //Campo confirmar senha
+                        AppTextFormFieldPassword(
+                          labelText: 'Confirmar senha',
+                          labelColor: const Color(0xFFFAF9F6),
+                          hintColor: const Color(0xFF28174E),
+                          hintText: '',
+                          backgroundColor: const Color(0xFFFAF9F6),
+                          ImageDirectory: 'assets/icons/Eye_Purple.png',
+                        ),
 
-                        SizedBox(
-                          width: double.infinity,
-                          child: AppOutlinedButton(
-                            text: 'Entrar',
-                            borderColor: const Color(0xFFFAF9F6),
-                            textColor: const Color(0xFFFAF9F6),
-                            onPressed: () {},
-                          ),
+                        //espaçamento
+                        //barra divisória
+                        AppTextFormField(
+                          labelText: 'Como Gostaria de ser chamado',
+                          labelColor: const Color(0xFFFAF9F6),
+                          hintColor: const Color(0xFF28174E),
+                          hintText: '',
+                          backgroundColor: const Color(0xFFFAF9F6),
+                        ),
+
+                        //espaçamento
+                        //ajustar tamanho do btn, para cobrir todo o espaço disponível
+                        AppOutlinedButton(
+                          text: 'Avançar',
+                          borderColor: const Color(0xFFFAF9F6),
+                          textColor: const Color(0xFFFAF9F6),
+                          onPressed: () {},
                         ),
                       ],
                     ),
