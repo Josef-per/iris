@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/widgets/app_card_dashboard_simplificado.dart';
 import 'package:iris/widgets/app_home_atalhos.dart';
+import 'package:iris/widgets/bottom_sheets/check_in_alimentar_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -180,7 +181,16 @@ class HomeScreen extends StatelessWidget {
                                   ImageDirectory:
                                       'assets/icons/Prancheta_white.png',
                                   CardText: 'Registro de alimentação',
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) {
+                                        return CheckInAlimentarBottomSheet();
+                                      },
+                                    );
+                                  },
                                 ),
 
                                 const SizedBox(height: 30),
