@@ -5,7 +5,7 @@ class AppOutlinedButton extends StatelessWidget {
   final String text;
   final Color borderColor;
   final Color textColor;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const AppOutlinedButton({
     super.key,

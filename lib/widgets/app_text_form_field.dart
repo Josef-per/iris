@@ -11,6 +11,11 @@ class AppTextFormField extends StatelessWidget {
   final Color hintColor;
   final String hintText;
   final Color backgroundColor;
+  final TextEditingController? controller;
+  final FormFieldValidator<String>? validator;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const AppTextFormField({
     super.key,
@@ -20,6 +25,11 @@ class AppTextFormField extends StatelessWidget {
     required this.hintColor,
     required this.hintText,
     required this.backgroundColor,
+    this.controller,
+    this.validator,
+    this.keyboardType,
+    this.textInputAction,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -39,28 +49,33 @@ class AppTextFormField extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        SizedBox(
-          height: 44,
-          width: double.infinity,
-          child: TextFormField(
-            style: TextStyle(color: hintColor),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: backgroundColor, width: 2),
-              ),
-
-              hintText: hintText,
-              hintStyle: TextStyle(color: hintColor, fontSize: 16),
-
-              filled: true,
-              fillColor: backgroundColor,
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          keyboardType: keyboardType,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onFieldSubmitted,
+          style: TextStyle(color: hintColor),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
             ),
+
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: backgroundColor, width: 2),
+            ),
+
+            hintText: hintText,
+            hintStyle: TextStyle(color: hintColor, fontSize: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
+
+            filled: true,
+            fillColor: backgroundColor,
           ),
         ),
       ],

@@ -1,18 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:iris/core/supabase/supabase_config.dart';
+import 'package:iris/screens/login_screen.dart';
 import 'package:iris/screens/home_screen.dart';
-//import 'package:iris/screens/qrCode_screen.dart';
-//import 'package:iris/screens/cadastro_screen.dart';
-//import 'package:iris/screens/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-//vou considerar para ser mais prático para testes a primeira tela a dela a de login sem ser a de splash
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: '.env', isOptional: true);
 
-void main() {
-  runApp(Iris_app());
+  if (SupabaseConfig.isConfigured) {
+    await Supabase.initialize(
+      url: SupabaseConfig.url,
+      publishableKey: SupabaseConfig.publishableKey,
+    );
+  }
+
+  runApp(const IrisApp());
 }
 
-class Iris_app extends StatelessWidget {
+class IrisApp extends StatelessWidget {
+  const IrisApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(debugShowCheckedModeBanner: false, home: HomeScreen());
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: SupabaseConfig.isConfigured
+          ? const AuthGate()
+          : const LoginScreen(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final client = Supabase.instance.client;
+
+    return StreamBuilder<AuthState>(
+      stream: client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        final session = snapshot.data?.session ?? client.auth.currentSession;
+
+        if (session == null) {
+          return const LoginScreen();
+        }
+
+        return const HomeScreen();
+      },
+    );
   }
 }

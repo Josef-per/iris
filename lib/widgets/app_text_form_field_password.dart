@@ -10,7 +10,11 @@ class AppTextFormFieldPassword extends StatelessWidget {
   final Color hintColor;
   final String hintText;
   final Color backgroundColor;
-  final String ImageDirectory;
+  final String imageDirectory;
+  final TextEditingController? controller;
+  final FormFieldValidator<String>? validator;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onFieldSubmitted;
 
   const AppTextFormFieldPassword({
     super.key,
@@ -20,7 +24,11 @@ class AppTextFormFieldPassword extends StatelessWidget {
     required this.hintColor,
     required this.hintText,
     required this.backgroundColor,
-    required this.ImageDirectory,
+    required this.imageDirectory,
+    this.controller,
+    this.validator,
+    this.textInputAction,
+    this.onFieldSubmitted,
   });
 
   @override
@@ -40,33 +48,37 @@ class AppTextFormFieldPassword extends StatelessWidget {
 
         const SizedBox(height: 10),
 
-        SizedBox(
-          height: 44,
-          width: double.infinity,
-          child: TextFormField(
-            obscureText: true,
-            style: TextStyle(color: hintColor),
-            decoration: InputDecoration(
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
+        TextFormField(
+          controller: controller,
+          validator: validator,
+          textInputAction: textInputAction,
+          onFieldSubmitted: onFieldSubmitted,
+          obscureText: true,
+          style: TextStyle(color: hintColor),
+          decoration: InputDecoration(
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
 
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: backgroundColor, width: 2),
-              ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: backgroundColor, width: 2),
+            ),
 
-              hintText: hintText,
-              hintStyle: TextStyle(color: hintColor, fontSize: 16),
+            hintText: hintText,
+            hintStyle: TextStyle(color: hintColor, fontSize: 16),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
 
-              filled: true,
-              fillColor: backgroundColor,
+            filled: true,
+            fillColor: backgroundColor,
 
-              suffixIcon: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Image.asset(ImageDirectory),
-              ),
+            suffixIcon: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Image.asset(imageDirectory),
             ),
           ),
         ),
