@@ -14,6 +14,7 @@ class AppHomeAtalhos extends StatelessWidget {
   final String CardText;
 
   //Para o backend depois adicionar a opção de chamar alguma função
+  final VoidCallback onPressed;
 
   const AppHomeAtalhos({
     super.key,
@@ -22,6 +23,7 @@ class AppHomeAtalhos extends StatelessWidget {
     required this.ImageBackGroundColor,
     required this.ImageDirectory,
     required this.CardText,
+    required this.onPressed,
   });
 
   @override
@@ -30,7 +32,7 @@ class AppHomeAtalhos extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () {},
+        onTap: onPressed,
         child: Container(
           width: double.infinity,
           height: 85,

@@ -179,6 +179,7 @@ class HomeScreen extends StatelessWidget {
                                   ImageDirectory:
                                       'assets/icons/Prancheta_white.png',
                                   CardText: 'Registro de alimentação',
+                                  onPressed: () {},
                                 ),
 
                                 const SizedBox(height: 30),
@@ -190,6 +191,7 @@ class HomeScreen extends StatelessWidget {
                                   ImageDirectory:
                                       'assets/icons/Livro_white.png',
                                   CardText: 'Check-in diário',
+                                  onPressed: () {},
                                 ),
 
                                 const SizedBox(height: 30),
@@ -201,6 +203,7 @@ class HomeScreen extends StatelessWidget {
                                   ImageDirectory:
                                       'assets/icons/Coracao_white.png',
                                   CardText: 'Diário emocional',
+                                  onPressed: () {},
                                 ),
                               ],
                             ),
