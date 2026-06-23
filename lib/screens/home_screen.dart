@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/widgets/app_card_dashboard_simplificado.dart';
 import 'package:iris/widgets/app_home_atalhos.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_alimentar_bottom_sheet.dart';
+import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -202,7 +203,16 @@ class HomeScreen extends StatelessWidget {
                                   ImageDirectory:
                                       'assets/icons/Livro_white.png',
                                   CardText: 'Check-in diário',
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) {
+                                        return CheckInDiarioBottomSheet();
+                                      },
+                                    );
+                                  },
                                 ),
 
                                 const SizedBox(height: 30),
