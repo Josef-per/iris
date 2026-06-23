@@ -21,6 +21,14 @@ class AppErrorMessages {
       return 'Entre na sua conta para salvar seus registros.';
     }
 
+    if (message.contains('codigo qr invalido')) {
+      return 'Codigo QR invalido. Tente escanear novamente ou insira o codigo manualmente.';
+    }
+
+    if (message.contains('profissional nao encontrado')) {
+      return 'Profissional nao encontrado. Confira o QR Code com seu psiquiatra.';
+    }
+
     return 'Algo deu errado. Tente novamente.';
   }
 

@@ -18,7 +18,7 @@ class AuthService {
     final user = response.user ?? _client.auth.currentUser;
 
     if (user != null) {
-      await _users.ensureForAuthUser(user, email: email);
+      await _users.ensureSessionForAuthUser(user, email: email);
     }
   }
 
@@ -39,7 +39,7 @@ class AuthService {
     // email flow (useful when you don't want to require email validation).
     if (response.user != null) {
       try {
-        await _users.ensureForAuthUser(
+        await _users.ensureForPatientAuthUser(
           response.user!,
           email: email,
           displayName: displayName,

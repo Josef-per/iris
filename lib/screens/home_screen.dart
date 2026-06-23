@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
-import 'package:iris/screens/login_screen.dart';
 import 'package:iris/widgets/app_card_dashboard_simplificado.dart';
 import 'package:iris/widgets/app_home_atalhos.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
@@ -30,15 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _signOut() async {
     await _authService.signOut();
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
   }
 
   void _openBottomSheet(Widget child) {

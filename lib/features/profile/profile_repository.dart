@@ -15,7 +15,7 @@ class ProfileRepository {
       return null;
     }
 
-    await _users.ensureForAuthUser(user);
+    await _users.ensureSessionForAuthUser(user);
 
     final data = await _client
         .from(DatabaseTables.perfis)
