@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppAddPhotoSection extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const AppAddPhotoSection({super.key, required this.onPressed});
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -21,7 +25,7 @@ class AppAddPhotoSection extends StatelessWidget {
                 ),
               ),
             ),
-            onPressed: () {},
+            onPressed: onPressed,
             child: Row(
               children: [
                 Image.asset('assets/icons/Camera_Purple.png', width: 26),
