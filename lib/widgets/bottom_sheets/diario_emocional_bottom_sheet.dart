@@ -119,7 +119,7 @@ class DiarioEmocionalBottomSheet extends StatelessWidget {
           Align(
             alignment: Alignment.bottomRight,
             child: AppFilledButton(
-              text: 'Confirmar ->',
+              text: 'Confirmar →',
               backgroundColor: const Color(0xFF7D6AC6),
               textColor: const Color(0xFFFAF9F6),
               onPressed: () {},
