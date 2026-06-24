@@ -11,14 +11,20 @@ class AuthService {
   Stream<AuthState> get authStateChanges => _client.auth.onAuthStateChange;
 
   Future<void> signIn({required String email, required String password}) async {
+    final cleanEmail = email.trim().toLowerCase();
+
     final response = await _client.auth.signInWithPassword(
-      email: email.trim(),
+      email: cleanEmail,
       password: password,
     );
     final user = response.user ?? _client.auth.currentUser;
 
     if (user != null) {
-      await _users.ensureSessionForAuthUser(user, email: email);
+      await _users.ensureSessionForAuthUser(
+        user,
+        email: cleanEmail,
+        displayName: _displayNameFromMetadata(user),
+      );
     }
   }
 
@@ -27,26 +33,25 @@ class AuthService {
     required String password,
     required String displayName,
   }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    final cleanDisplayName = displayName.trim();
+
     final response = await _client.auth.signUp(
-      email: email.trim(),
+      email: cleanEmail,
       password: password,
-      data: {'display_name': displayName.trim()},
+      data: {'display_name': cleanDisplayName},
     );
 
-    // If a user object was returned, ensure app records exist for them
-    // even when `response.session` is null (email confirmation required).
-    // This allows the app to proceed without waiting for the confirmation
-    // email flow (useful when you don't want to require email validation).
-    if (response.user != null) {
+    if (response.user != null && response.session != null) {
       try {
         await _users.ensureForPatientAuthUser(
           response.user!,
-          email: email,
-          displayName: displayName,
+          email: cleanEmail,
+          displayName: cleanDisplayName,
         );
-      } catch (_) {
-        // Swallow errors from user creation to preserve original signUp behavior
-        // (e.g., in case email is missing). The caller still gets the signup result.
+      } catch (error) {
+        await _client.auth.signOut();
+        rethrow;
       }
     }
 
@@ -55,6 +60,16 @@ class AuthService {
 
   Future<void> signOut() {
     return _client.auth.signOut();
+  }
+
+  String? _displayNameFromMetadata(User user) {
+    final value = user.userMetadata?['display_name'];
+
+    if (value == null) {
+      return null;
+    }
+
+    return value.toString();
   }
 }
 

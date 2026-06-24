@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/screens/login_screen.dart';
+import 'package:iris/screens/session_gate.dart';
 import 'package:iris/widgets/app_filled_button.dart';
 import 'package:iris/widgets/app_outlined_button.dart';
 import 'package:iris/widgets/app_text_form_field.dart';
@@ -67,6 +68,10 @@ class _CadastroScreenState extends State<CadastroScreen> {
         return;
       }
 
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const SessionGate()),
+        (_) => false,
+      );
     } catch (error) {
       if (!mounted) {
         return;
@@ -88,7 +93,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
     final route = MaterialPageRoute(builder: (_) => const LoginScreen());
 
     if (replace) {
-      Navigator.of(context).pushReplacement(route);
+      Navigator.of(context).pushAndRemoveUntil(route, (_) => false);
       return;
     }
 

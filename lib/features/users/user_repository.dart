@@ -30,11 +30,7 @@ class UserRepository {
     final existingType = await getCurrentUserType();
     final userType = existingType ?? UserTypes.paciente;
 
-    await _upsertUsuario(
-      user,
-      email: email,
-      userType: userType,
-    );
+    await _upsertUsuario(user, email: email, userType: userType);
     await _ensureProfile(user.id, displayName);
 
     if (userType == UserTypes.profissional) {
@@ -50,11 +46,7 @@ class UserRepository {
     String? email,
     String? displayName,
   }) async {
-    await _upsertUsuario(
-      user,
-      email: email,
-      userType: UserTypes.paciente,
-    );
+    await _upsertUsuario(user, email: email, userType: UserTypes.paciente);
     await _ensureProfile(user.id, displayName);
     await _ensurePatient(user.id);
   }
@@ -114,7 +106,7 @@ class UserRepository {
 
     await _client.from(DatabaseTables.usuarios).upsert({
       'id': user.id,
-      'email': resolvedEmail.trim(),
+      'email': resolvedEmail.trim().toLowerCase(),
       'senha_hash': 'managed_by_supabase_auth',
       'tipo_usuario': userType,
       'ativo': true,
