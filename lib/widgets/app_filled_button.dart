@@ -5,7 +5,7 @@ class AppFilledButton extends StatelessWidget {
   final String text;
   final Color backgroundColor;
   final Color textColor;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const AppFilledButton({
     super.key,

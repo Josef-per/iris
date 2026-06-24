@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 
 class AppCardDashboardSimplificado extends StatelessWidget {
   //passar os parâmetros
-  final String ImageDirectory;
-  final String TextIdentifier;
-  final String TextName;
+  final String imageDirectory;
+  final String textIdentifier;
+  final String textName;
 
   const AppCardDashboardSimplificado({
     super.key,
-    required this.ImageDirectory,
-    required this.TextIdentifier,
-    required this.TextName,
+    required this.imageDirectory,
+    required this.textIdentifier,
+    required this.textName,
   });
 
   @override
@@ -26,15 +26,15 @@ class AppCardDashboardSimplificado extends StatelessWidget {
           padding: const EdgeInsets.all(5),
           child: Column(
             children: [
-              Image.asset(ImageDirectory, width: 30, height: 30),
+              Image.asset(imageDirectory, width: 30, height: 30),
               const SizedBox(height: 10),
               Text(
-                TextIdentifier,
+                textIdentifier,
                 style: TextStyle(color: const Color(0xFFFFFFFF), fontSize: 16),
               ),
               const SizedBox(height: 10),
               Text(
-                TextName,
+                textName,
                 style: TextStyle(color: const Color(0x99FFFFFF), fontSize: 15),
               ),
             ],

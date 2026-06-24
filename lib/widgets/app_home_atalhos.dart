@@ -3,26 +3,26 @@ import 'package:flutter/material.dart';
 class AppHomeAtalhos extends StatelessWidget {
   //Parâmetros
   //Cor do card
-  final Color CardBackGroundColor1;
-  final Color CardBackGroundColor2;
+  final Color cardBackgroundColor1;
+  final Color cardBackgroundColor2;
 
   //Cor da imagem e imagem
-  final Color ImageBackGroundColor;
-  final String ImageDirectory;
+  final Color imageBackgroundColor;
+  final String imageDirectory;
 
   //Texto do card
-  final String CardText;
+  final String cardText;
 
   //Para o backend depois adicionar a opção de chamar alguma função
   final VoidCallback onPressed;
 
   const AppHomeAtalhos({
     super.key,
-    required this.CardBackGroundColor1,
-    required this.CardBackGroundColor2,
-    required this.ImageBackGroundColor,
-    required this.ImageDirectory,
-    required this.CardText,
+    required this.cardBackgroundColor1,
+    required this.cardBackgroundColor2,
+    required this.imageBackgroundColor,
+    required this.imageDirectory,
+    required this.cardText,
     required this.onPressed,
   });
 
@@ -38,10 +38,10 @@ class AppHomeAtalhos extends StatelessWidget {
           height: 85,
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              begin: AlignmentGeometry.topCenter,
-              end: AlignmentGeometry.bottomCenter,
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
 
-              colors: [CardBackGroundColor1, CardBackGroundColor2],
+              colors: [cardBackgroundColor1, cardBackgroundColor2],
             ),
             borderRadius: BorderRadius.circular(16),
             boxShadow: const [
@@ -60,7 +60,7 @@ class AppHomeAtalhos extends StatelessWidget {
                 width: 65,
                 height: 65,
                 decoration: BoxDecoration(
-                  color: ImageBackGroundColor,
+                  color: imageBackgroundColor,
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: const [
                     BoxShadow(
@@ -71,14 +71,14 @@ class AppHomeAtalhos extends StatelessWidget {
                   ],
                 ),
                 child: Center(
-                  child: Image.asset(ImageDirectory, width: 40, height: 40),
+                  child: Image.asset(imageDirectory, width: 40, height: 40),
                 ),
               ),
 
               const SizedBox(width: 10),
 
               Text(
-                CardText,
+                cardText,
                 style: TextStyle(color: Color(0xFFFAF9F6), fontSize: 16),
               ),
             ],
