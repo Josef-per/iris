@@ -19,12 +19,49 @@ class _DiarioEmocionalBottomSheetState
   final _repository = EmotionalDiaryRepository();
 
   bool _isLoading = false;
+  bool _isLoadingTodayRecord = true;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodayRecord();
+  }
 
   @override
   void dispose() {
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadTodayRecord() async {
+    try {
+      final record = await _repository.getTodayRecord();
+
+      if (!mounted) {
+        return;
+      }
+
+      final content = record?['diario_emocional']?.toString();
+
+      if (content != null && content.trim().isNotEmpty) {
+        _contentController.text = content;
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _errorMessage = AppErrorMessages.from(error);
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingTodayRecord = false;
+        });
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -145,26 +182,29 @@ class _DiarioEmocionalBottomSheetState
                           color: Color(0xFF2D175E),
                         ),
                         const SizedBox(height: 10),
-                        TextFormField(
-                          controller: _contentController,
-                          maxLines: 4,
-                          validator: _validateContent,
-                          decoration: const InputDecoration(
-                            hintText: 'Escreva um pouco sobre seu dia',
-                            hintStyle: TextStyle(
+                        if (_isLoadingTodayRecord)
+                          const Center(child: CircularProgressIndicator())
+                        else
+                          TextFormField(
+                            controller: _contentController,
+                            maxLines: 4,
+                            validator: _validateContent,
+                            decoration: const InputDecoration(
+                              hintText: 'Escreva um pouco sobre seu dia',
+                              hintStyle: TextStyle(
+                                color: Color(0xFF2D175E),
+                                fontSize: 16,
+                              ),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            style: const TextStyle(
                               color: Color(0xFF2D175E),
                               fontSize: 16,
                             ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            contentPadding: EdgeInsets.zero,
                           ),
-                          style: const TextStyle(
-                            color: Color(0xFF2D175E),
-                            fontSize: 16,
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -188,7 +228,7 @@ class _DiarioEmocionalBottomSheetState
                 text: _isLoading ? 'Salvando...' : 'Confirmar',
                 backgroundColor: const Color(0xFF7D6AC6),
                 textColor: const Color(0xFFFAF9F6),
-                onPressed: _isLoading ? null : _submit,
+                onPressed: _isLoading || _isLoadingTodayRecord ? null : _submit,
               ),
             ),
           ],
