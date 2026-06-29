@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
-import 'package:iris/screens/login_screen.dart';
+import 'package:iris/screens/lembretes_screen.dart';
+//import 'package:iris/screens/login_screen.dart';
 import 'package:iris/screens/session_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -26,9 +27,7 @@ class IrisApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SupabaseConfig.isConfigured
-          ? const AuthGate()
-          : const LoginScreen(),
+      home: SupabaseConfig.isConfigured ? const AuthGate() : LembretesScreen(),
     );
   }
 }
@@ -46,7 +45,7 @@ class AuthGate extends StatelessWidget {
         final session = snapshot.data?.session ?? client.auth.currentSession;
 
         if (session == null) {
-          return const LoginScreen();
+          return LembretesScreen();
         }
 
         return const SessionGate();
