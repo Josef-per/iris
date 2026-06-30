@@ -8,6 +8,8 @@ class AppLembretesContent extends StatelessWidget {
   final String iconPath;
   final String textName;
   final String textTime;
+  final bool isActive;
+  final ValueChanged<bool> onSwitchChanged;
 
   const AppLembretesContent({
     super.key,
@@ -16,6 +18,8 @@ class AppLembretesContent extends StatelessWidget {
     required this.iconPath,
     required this.textName,
     required this.textTime,
+    required this.isActive,
+    required this.onSwitchChanged,
   });
 
   @override
@@ -91,7 +95,7 @@ class AppLembretesContent extends StatelessWidget {
 
             SizedBox(width: 70),
 
-            AppSwitchLembretes(),
+            AppSwitchLembretes(value: isActive, onChanged: onSwitchChanged),
 
             SizedBox(width: 10),
 

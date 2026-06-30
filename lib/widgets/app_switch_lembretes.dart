@@ -1,24 +1,17 @@
 import 'package:flutter/material.dart';
 
-class AppSwitchLembretes extends StatefulWidget {
-  @override
-  State<StatefulWidget> createState() {
-    return _AppSwitchLembretesState();
-  }
-}
+class AppSwitchLembretes extends StatelessWidget {
+  final bool value;
+  final ValueChanged<bool> onChanged;
 
-class _AppSwitchLembretesState extends State<AppSwitchLembretes> {
-  bool light = true;
+  const AppSwitchLembretes({
+    super.key,
+    required this.value,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Switch(
-      value: true,
-      onChanged: (bool value) => {
-        setState(() {
-          light = value;
-        }),
-      },
-    );
+    return Switch(value: value, onChanged: onChanged);
   }
 }

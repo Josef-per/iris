@@ -3,6 +3,8 @@ import 'package:iris/widgets/app_filled_button_pre_icon.dart';
 import 'package:iris/widgets/app_function_gradient_decoration.dart';
 import 'package:iris/widgets/app_function_headers.dart';
 import 'package:iris/widgets/app_lembretes_field.dart';
+import 'package:iris/widgets/app_lembretes_list_medicamentos.dart';
+import 'package:iris/widgets/app_lembretes_list_refeicao.dart';
 
 class LembretesScreen extends StatelessWidget {
   LembretesScreen({super.key});
@@ -11,7 +13,7 @@ class LembretesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppFunctionGradientDecoration(
       content: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AppFunctionHeaders(
             onTap: () {},
@@ -35,16 +37,26 @@ class LembretesScreen extends StatelessWidget {
           Column(
             children: [
               //Title
-              //=-=-=-==-=-=-=-=-=-=-=-
-              //Resolver o problema de mostrar os componentes ainda hoje
-              //=-=-=-=-=-=-=-=-=-=-=-=-
               AppLembretesField(
                 iconSection: 'assets/icons/GarfoColher_purple.png',
                 textSection: 'Refeições',
               ),
 
               //espaçamento
-              SizedBox(height: 4),
+              SizedBox(height: 10),
+
+              AppLembretesListRefeicao(),
+
+              SizedBox(height: 30),
+
+              AppLembretesField(
+                iconSection: 'assets/icons/FrascoRemedio_purple.png',
+                textSection: 'Medicamentos',
+              ),
+
+              SizedBox(height: 10),
+
+              AppLembretesListMedicamentos(),
             ],
           ),
         ],
