@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/widgets/app_add_photo_section.dart';
 import 'package:iris/widgets/app_align_filled_button.dart';
 import 'package:iris/widgets/app_check_in_form.dart';
-import 'package:iris/widgets/app_check_in_header.dart';
+import 'package:iris/widgets/app_headers.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class CheckInAlimentarBottomSheet extends StatefulWidget {
@@ -48,7 +48,7 @@ class _CheckInAlimentarBottomSheetState
               // ======================
               // HEADER
               // ======================
-              const AppCheckInHeader(
+              const AppHeaders(
                 TextTitle: 'Check-in alimentar',
                 TextSubTitle: 'Registre rapidamente suas refeições',
               ),

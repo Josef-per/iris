@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-class AppCheckInHeader extends StatelessWidget {
+class AppHeaders extends StatelessWidget {
   final String TextTitle;
   final String TextSubTitle;
 
-  const AppCheckInHeader({
+  const AppHeaders({
     super.key,
     required this.TextTitle,
     required this.TextSubTitle,

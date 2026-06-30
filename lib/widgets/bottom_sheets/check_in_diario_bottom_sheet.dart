@@ -3,7 +3,7 @@ import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
 import 'package:iris/widgets/app_align_filled_button.dart';
 import 'package:iris/widgets/app_check_in_diario_card.dart';
-import 'package:iris/widgets/app_check_in_header.dart';
+import 'package:iris/widgets/app_headers.dart';
 import 'package:iris/widgets/app_mood_selector.dart';
 import 'package:iris/widgets/app_symptoms_card.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
@@ -176,7 +176,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
               : Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    const AppCheckInHeader(
+                    const AppHeaders(
                       TextTitle: 'Check-in diário',
                       TextSubTitle:
                           'Registre seus pensamentos, emoções e experiências do dia',
