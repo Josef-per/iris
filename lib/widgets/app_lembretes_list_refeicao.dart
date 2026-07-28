@@ -9,28 +9,29 @@ class AppLembretesListRefeicao extends StatefulWidget {
 }
 
 class AppLembretesListState extends State<AppLembretesListRefeicao> {
-  bool ativo = true;
+  final List<bool> _activeReminders = [true, true, true];
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: [
-        AppLembretesContent(
-          gradientIconColor1: Color(0xFF8A38F5),
-          gradientIconColor2: Color(0xFFDBCFFF),
-          iconPath: 'assets/icons/GarfoColher_white.png',
-          textName: 'Café da manhã',
-          textTime: '8h00',
-
-          isActive: ativo,
-
-          onSwitchChanged: (value) {
-            setState(() {
-              ativo = value;
-            });
-          },
-        ),
-      ],
+      children: List.generate(_activeReminders.length, (index) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == _activeReminders.length - 1 ? 0 : 12,
+          ),
+          child: AppLembretesContent(
+            gradientIconColor1: const Color(0xFFC38CFF),
+            gradientIconColor2: const Color(0xFFE5D5FF),
+            iconPath: 'assets/icons/GarfoColher_white.png',
+            textName: 'Café da manhã',
+            textTime: '8h00',
+            isActive: _activeReminders[index],
+            onSwitchChanged: (value) {
+              setState(() => _activeReminders[index] = value);
+            },
+          ),
+        );
+      }),
     );
   }
 }

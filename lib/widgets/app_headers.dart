@@ -3,11 +3,19 @@ import 'package:flutter/material.dart';
 class AppHeaders extends StatelessWidget {
   final String TextTitle;
   final String TextSubTitle;
+  final TextStyle? titleStyle;
+  final TextStyle? subTitleStyle;
+  final double titleToSubtitleSpacing;
+  final double bottomSpacing;
 
   const AppHeaders({
     super.key,
     required this.TextTitle,
     required this.TextSubTitle,
+    this.titleStyle,
+    this.subTitleStyle,
+    this.titleToSubtitleSpacing = 7,
+    this.bottomSpacing = 28,
   });
 
   @override
@@ -17,21 +25,25 @@ class AppHeaders extends StatelessWidget {
       children: [
         Text(
           TextTitle,
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFFFFFFFF),
-          ),
+          style:
+              titleStyle ??
+              const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFFFFFFF),
+              ),
         ),
 
-        const SizedBox(height: 7),
+        SizedBox(height: titleToSubtitleSpacing),
 
         Text(
           TextSubTitle,
-          style: TextStyle(fontSize: 14, color: const Color(0x99FFFFFF)),
+          style:
+              subTitleStyle ??
+              const TextStyle(fontSize: 14, color: Color(0x99FFFFFF)),
         ),
 
-        const SizedBox(height: 28),
+        SizedBox(height: bottomSpacing),
       ],
     );
   }

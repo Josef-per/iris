@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
 class AppFilledButton extends StatelessWidget {
-  //parâmetros para uso
   final String text;
   final Color backgroundColor;
   final Color textColor;
   final VoidCallback? onPressed;
+  final double? width;
+  final double height;
+  final double borderRadius;
+  final double fontSize;
+  final FontWeight fontWeight;
+  final List<BoxShadow>? boxShadow;
 
   const AppFilledButton({
     super.key,
@@ -13,39 +18,49 @@ class AppFilledButton extends StatelessWidget {
     required this.backgroundColor,
     required this.textColor,
     required this.onPressed,
+    this.width = 159,
+    this.height = 48,
+    this.borderRadius = 16,
+    this.fontSize = 16,
+    this.fontWeight = FontWeight.bold,
+    this.boxShadow,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0x64000000),
-            offset: Offset(0, 4),
-            blurRadius: 4,
-          ),
-        ],
-      ),
-
-      child: FilledButton(
-        //estilizando o botãos
-        style: FilledButton.styleFrom(
-          fixedSize: const Size(159, 48),
-          backgroundColor: backgroundColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
+    return SizedBox(
+      width: width,
+      height: height,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: boxShadow ??
+              const [
+                BoxShadow(
+                  color: Color(0x64000000),
+                  offset: Offset(0, 4),
+                  blurRadius: 4,
+                ),
+              ],
         ),
-
-        onPressed: onPressed,
-        child: Text(
-          text,
-          style: TextStyle(
-            color: textColor,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+        child: FilledButton(
+          style: FilledButton.styleFrom(
+            minimumSize: Size(width ?? 0, height),
+            maximumSize: Size(double.infinity, height),
+            padding: EdgeInsets.zero,
+            backgroundColor: backgroundColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(borderRadius),
+            ),
+          ),
+          onPressed: onPressed,
+          child: Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontWeight: fontWeight,
+              fontSize: fontSize,
+            ),
           ),
         ),
       ),

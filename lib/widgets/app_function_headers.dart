@@ -6,12 +6,22 @@ class AppFunctionHeaders extends StatelessWidget {
   final VoidCallback onTap;
   final String title;
   final String subTitle;
+  final TextStyle? titleStyle;
+  final TextStyle? subTitleStyle;
+  final double iconToTitleSpacing;
+  final double titleToSubtitleSpacing;
+  final double bottomSpacing;
 
   const AppFunctionHeaders({
     super.key,
     required this.onTap,
     required this.title,
     required this.subTitle,
+    this.titleStyle,
+    this.subTitleStyle,
+    this.iconToTitleSpacing = 13,
+    this.titleToSubtitleSpacing = 7,
+    this.bottomSpacing = 28,
   });
 
   @override
@@ -20,15 +30,22 @@ class AppFunctionHeaders extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AppIconsButtons(
-          onTap: () {},
+          onTap: onTap,
           width: 22,
           height: 21,
           iconPath: 'assets/icons/VoltarArrow_white.png',
         ),
 
-        SizedBox(height: 13),
+        SizedBox(height: iconToTitleSpacing),
 
-        AppHeaders(TextTitle: title, TextSubTitle: subTitle),
+        AppHeaders(
+          TextTitle: title,
+          TextSubTitle: subTitle,
+          titleStyle: titleStyle,
+          subTitleStyle: subTitleStyle,
+          titleToSubtitleSpacing: titleToSubtitleSpacing,
+          bottomSpacing: bottomSpacing,
+        ),
       ],
     );
   }

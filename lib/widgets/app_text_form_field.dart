@@ -16,6 +16,15 @@ class AppTextFormField extends StatelessWidget {
   final TextInputType? keyboardType;
   final TextInputAction? textInputAction;
   final ValueChanged<String>? onFieldSubmitted;
+  final FontWeight labelFontWeight;
+  final double labelFontSize;
+  final double labelToFieldSpacing;
+  final double? fieldHeight;
+  final BorderSide? borderSide;
+  final BorderRadius borderRadius;
+  final EdgeInsetsGeometry contentPadding;
+  final bool isDense;
+  final bool readOnly;
 
   const AppTextFormField({
     super.key,
@@ -30,6 +39,18 @@ class AppTextFormField extends StatelessWidget {
     this.keyboardType,
     this.textInputAction,
     this.onFieldSubmitted,
+    this.labelFontWeight = FontWeight.bold,
+    this.labelFontSize = 16,
+    this.labelToFieldSpacing = 10,
+    this.fieldHeight,
+    this.borderSide,
+    this.borderRadius = const BorderRadius.all(Radius.circular(12)),
+    this.contentPadding = const EdgeInsets.symmetric(
+      horizontal: 12,
+      vertical: 12,
+    ),
+    this.isDense = false,
+    this.readOnly = false,
   });
 
   @override
@@ -42,40 +63,44 @@ class AppTextFormField extends StatelessWidget {
           labelText,
           style: TextStyle(
             color: labelColor,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+            fontSize: labelFontSize,
+            fontWeight: labelFontWeight,
           ),
         ),
 
-        const SizedBox(height: 10),
+        SizedBox(height: labelToFieldSpacing),
 
-        TextFormField(
-          controller: controller,
-          validator: validator,
-          keyboardType: keyboardType,
-          textInputAction: textInputAction,
-          onFieldSubmitted: onFieldSubmitted,
-          style: TextStyle(color: hintColor),
-          decoration: InputDecoration(
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
+        SizedBox(
+          height: fieldHeight,
+          child: TextFormField(
+            controller: controller,
+            validator: validator,
+            keyboardType: keyboardType,
+            textInputAction: textInputAction,
+            onFieldSubmitted: onFieldSubmitted,
+            readOnly: readOnly,
+            style: TextStyle(color: hintColor),
+            decoration: InputDecoration(
+              border: OutlineInputBorder(
+                borderRadius: borderRadius,
+                borderSide: borderSide ?? BorderSide.none,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: borderRadius,
+                borderSide: borderSide ?? BorderSide.none,
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: borderRadius,
+                borderSide:
+                    borderSide ?? BorderSide(color: backgroundColor, width: 2),
+              ),
+              hintText: hintText,
+              hintStyle: TextStyle(color: hintColor, fontSize: 16),
+              contentPadding: contentPadding,
+              isDense: isDense,
+              filled: true,
+              fillColor: backgroundColor,
             ),
-
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: backgroundColor, width: 2),
-            ),
-
-            hintText: hintText,
-            hintStyle: TextStyle(color: hintColor, fontSize: 16),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
-
-            filled: true,
-            fillColor: backgroundColor,
           ),
         ),
       ],

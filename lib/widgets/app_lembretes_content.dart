@@ -93,7 +93,7 @@ class AppLembretesContent extends StatelessWidget {
               ],
             ),
 
-            SizedBox(width: 70),
+            const Spacer(),
 
             AppSwitchLembretes(value: isActive, onChanged: onSwitchChanged),
 
