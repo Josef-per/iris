@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
-import 'package:iris/features/professional/professional_repository.dart';
-import 'package:iris/features/profile/profile_model.dart';
-import 'package:iris/features/profile/profile_repository.dart';
-import 'package:iris/widgets/app_responsive.dart';
+import 'package:iris/features/professional/presentation/professional_care_plan_view.dart';
+import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
+import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_notes_view.dart';
+import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
+import 'package:iris/features/professional/presentation/professional_patients_view.dart';
+import 'package:iris/features/professional/presentation/professional_settings_view.dart';
+import 'package:iris/screens/login_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfessionalHomeScreen extends StatefulWidget {
@@ -17,215 +20,203 @@ class ProfessionalHomeScreen extends StatefulWidget {
 }
 
 class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _authService = AuthService();
-  final _professionalRepository = ProfessionalRepository();
-  final _profileRepository = ProfileRepository();
-  late Future<_ProfessionalHomeData> _homeDataFuture;
 
-  @override
-  void initState() {
-    super.initState();
-    _homeDataFuture = _loadHomeData();
+  ProfessionalDestination _destination = ProfessionalDestination.dashboard;
+  ProfessionalPatient _selectedPatient = ProfessionalMockData.patients.first;
+  ProfessionalPatient? _detailPatient;
+
+  void _selectDestination(ProfessionalDestination destination) {
+    setState(() {
+      _destination = destination;
+      _detailPatient = null;
+    });
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
   }
 
-  Future<_ProfessionalHomeData> _loadHomeData() async {
-    final profile = await _profileRepository.getCurrentUserProfile();
-    final qrPayload = await _professionalRepository
-        .getCurrentProfessionalQrPayload();
-    final linkedPatients = await _professionalRepository.countLinkedPatients();
-    return _ProfessionalHomeData(
-      profile: profile,
-      qrPayload: qrPayload,
-      linkedPatients: linkedPatients,
+  void _openPatient(ProfessionalPatient patient) {
+    setState(() {
+      _selectedPatient = patient;
+      _detailPatient = patient;
+      _destination = ProfessionalDestination.patients;
+    });
+  }
+
+  void _openCarePlan([ProfessionalPatient? patient]) {
+    setState(() {
+      if (patient != null) _selectedPatient = patient;
+      _detailPatient = null;
+      _destination = ProfessionalDestination.carePlan;
+    });
+  }
+
+  Future<void> _signOut() async {
+    if (SupabaseConfig.isConfigured) {
+      await _authService.signOut();
+      return;
+    }
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
     );
   }
 
-  Future<void> _copyQrPayload(String payload) async {
-    await Clipboard.setData(ClipboardData(text: payload));
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Código de vínculo copiado.')));
+  void _showInvitePatient() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Vincular novo paciente'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Peça ao paciente para escanear este QR Code no aplicativo.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.lavender),
+                ),
+                child: QrImageView(
+                  data: 'iris:professional:demo-julia-souza',
+                  size: 210,
+                  backgroundColor: AppColors.white,
+                  eyeStyle: const QrEyeStyle(color: AppColors.ink),
+                  dataModuleStyle: const QrDataModuleStyle(
+                    color: AppColors.ink,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Código fictício para visualização do front-end.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.muted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final desktop = MediaQuery.sizeOf(context).width >= 1000;
+    final navigation = ProfessionalNavigation(
+      destination: _destination,
+      showingPatientDetail: _detailPatient != null,
+      onSelected: _selectDestination,
+      onSignOut: _signOut,
+    );
+
     return Scaffold(
-      drawer: AppResponsive.isDesktop(context)
-          ? null
-          : Drawer(
-              child: _ProfessionalNavigation(
-                onSignOut: _authService.signOut,
-                compact: false,
-              ),
-            ),
+      key: _scaffoldKey,
+      drawer: desktop ? null : Drawer(width: 292, child: navigation),
       body: Row(
         children: [
-          if (AppResponsive.isDesktop(context))
-            SizedBox(
-              width: 260,
-              child: _ProfessionalNavigation(
-                onSignOut: _authService.signOut,
-                compact: false,
-              ),
-            ),
+          if (desktop) SizedBox(width: 280, child: navigation),
           Expanded(
-            child: FutureBuilder<_ProfessionalHomeData>(
-              future: _homeDataFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return _ErrorState(
-                    message: AppErrorMessages.from(snapshot.error!),
-                    onRetry: () =>
-                        setState(() => _homeDataFuture = _loadHomeData()),
-                  );
-                }
-                return _Dashboard(
-                  data: snapshot.data!,
-                  onCopyCode: _copyQrPayload,
-                );
-              },
+            child: Column(
+              children: [
+                if (!desktop)
+                  _MobileProfessionalBar(
+                    title: _pageTitle,
+                    onMenuPressed: () =>
+                        _scaffoldKey.currentState?.openDrawer(),
+                  ),
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: KeyedSubtree(
+                      key: ValueKey(
+                        '${_destination.name}-${_detailPatient?.id ?? 'list'}',
+                      ),
+                      child: _currentView,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
-}
 
-class _Dashboard extends StatelessWidget {
-  const _Dashboard({required this.data, required this.onCopyCode});
-  final _ProfessionalHomeData data;
-  final ValueChanged<String> onCopyCode;
+  String get _pageTitle {
+    if (_detailPatient != null) return _detailPatient!.name;
+    return switch (_destination) {
+      ProfessionalDestination.dashboard => 'Visão geral',
+      ProfessionalDestination.patients => 'Pacientes',
+      ProfessionalDestination.notes => 'Anotações',
+      ProfessionalDestination.carePlan => 'Plano de cuidado',
+      ProfessionalDestination.settings => 'Configurações',
+    };
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final name = data.profile?.displayName.trim();
-    final greeting = name == null || name.isEmpty ? 'Profissional' : name;
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          pinned: true,
-          backgroundColor: AppColors.porcelain.withValues(alpha: .94),
-          surfaceTintColor: Colors.transparent,
-          title: AppResponsive.isDesktop(context)
-              ? null
-              : const Text('Painel profissional'),
-        ),
-        SliverToBoxAdapter(
-          child: AppResponsive(
-            maxWidth: 1400,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Olá, $greeting! 👋',
-                  style: Theme.of(context).textTheme.displaySmall,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Aqui está o resumo do seu acompanhamento.',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyLarge?.copyWith(color: AppColors.muted),
-                ),
-                const SizedBox(height: 32),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final count = constraints.maxWidth >= 1050
-                        ? 4
-                        : constraints.maxWidth >= 600
-                        ? 2
-                        : 1;
-                    const gap = 16.0;
-                    final width =
-                        (constraints.maxWidth - gap * (count - 1)) / count;
-                    return Wrap(
-                      spacing: gap,
-                      runSpacing: gap,
-                      children: [
-                        _MetricCard(
-                          width: width,
-                          icon: Icons.people_alt_outlined,
-                          value: '${data.linkedPatients}',
-                          label: 'Pacientes vinculados',
-                          supporting: 'Acompanhamento ativo',
-                          color: AppColors.deepPurple,
-                        ),
-                        _MetricCard(
-                          width: width,
-                          icon: Icons.qr_code_2_rounded,
-                          value: 'Ativo',
-                          label: 'Código de vínculo',
-                          supporting: 'Pronto para compartilhar',
-                          color: AppColors.purple,
-                        ),
-                        _MetricCard(
-                          width: width,
-                          icon: Icons.favorite_outline_rounded,
-                          value: 'Hoje',
-                          label: 'Última sincronização',
-                          supporting: 'Dados atualizados',
-                          color: AppColors.success,
-                        ),
-                        _MetricCard(
-                          width: width,
-                          icon: Icons.notifications_none_rounded,
-                          value: '0',
-                          label: 'Alertas pendentes',
-                          supporting: 'Tudo tranquilo',
-                          color: AppColors.danger,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 900;
-                    final qr = _QrPanel(
-                      payload: data.qrPayload,
-                      onCopy: () => onCopyCode(data.qrPayload),
-                    );
-                    final overview = const _OverviewPanel();
-                    return wide
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(flex: 6, child: overview),
-                              const SizedBox(width: 20),
-                              Expanded(flex: 4, child: qr),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              overview,
-                              const SizedBox(height: 20),
-                              qr,
-                            ],
-                          );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
+  Widget get _currentView {
+    final detailPatient = _detailPatient;
+    if (detailPatient != null) {
+      return ProfessionalPatientDetailView(
+        patient: detailPatient,
+        onBack: () => setState(() => _detailPatient = null),
+        onOpenCarePlan: () => _openCarePlan(detailPatient),
+      );
+    }
+
+    return switch (_destination) {
+      ProfessionalDestination.dashboard => ProfessionalDashboardView(
+        onOpenPatients: () =>
+            _selectDestination(ProfessionalDestination.patients),
+        onOpenPatient: _openPatient,
+      ),
+      ProfessionalDestination.patients => ProfessionalPatientsView(
+        onOpenPatient: _openPatient,
+        onInvitePatient: _showInvitePatient,
+      ),
+      ProfessionalDestination.notes => ProfessionalNotesView(
+        onOpenPatient: _openPatient,
+      ),
+      ProfessionalDestination.carePlan => ProfessionalCarePlanView(
+        initialPatient: _selectedPatient,
+        onOpenPatient: _openPatient,
+      ),
+      ProfessionalDestination.settings => const ProfessionalSettingsView(),
+    };
   }
 }
 
-class _ProfessionalNavigation extends StatelessWidget {
-  const _ProfessionalNavigation({
+class ProfessionalNavigation extends StatelessWidget {
+  const ProfessionalNavigation({
+    super.key,
+    required this.destination,
+    required this.showingPatientDetail,
+    required this.onSelected,
     required this.onSignOut,
-    required this.compact,
   });
+
+  final ProfessionalDestination destination;
+  final bool showingPatientDetail;
+  final ValueChanged<ProfessionalDestination> onSelected;
   final VoidCallback onSignOut;
-  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -233,46 +224,76 @@ class _ProfessionalNavigation extends StatelessWidget {
       decoration: const BoxDecoration(gradient: AppColors.brandGradient),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Image.asset(
-                'assets/images/Login.png',
-                width: 150,
-                height: 82,
-                fit: BoxFit.contain,
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Image.asset(
+                  'assets/images/Login.png',
+                  height: 92,
+                  fit: BoxFit.contain,
+                ),
               ),
-              const SizedBox(height: 28),
-              const _NavItem(
-                icon: Icons.dashboard_rounded,
+              const SizedBox(height: 14),
+              const Divider(color: Color(0x33FFFFFF)),
+              const SizedBox(height: 22),
+              _NavigationItem(
+                icon: Icons.dashboard_outlined,
+                selectedIcon: Icons.dashboard_rounded,
                 label: 'Visão geral',
-                selected: true,
+                selected:
+                    destination == ProfessionalDestination.dashboard &&
+                    !showingPatientDetail,
+                onTap: () => onSelected(ProfessionalDestination.dashboard),
               ),
-              const _NavItem(
+              _NavigationItem(
                 icon: Icons.people_alt_outlined,
+                selectedIcon: Icons.people_alt_rounded,
                 label: 'Pacientes',
+                selected:
+                    destination == ProfessionalDestination.patients ||
+                    showingPatientDetail,
+                onTap: () => onSelected(ProfessionalDestination.patients),
               ),
-              const _NavItem(
+              _NavigationItem(
                 icon: Icons.auto_stories_outlined,
+                selectedIcon: Icons.auto_stories_rounded,
                 label: 'Anotações',
+                selected: destination == ProfessionalDestination.notes,
+                onTap: () => onSelected(ProfessionalDestination.notes),
               ),
-              const _NavItem(
+              _NavigationItem(
                 icon: Icons.health_and_safety_outlined,
+                selectedIcon: Icons.health_and_safety_rounded,
                 label: 'Plano de cuidado',
+                selected: destination == ProfessionalDestination.carePlan,
+                onTap: () => onSelected(ProfessionalDestination.carePlan),
               ),
-              const _NavItem(
+              _NavigationItem(
                 icon: Icons.settings_outlined,
+                selectedIcon: Icons.settings_rounded,
                 label: 'Configurações',
+                selected: destination == ProfessionalDestination.settings,
+                onTap: () => onSelected(ProfessionalDestination.settings),
               ),
               const Spacer(),
               const Divider(color: Color(0x33FFFFFF)),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
+              const SizedBox(height: 14),
+              const _ProfessionalIdentity(),
+              const SizedBox(height: 14),
+              const Divider(color: Color(0x33FFFFFF)),
+              const SizedBox(height: 10),
+              TextButton.icon(
                 onPressed: onSignOut,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.white,
-                  side: const BorderSide(color: Color(0x33FFFFFF)),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.lavender.withValues(alpha: .7),
+                  alignment: Alignment.centerLeft,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
                 ),
                 icon: const Icon(Icons.logout_rounded),
                 label: const Text('Sair'),
@@ -285,124 +306,94 @@ class _ProfessionalNavigation extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
+class _NavigationItem extends StatelessWidget {
+  const _NavigationItem({
     required this.icon,
+    required this.selectedIcon,
     required this.label,
-    this.selected = false,
+    required this.selected,
+    required this.onTap,
   });
+
   final IconData icon;
+  final IconData selectedIcon;
   final String label;
   final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.white.withValues(alpha: .14) : null,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Material(
+        color: selected
+            ? AppColors.white.withValues(alpha: .15)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(14),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: AppColors.white),
-        title: Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.white,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.width,
-    required this.icon,
-    required this.value,
-    required this.label,
-    required this.supporting,
-    required this.color,
-  });
-  final double width;
-  final IconData icon;
-  final String value;
-  final String label;
-  final String supporting;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: width,
-      child: AppSurface(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: Theme.of(context).textTheme.bodyMedium),
-                  Text(value, style: Theme.of(context).textTheme.titleLarge),
-                  Text(
-                    supporting,
-                    style: TextStyle(color: color, fontSize: 12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            child: Row(
+              children: [
+                Icon(
+                  selected ? selectedIcon : icon,
+                  color: AppColors.white,
+                  size: 24,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: AppColors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _OverviewPanel extends StatelessWidget {
-  const _OverviewPanel();
+class _ProfessionalIdentity extends StatelessWidget {
+  const _ProfessionalIdentity();
 
   @override
   Widget build(BuildContext context) {
-    return AppSurface(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
         children: [
-          Text('Acesso rápido', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 8),
-          Text(
-            'Centralize o acompanhamento dos seus pacientes.',
-            style: Theme.of(context).textTheme.bodyMedium,
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Color(0x337D6AC6),
+            child: Icon(Icons.person_outline_rounded, color: AppColors.white),
           ),
-          const SizedBox(height: 24),
-          const _QuickAction(
-            icon: Icons.people_alt_outlined,
-            title: 'Gerenciar pacientes',
-            subtitle: 'Consulte vínculos e acompanhe registros recentes.',
-          ),
-          const Divider(height: 28),
-          const _QuickAction(
-            icon: Icons.note_alt_outlined,
-            title: 'Anotações clínicas',
-            subtitle: 'Organize observações importantes do acompanhamento.',
-          ),
-          const Divider(height: 28),
-          const _QuickAction(
-            icon: Icons.health_and_safety_outlined,
-            title: 'Planos de cuidado',
-            subtitle: 'Revise metas, lembretes e orientações.',
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Júlia Souza',
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Psiquiatra',
+                  style: TextStyle(color: AppColors.lavender, fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -410,129 +401,54 @@ class _OverviewPanel extends StatelessWidget {
   }
 }
 
-class _QuickAction extends StatelessWidget {
-  const _QuickAction({
-    required this.icon,
+class _MobileProfessionalBar extends StatelessWidget {
+  const _MobileProfessionalBar({
     required this.title,
-    required this.subtitle,
+    required this.onMenuPressed,
   });
-  final IconData icon;
+
   final String title;
-  final String subtitle;
+  final VoidCallback onMenuPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: AppColors.deepPurple),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      elevation: 1,
+      child: SafeArea(
+        bottom: false,
+        child: SizedBox(
+          height: 64,
+          child: Row(
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleMedium),
-              Text(subtitle, style: Theme.of(context).textTheme.bodyMedium),
-            ],
-          ),
-        ),
-        const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
-      ],
-    );
-  }
-}
-
-class _QrPanel extends StatelessWidget {
-  const _QrPanel({required this.payload, required this.onCopy});
-  final String payload;
-  final VoidCallback onCopy;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppSurface(
-      child: Column(
-        children: [
-          Text(
-            'Vincular paciente',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Peça ao paciente para escanear este código.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.lavender),
-            ),
-            child: QrImageView(
-              data: payload,
-              size: 190,
-              backgroundColor: AppColors.white,
-              eyeStyle: const QrEyeStyle(color: AppColors.ink),
-              dataModuleStyle: const QrDataModuleStyle(color: AppColors.ink),
-            ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onCopy,
-              icon: const Icon(Icons.copy_rounded),
-              label: const Text('Copiar código'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: AppResponsive(
-        maxWidth: 520,
-        child: AppSurface(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.cloud_off_rounded,
-                size: 44,
-                color: AppColors.deepPurple,
+              IconButton(
+                tooltip: 'Abrir menu',
+                onPressed: onMenuPressed,
+                icon: const Icon(Icons.menu_rounded),
               ),
-              const SizedBox(height: 16),
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: onRetry,
-                child: const Text('Tentar novamente'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
               ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Notificações',
+                onPressed: () {},
+                icon: const Badge(
+                  smallSize: 7,
+                  child: Icon(Icons.notifications_none_rounded),
+                ),
+              ),
+              const SizedBox(width: 8),
             ],
           ),
         ),
       ),
     );
   }
-}
-
-class _ProfessionalHomeData {
-  const _ProfessionalHomeData({
-    required this.profile,
-    required this.qrPayload,
-    required this.linkedPatients,
-  });
-  final Profile? profile;
-  final String qrPayload;
-  final int linkedPatients;
 }

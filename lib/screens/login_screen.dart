@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/supabase/database_tables.dart';
+import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/screens/cadastro_screen.dart';
+import 'package:iris/screens/home_screen.dart';
+import 'package:iris/screens/professional_home_screen.dart';
+import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.initialProfessional = false});
+
+  final bool initialProfessional;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -19,7 +26,14 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  late bool _isProfessional;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _isProfessional = widget.initialProfessional;
+  }
 
   @override
   void dispose() {
@@ -31,6 +45,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    if (!SupabaseConfig.isConfigured) {
+      final destination = _isProfessional
+          ? const ProfessionalHomeScreen()
+          : const HomeScreen();
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -39,6 +64,9 @@ class _LoginScreenState extends State<LoginScreen> {
       await _authService.signIn(
         email: _emailController.text,
         password: _passwordController.text,
+        expectedUserType: _isProfessional
+            ? UserTypes.profissional
+            : UserTypes.paciente,
       );
     } catch (error) {
       if (mounted) setState(() => _errorMessage = AppErrorMessages.from(error));
@@ -49,7 +77,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _openCadastro() {
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const CadastroScreen()),
+      MaterialPageRoute(
+        builder: (_) => CadastroScreen(initialProfessional: _isProfessional),
+      ),
     );
   }
 
@@ -68,10 +98,23 @@ class _LoginScreenState extends State<LoginScreen> {
               Text('Entrar', style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 8),
               Text(
-                'Acesse sua conta para continuar.',
+                _isProfessional
+                    ? 'Acesse o painel de acompanhamento profissional.'
+                    : 'Acesse sua conta para continuar.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 24),
+              Text(
+                'Como deseja entrar?',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 10),
+              AppAccountTypeSelector(
+                isProfessional: _isProfessional,
+                enabled: !_isLoading,
+                onChanged: (value) => setState(() => _isProfessional = value),
+              ),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _emailController,
                 autofillHints: const [AutofillHints.email],
@@ -129,9 +172,20 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: Text(_isLoading ? 'Entrando...' : 'Entrar'),
                 ),
               ),
+              if (!SupabaseConfig.isConfigured) ...[
+                const SizedBox(height: 10),
+                const Center(
+                  child: Text(
+                    'Modo de demonstração: os dados exibidos são fictícios.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.muted, fontSize: 12),
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Wrap(
+                alignment: WrapAlignment.center,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Text('Ainda não tem uma conta?'),
                   TextButton(

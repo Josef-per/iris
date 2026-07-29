@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/supabase/database_tables.dart';
+import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/login_screen.dart';
+import 'package:iris/screens/professional_home_screen.dart';
 import 'package:iris/screens/session_gate.dart';
+import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
 class CadastroScreen extends StatefulWidget {
-  const CadastroScreen({super.key});
+  const CadastroScreen({super.key, this.initialProfessional = false});
+
+  final bool initialProfessional;
 
   @override
   State<CadastroScreen> createState() => _CadastroScreenState();
@@ -19,10 +26,19 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   final _displayName = TextEditingController();
+  final _specialty = TextEditingController(text: 'Psiquiatria');
+  final _professionalRegistration = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
   bool _obscure = true;
+  late bool _isProfessional;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _isProfessional = widget.initialProfessional;
+  }
 
   @override
   void dispose() {
@@ -30,12 +46,25 @@ class _CadastroScreenState extends State<CadastroScreen> {
     _password.dispose();
     _confirmPassword.dispose();
     _displayName.dispose();
+    _specialty.dispose();
+    _professionalRegistration.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
+
+    if (!SupabaseConfig.isConfigured) {
+      final destination = _isProfessional
+          ? const ProfessionalHomeScreen()
+          : const HomeScreen();
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -45,6 +74,11 @@ class _CadastroScreenState extends State<CadastroScreen> {
         email: _email.text,
         password: _password.text,
         displayName: _displayName.text,
+        userType: _isProfessional ? UserTypes.profissional : UserTypes.paciente,
+        specialty: _isProfessional ? _specialty.text : null,
+        professionalRegistration: _isProfessional
+            ? _professionalRegistration.text
+            : null,
       );
       if (!mounted) return;
       if (result.needsEmailConfirmation) {
@@ -66,7 +100,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
   }
 
   void _openLogin({bool clearStack = false}) {
-    final route = MaterialPageRoute(builder: (_) => const LoginScreen());
+    final route = MaterialPageRoute(
+      builder: (_) => LoginScreen(initialProfessional: _isProfessional),
+    );
     if (clearStack) {
       Navigator.of(context).pushAndRemoveUntil(route, (_) => false);
     } else {
@@ -77,22 +113,38 @@ class _CadastroScreenState extends State<CadastroScreen> {
   @override
   Widget build(BuildContext context) {
     return AppAuthLayout(
-      title: 'Comece sua jornada.',
-      subtitle:
-          'Crie sua conta e tenha um acompanhamento mais claro, humano e conectado.',
+      title: _isProfessional
+          ? 'Cuidado conectado, decisões mais claras.'
+          : 'Comece sua jornada.',
+      subtitle: _isProfessional
+          ? 'Organize o acompanhamento dos seus pacientes em um só lugar.'
+          : 'Crie sua conta e tenha um acompanhamento mais claro, humano e conectado.',
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Criar conta',
+              _isProfessional ? 'Criar conta profissional' : 'Criar conta',
               style: Theme.of(context).textTheme.headlineMedium,
             ),
             const SizedBox(height: 8),
             Text(
-              'Leva menos de um minuto.',
+              _isProfessional
+                  ? 'Configure agora o acesso ao painel profissional.'
+                  : 'Leva menos de um minuto.',
               style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Qual perfil deseja criar?',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 10),
+            AppAccountTypeSelector(
+              isProfessional: _isProfessional,
+              enabled: !_isLoading,
+              onChanged: (value) => setState(() => _isProfessional = value),
             ),
             const SizedBox(height: 24),
             TextFormField(
@@ -106,6 +158,34 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   ? 'Informe seu nome.'
                   : null,
             ),
+            if (_isProfessional) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _specialty,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Especialidade',
+                  hintText: 'Ex.: Psiquiatria',
+                  prefixIcon: Icon(Icons.psychology_alt_outlined),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Informe sua especialidade.'
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _professionalRegistration,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Registro profissional',
+                  hintText: 'Ex.: CRM/SP 123456',
+                  prefixIcon: Icon(Icons.badge_outlined),
+                ),
+                validator: (value) => value == null || value.trim().isEmpty
+                    ? 'Informe seu registro profissional.'
+                    : null,
+              ),
+            ],
             const SizedBox(height: 16),
             TextFormField(
               controller: _email,
@@ -180,6 +260,16 @@ class _CadastroScreenState extends State<CadastroScreen> {
                 label: Text(_isLoading ? 'Criando...' : 'Criar minha conta'),
               ),
             ),
+            if (!SupabaseConfig.isConfigured) ...[
+              const SizedBox(height: 10),
+              const Center(
+                child: Text(
+                  'Modo de demonstração: nenhum dado será enviado.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.muted, fontSize: 12),
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Center(
               child: TextButton(

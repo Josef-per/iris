@@ -1,4 +1,5 @@
 import 'package:iris/core/supabase/supabase_client_provider.dart';
+import 'package:iris/features/auth/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppErrorMessages {
@@ -13,6 +14,10 @@ class AppErrorMessages {
 
     if (error is SupabaseConfigException) {
       return 'Configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no arquivo .env.';
+    }
+
+    if (error is AccountTypeMismatchException) {
+      return 'Esta conta pertence a outro perfil. Selecione “Sou paciente” ou “Sou profissional” corretamente e tente novamente.';
     }
 
     final message = error.toString().toLowerCase();

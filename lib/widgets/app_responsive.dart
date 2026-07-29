@@ -50,28 +50,31 @@ class AppSurface extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(24),
-    this.color = AppColors.white,
+    this.color,
     this.borderRadius = 24,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
-  final Color color;
+  final Color? color;
   final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: AppColors.outline),
-        boxShadow: const [
+        border: Border.all(
+          color: isDark ? const Color(0xFF443653) : AppColors.outline,
+        ),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0D28174E),
+            color: isDark ? const Color(0x26000000) : const Color(0x0D28174E),
             blurRadius: 28,
-            offset: Offset(0, 12),
+            offset: const Offset(0, 12),
           ),
         ],
       ),

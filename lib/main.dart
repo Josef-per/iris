@@ -3,7 +3,9 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/screens/login_screen.dart';
+import 'package:iris/screens/professional_home_screen.dart';
 import 'package:iris/screens/session_gate.dart';
+import 'package:iris/screens/splash_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
@@ -25,11 +27,23 @@ class IrisApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Íris',
-      theme: AppTheme.light,
-      home: SupabaseConfig.isConfigured ? const AuthGate() : LoginScreen(),
+    final professionalPreview = Uri.base.fragment == '/professional-preview';
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: AppThemeController.mode,
+      builder: (context, themeMode, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Íris',
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeMode,
+        home: professionalPreview
+            ? const ProfessionalHomeScreen()
+            : IrisSplashScreen(
+                next: SupabaseConfig.isConfigured
+                    ? const AuthGate()
+                    : const LoginScreen(),
+              ),
+      ),
     );
   }
 }

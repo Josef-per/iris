@@ -12,6 +12,14 @@ class SupabaseConfig {
       return _url;
     }
 
+    if (!dotenv.isInitialized) {
+      return '';
+    }
+
+    if (!dotenv.isInitialized) {
+      return '';
+    }
+
     return dotenv.maybeGet('SUPABASE_URL') ?? '';
   }
 
@@ -22,6 +30,14 @@ class SupabaseConfig {
 
     if (_dartDefineAnonKey.isNotEmpty) {
       return _dartDefineAnonKey;
+    }
+
+    if (!dotenv.isInitialized) {
+      return '';
+    }
+
+    if (!dotenv.isInitialized) {
+      return '';
     }
 
     return dotenv.maybeGet('SUPABASE_PUBLISHABLE_KEY') ??

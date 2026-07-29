@@ -28,7 +28,8 @@ class UserRepository {
     String? displayName,
   }) async {
     final existingType = await getCurrentUserType();
-    final userType = existingType ?? UserTypes.paciente;
+    final userType =
+        _userTypeFromMetadata(user) ?? existingType ?? UserTypes.paciente;
 
     await _upsertUsuario(user, email: email, userType: userType);
     await _ensureProfile(user.id, displayName);
@@ -39,6 +40,16 @@ class UserRepository {
     }
 
     await _ensurePatient(user.id);
+  }
+
+  Future<void> ensureForProfessionalAuthUser(
+    User user, {
+    String? email,
+    String? displayName,
+  }) async {
+    await _upsertUsuario(user, email: email, userType: UserTypes.profissional);
+    await _ensureProfile(user.id, displayName);
+    await _ensureProfessional(user.id);
   }
 
   Future<void> ensureForPatientAuthUser(
@@ -198,5 +209,19 @@ class UserRepository {
         .maybeSingle();
 
     return existing?['id'] as String?;
+  }
+
+  String? _userTypeFromMetadata(User user) {
+    final metadata = user.userMetadata;
+    final rawType = metadata?['tipo_usuario'] ?? metadata?['user_type'];
+    final userType = rawType?.toString().trim().toLowerCase();
+
+    if (userType == UserTypes.profissional) {
+      return UserTypes.profissional;
+    }
+    if (userType == UserTypes.paciente) {
+      return UserTypes.paciente;
+    }
+    return null;
   }
 }
