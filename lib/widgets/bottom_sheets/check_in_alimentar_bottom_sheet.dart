@@ -49,8 +49,8 @@ class _CheckInAlimentarBottomSheetState
               // HEADER
               // ======================
               const AppHeaders(
-                TextTitle: 'Check-in alimentar',
-                TextSubTitle: 'Registre rapidamente suas refeições',
+                textTitle: 'Check-in alimentar',
+                textSubTitle: 'Registre rapidamente suas refeições',
               ),
 
               const SizedBox(height: 16),
@@ -69,11 +69,11 @@ class _CheckInAlimentarBottomSheetState
               // BOTÃO
               // ======================
               AppAlignFilledButton(
-                TextButton: _step == CheckInStep.photo
+                textButton: _step == CheckInStep.photo
                     ? 'Tirar foto'
                     : 'Confirmar →',
-                BackgroundColor: const Color(0xFF7D6AC6),
-                TextColor: const Color(0xFFFAF9F6),
+                backgroundColor: const Color(0xFF7D6AC6),
+                textColor: const Color(0xFFFAF9F6),
                 onPressed: _step == CheckInStep.photo ? _takePhoto : _submit,
               ),
             ],

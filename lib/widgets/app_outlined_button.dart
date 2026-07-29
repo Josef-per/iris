@@ -6,6 +6,7 @@ class AppOutlinedButton extends StatelessWidget {
   final Color borderColor;
   final Color textColor;
   final VoidCallback? onPressed;
+  final double? width;
 
   const AppOutlinedButton({
     super.key,
@@ -13,24 +14,30 @@ class AppOutlinedButton extends StatelessWidget {
     required this.borderColor,
     required this.textColor,
     required this.onPressed,
+    this.width = 159,
   });
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        fixedSize: const Size(159, 48),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        side: BorderSide(width: 1, color: borderColor),
-      ),
+    return SizedBox(
+      width: width,
+      height: 48,
+      child: OutlinedButton(
+        style: OutlinedButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          side: BorderSide(width: 1, color: borderColor),
+        ),
 
-      onPressed: onPressed,
-      child: Text(
-        text,
-        style: TextStyle(
-          color: textColor,
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
+        onPressed: onPressed,
+        child: Text(
+          text,
+          style: TextStyle(
+            color: textColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
         ),
       ),
     );

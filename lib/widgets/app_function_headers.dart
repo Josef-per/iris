@@ -39,8 +39,8 @@ class AppFunctionHeaders extends StatelessWidget {
         SizedBox(height: iconToTitleSpacing),
 
         AppHeaders(
-          TextTitle: title,
-          TextSubTitle: subTitle,
+          textTitle: title,
+          textSubTitle: subTitle,
           titleStyle: titleStyle,
           subTitleStyle: subTitleStyle,
           titleToSubtitleSpacing: titleToSubtitleSpacing,

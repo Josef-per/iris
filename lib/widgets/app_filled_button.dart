@@ -34,20 +34,13 @@ class AppFilledButton extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: boxShadow ??
-              const [
-                BoxShadow(
-                  color: Color(0x64000000),
-                  offset: Offset(0, 4),
-                  blurRadius: 4,
-                ),
-              ],
+          boxShadow: boxShadow ?? const [],
         ),
         child: FilledButton(
           style: FilledButton.styleFrom(
             minimumSize: Size(width ?? 0, height),
             maximumSize: Size(double.infinity, height),
-            padding: EdgeInsets.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
             backgroundColor: backgroundColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(borderRadius),

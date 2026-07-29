@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
+import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/screens/login_screen.dart';
 import 'package:iris/screens/session_gate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,6 +27,8 @@ class IrisApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'Íris',
+      theme: AppTheme.light,
       home: SupabaseConfig.isConfigured ? const AuthGate() : LoginScreen(),
     );
   }

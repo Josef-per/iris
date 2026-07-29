@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/widgets/app_responsive.dart';
 
 class AppFunctionGradientDecoration extends StatelessWidget {
   final Widget content;
@@ -30,11 +32,7 @@ class AppFunctionGradientDecoration extends StatelessWidget {
     return Scaffold(
       body: Stack(
         children: [
-          Container(
-            width: double.infinity,
-            height: double.infinity,
-            color: const Color(0xFFFAF9F6),
-          ),
+          const ColoredBox(color: AppColors.porcelain),
           Container(
             width: double.infinity,
             height: gradientHeight,
@@ -45,14 +43,18 @@ class AppFunctionGradientDecoration extends StatelessWidget {
                 colors: gradientColors,
               ),
               borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
+                bottomLeft: Radius.circular(34),
+                bottomRight: Radius.circular(34),
               ),
             ),
           ),
           SafeArea(
             child: SingleChildScrollView(
-              child: Padding(padding: contentPadding, child: content),
+              child: AppResponsive(
+                maxWidth: 1120,
+                padding: contentPadding,
+                child: content,
+              ),
             ),
           ),
         ],

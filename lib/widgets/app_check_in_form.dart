@@ -71,17 +71,17 @@ class AppCheckInForm extends StatelessWidget {
               SizedBox(height: 20),
 
               AppTextObservacoes(
-                TextLabel: 'Como se sentiu ?',
-                TextHint: 'Adicione as suas observações aqui ...',
-                TextLinhas: 2,
+                textLabel: 'Como se sentiu ?',
+                textHint: 'Adicione as suas observações aqui ...',
+                textLines: 2,
               ),
 
               SizedBox(height: 20),
 
               AppTextObservacoes(
-                TextLabel: 'Algum alimento foi mais desafiador?',
-                TextHint: 'Adicione as suas observações aqui ...',
-                TextLinhas: 2,
+                textLabel: 'Algum alimento foi mais desafiador?',
+                textHint: 'Adicione as suas observações aqui ...',
+                textLines: 2,
               ),
             ],
           ),

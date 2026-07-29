@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/qr/professional_qr_parser.dart';
+import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_professional/patient_professional_repository.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:iris/widgets/app_responsive.dart';
 
 class QrcodeScreen extends StatefulWidget {
   const QrcodeScreen({super.key, this.onLinked});
@@ -167,125 +169,90 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
 
     return Scaffold(
       body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0XFF7D6AC6), Color(0xFF28174E)],
-          ),
-        ),
+        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
         child: SafeArea(
           child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Escaneie o QR Code do seu psiquiatra para se conectar',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFFFAF9F6),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Esse passo vincula sua conta ao profissional responsavel pelo seu acompanhamento.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFFFAF9F6),
-                    ),
-                  ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 24),
-                    Text(
-                      _errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFFFFD6D6),
-                        fontWeight: FontWeight.bold,
+            child: SingleChildScrollView(
+              child: AppResponsive(
+                maxWidth: 560,
+                child: AppSurface(
+                  padding: const EdgeInsets.all(28),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          color: AppColors.lavender.withValues(alpha: .7),
+                          borderRadius: BorderRadius.circular(22),
+                        ),
+                        child: const Icon(
+                          Icons.qr_code_scanner_rounded,
+                          size: 36,
+                          color: AppColors.deepPurple,
+                        ),
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 32),
-                  if (_supportsCameraScanner)
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        onPressed: _isLinking ? null : _openScanner,
-                        style: OutlinedButton.styleFrom(
-                          fixedSize: const Size(double.infinity, 48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Conecte-se ao seu profissional',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Escaneie o QR Code fornecido pelo profissional responsável pelo seu acompanhamento.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (_errorMessage != null) ...[
+                        const SizedBox(height: 24),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.danger.withValues(alpha: .08),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          side: const BorderSide(
-                            width: 1,
-                            color: Color(0xFFFAF9F6),
+                          child: Text(
+                            _errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: AppColors.danger),
                           ),
                         ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Image.asset(
-                              'assets/icons/Qr-code_white.png',
-                              width: 24,
-                              height: 24,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
+                      ],
+                      const SizedBox(height: 28),
+                      if (_supportsCameraScanner)
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: _isLinking ? null : _openScanner,
+                            icon: const Icon(Icons.center_focus_strong_rounded),
+                            label: Text(
                               _isLinking ? 'Vinculando...' : 'Escanear QR Code',
-                              style: const TextStyle(
-                                color: Color(0xFFFAF9F6),
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
                             ),
-                          ],
+                          ),
+                        ),
+                      if (_supportsCameraScanner) const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _isLinking ? null : _showManualEntryDialog,
+                          child: Text(
+                            _supportsCameraScanner
+                                ? 'Inserir código manualmente'
+                                : 'Inserir código do QR Code',
+                          ),
                         ),
                       ),
-                    ),
-                  if (_supportsCameraScanner) const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: _isLinking ? null : _showManualEntryDialog,
-                      style: OutlinedButton.styleFrom(
-                        fixedSize: const Size(double.infinity, 48),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        side: const BorderSide(
-                          width: 1,
-                          color: Color(0xFFFAF9F6),
-                        ),
+                      const SizedBox(height: 14),
+                      TextButton(
+                        onPressed: _isLinking ? null : _signOut,
+                        child: const Text('Sair da conta'),
                       ),
-                      child: Text(
-                        _supportsCameraScanner
-                            ? 'Inserir codigo manualmente'
-                            : 'Inserir codigo do QR Code',
-                        style: const TextStyle(
-                          color: Color(0xFFFAF9F6),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                  TextButton(
-                    onPressed: _isLinking ? null : _signOut,
-                    child: const Text(
-                      'Sair da conta',
-                      style: TextStyle(color: Color(0xFFFAF9F6)),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

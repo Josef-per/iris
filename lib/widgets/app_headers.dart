@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 class AppHeaders extends StatelessWidget {
-  final String TextTitle;
-  final String TextSubTitle;
+  final String textTitle;
+  final String textSubTitle;
   final TextStyle? titleStyle;
   final TextStyle? subTitleStyle;
   final double titleToSubtitleSpacing;
@@ -10,8 +10,8 @@ class AppHeaders extends StatelessWidget {
 
   const AppHeaders({
     super.key,
-    required this.TextTitle,
-    required this.TextSubTitle,
+    required this.textTitle,
+    required this.textSubTitle,
     this.titleStyle,
     this.subTitleStyle,
     this.titleToSubtitleSpacing = 7,
@@ -24,7 +24,7 @@ class AppHeaders extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          TextTitle,
+          textTitle,
           style:
               titleStyle ??
               const TextStyle(
@@ -37,7 +37,7 @@ class AppHeaders extends StatelessWidget {
         SizedBox(height: titleToSubtitleSpacing),
 
         Text(
-          TextSubTitle,
+          textSubTitle,
           style:
               subTitleStyle ??
               const TextStyle(fontSize: 14, color: Color(0x99FFFFFF)),

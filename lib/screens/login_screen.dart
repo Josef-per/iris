@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/screens/cadastro_screen.dart';
-import 'package:iris/widgets/app_filled_button.dart';
-import 'package:iris/widgets/app_outlined_button.dart';
-import 'package:iris/widgets/app_text_form_field.dart';
-import 'package:iris/widgets/app_text_form_field_password.dart';
+import 'package:iris/widgets/app_auth_layout.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,8 +17,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _authService = AuthService();
-
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
@@ -32,35 +30,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _submit() async {
     FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
       await _authService.signIn(
         email: _emailController.text,
         password: _passwordController.text,
       );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _errorMessage = AppErrorMessages.from(error);
-      });
+      if (mounted) setState(() => _errorMessage = AppErrorMessages.from(error));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -72,119 +55,92 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Color(0XFF7D6AC6), Color(0xFF28174E)],
-          ),
-        ),
-        width: double.infinity,
-        height: double.infinity,
-        child: SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return AppAuthLayout(
+      title: 'Bem-vindo de volta.',
+      subtitle:
+          'Seu espaço seguro para acompanhar hábitos, emoções e progresso com mais leveza.',
+      child: Form(
+        key: _formKey,
+        child: AutofillGroup(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Entrar', style: Theme.of(context).textTheme.headlineMedium),
+              const SizedBox(height: 8),
+              Text(
+                'Acesse sua conta para continuar.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 28),
+              TextFormField(
+                controller: _emailController,
+                autofillHints: const [AutofillHints.email],
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'E-mail',
+                  hintText: 'seuemail@email.com',
+                  prefixIcon: Icon(Icons.mail_outline_rounded),
+                ),
+                validator: _validateEmail,
+              ),
+              const SizedBox(height: 18),
+              TextFormField(
+                controller: _passwordController,
+                autofillHints: const [AutofillHints.password],
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => _submit(),
+                decoration: InputDecoration(
+                  labelText: 'Senha',
+                  prefixIcon: const Icon(Icons.lock_outline_rounded),
+                  suffixIcon: IconButton(
+                    tooltip: _obscurePassword
+                        ? 'Mostrar senha'
+                        : 'Ocultar senha',
+                    onPressed: () =>
+                        setState(() => _obscurePassword = !_obscurePassword),
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                    ),
+                  ),
+                ),
+                validator: (value) => value == null || value.isEmpty
+                    ? 'Informe sua senha.'
+                    : null,
+              ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 16),
+                _ErrorBanner(message: _errorMessage!),
+              ],
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: _isLoading ? null : _submit,
+                  icon: _isLoading
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.arrow_forward_rounded),
+                  label: Text(_isLoading ? 'Entrando...' : 'Entrar'),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Center(
-                    child: Column(
-                      children: [
-                        Image.asset(
-                          'assets/images/Login.png',
-                          width: 270,
-                          height: 129,
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Seu espaço de bem-estar e autocuidado',
-                          style: TextStyle(
-                            color: Color(0xFFFAF9F6),
-                            fontSize: 20,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AppFilledButton(
-                        text: 'Login',
-                        backgroundColor: const Color(0xFFFAF9F6),
-                        textColor: const Color(0xFF28174E),
-                        onPressed: _isLoading ? null : () {},
-                      ),
-                      const SizedBox(width: 8),
-                      AppOutlinedButton(
-                        text: 'Criar Conta',
-                        borderColor: const Color(0xFFFAF9F6),
-                        textColor: const Color(0xFFFAF9F6),
-                        onPressed: _isLoading ? null : _openCadastro,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 45),
-                  Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        AppTextFormField(
-                          controller: _emailController,
-                          labelText: 'Email',
-                          labelColor: const Color(0xFFFAF9F6),
-                          hintColor: const Color(0xFF28174E),
-                          hintText: 'seuemail@email.com',
-                          backgroundColor: const Color(0xFFFAF9F6),
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          validator: _validateEmail,
-                        ),
-                        const SizedBox(height: 20),
-                        AppTextFormFieldPassword(
-                          controller: _passwordController,
-                          labelText: 'Senha',
-                          labelColor: const Color(0xFFFAF9F6),
-                          hintColor: const Color(0xFF28174E),
-                          hintText: '',
-                          backgroundColor: const Color(0xFFFAF9F6),
-                          imageDirectory: 'assets/icons/Eye_Purple.png',
-                          textInputAction: TextInputAction.done,
-                          validator: _validatePassword,
-                          onFieldSubmitted: (_) => _submit(),
-                        ),
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: 20),
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFFFFD6D6),
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                        const SizedBox(height: 35),
-                        SizedBox(
-                          width: double.infinity,
-                          child: AppOutlinedButton(
-                            text: _isLoading ? 'Entrando...' : 'Entrar',
-                            borderColor: const Color(0xFFFAF9F6),
-                            textColor: const Color(0xFFFAF9F6),
-                            onPressed: _isLoading ? null : _submit,
-                          ),
-                        ),
-                      ],
-                    ),
+                  const Text('Ainda não tem uma conta?'),
+                  TextButton(
+                    onPressed: _isLoading ? null : _openCadastro,
+                    child: const Text('Criar conta'),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
         ),
       ),
@@ -193,23 +149,26 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
-
-    if (email.isEmpty) {
-      return 'Informe seu email.';
-    }
-
-    if (!email.contains('@')) {
-      return 'Informe um email válido.';
-    }
-
+    if (email.isEmpty) return 'Informe seu e-mail.';
+    if (!email.contains('@')) return 'Informe um e-mail válido.';
     return null;
   }
+}
 
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Informe sua senha.';
-    }
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+  final String message;
 
-    return null;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.danger.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(message, style: const TextStyle(color: AppColors.danger)),
+    );
   }
 }

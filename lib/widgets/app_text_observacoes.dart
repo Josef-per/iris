@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
 class AppTextObservacoes extends StatelessWidget {
-  final String TextLabel;
-  final String TextHint;
-  final int TextLinhas;
+  final String textLabel;
+  final String textHint;
+  final int textLines;
 
   const AppTextObservacoes({
     super.key,
-    required this.TextLabel,
-    required this.TextHint,
-    required this.TextLinhas,
+    required this.textLabel,
+    required this.textHint,
+    required this.textLines,
   });
 
   @override
@@ -18,7 +18,7 @@ class AppTextObservacoes extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          TextLabel,
+          textLabel,
           style: TextStyle(
             color: const Color(0xFF462A7E),
             fontSize: 17,
@@ -54,9 +54,9 @@ class AppTextObservacoes extends StatelessWidget {
               const SizedBox(height: 10),
 
               TextFormField(
-                maxLines: TextLinhas,
+                maxLines: textLines,
                 decoration: InputDecoration(
-                  hintText: TextHint,
+                  hintText: textHint,
                   hintStyle: const TextStyle(
                     color: Color(0xFF2D175E),
                     fontSize: 16,

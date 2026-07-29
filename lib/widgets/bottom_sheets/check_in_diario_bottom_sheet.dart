@@ -177,8 +177,8 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     const AppHeaders(
-                      TextTitle: 'Check-in diário',
-                      TextSubTitle:
+                      textTitle: 'Check-in diário',
+                      textSubTitle:
                           'Registre seus pensamentos, emoções e experiências do dia',
                     ),
                     const SizedBox(height: 19),
@@ -313,9 +313,9 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                     ],
                     const SizedBox(height: 24),
                     AppAlignFilledButton(
-                      TextButton: _isLoading ? 'Salvando...' : 'Confirmar ->',
-                      BackgroundColor: const Color(0xFF7D6AC6),
-                      TextColor: const Color(0xFFFAF9F6),
+                      textButton: _isLoading ? 'Salvando...' : 'Confirmar ->',
+                      backgroundColor: const Color(0xFF7D6AC6),
+                      textColor: const Color(0xFFFAF9F6),
                       onPressed: _submit,
                     ),
                   ],

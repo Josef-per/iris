@@ -33,6 +33,42 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script>
+    // Some remote browser previews expose POSIX locale names such as
+    // "en-US@posix", which are not valid BCP 47 language tags. Flutter reads
+    // these values before main() and otherwise fails with a blank screen.
+    (() => {
+      const fallbackLocale = 'pt-BR';
+      const normalizeLocale = (locale) => {
+        if (typeof locale !== 'string' || locale.length === 0) {
+          return fallbackLocale;
+        }
+
+        const normalized = locale
+          .split('.')[0]
+          .split('@')[0]
+          .replaceAll('_', '-');
+
+        try {
+          return Intl.getCanonicalLocales(normalized)[0] || fallbackLocale;
+        } catch (_) {
+          return fallbackLocale;
+        }
+      };
+
+      const language = normalizeLocale(navigator.language);
+      const languages = (navigator.languages || [language]).map(normalizeLocale);
+
+      Object.defineProperty(navigator, 'language', {
+        configurable: true,
+        get: () => language,
+      });
+      Object.defineProperty(navigator, 'languages', {
+        configurable: true,
+        get: () => languages,
+      });
+    })();
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
@@ -41,6 +77,8 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <!-- Required by the passkeys_web plugin pulled in by supabase_flutter. -->
+  <script src="passkeys_bundle.js" type="application/javascript"></script>
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

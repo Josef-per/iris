@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iris/widgets/app_time_picker.dart';
 
 class AppCheckInImageTimePicker extends StatelessWidget {
+  const AppCheckInImageTimePicker({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Column(

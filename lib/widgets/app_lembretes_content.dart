@@ -27,21 +27,15 @@ class AppLembretesContent extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Color(0x64000000),
-            blurRadius: 6,
-            offset: Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE5DFEB)),
       ),
 
-      width: 345,
-      height: 64,
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 72),
 
       child: Padding(
-        padding: EdgeInsets.all(10),
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
             //icone custom para cada tipo
@@ -50,54 +44,56 @@ class AppLembretesContent extends StatelessWidget {
                 gradient: LinearGradient(
                   colors: [gradientIconColor1, gradientIconColor2],
                 ),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
               ),
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               child: Image.asset(iconPath, width: 25, height: 25),
             ),
 
-            SizedBox(width: 10),
+            const SizedBox(width: 12),
 
             //Nome e horário
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  textName,
-                  style: TextStyle(
-                    color: const Color(0xFF000000),
-                    fontSize: 16,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    textName,
+                    style: const TextStyle(
+                      color: Color(0xFF000000),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
 
-                SizedBox(height: 2),
+                  const SizedBox(height: 2),
 
-                Row(
-                  children: [
-                    Image.asset(
-                      'assets/icons/Time_purple.png',
-                      width: 10,
-                      height: 10,
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      textTime,
-                      style: TextStyle(
-                        color: const Color(0xFF8D80C2),
-                        fontSize: 12,
+                  Row(
+                    children: [
+                      Image.asset(
+                        'assets/icons/Time_purple.png',
+                        width: 10,
+                        height: 10,
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                      const SizedBox(width: 4),
+                      Text(
+                        textTime,
+                        style: const TextStyle(
+                          color: Color(0xFF8D80C2),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-
-            const Spacer(),
 
             AppSwitchLembretes(value: isActive, onChanged: onSwitchChanged),
 
-            SizedBox(width: 10),
+            const SizedBox(width: 8),
 
             //btn lixo
             AppIconsButtons(

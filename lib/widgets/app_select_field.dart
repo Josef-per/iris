@@ -33,10 +33,7 @@ class AppSelectField extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(valueText, style: const TextStyle(color: Color(0xFF53418A))),
-              const Icon(
-                Icons.keyboard_arrow_down,
-                color: Color(0xFF28174E),
-              ),
+              const Icon(Icons.keyboard_arrow_down, color: Color(0xFF28174E)),
             ],
           ),
         ),
