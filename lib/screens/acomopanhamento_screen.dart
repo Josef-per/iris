@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/widgets/app_acompanhamento_date_picker.dart';
+import 'package:iris/widgets/app_acompanhamento_graficos.dart';
+import 'package:iris/widgets/app_acompanhamento_linha_tempo_card.dart';
+import 'package:iris/widgets/app_acompanhamento_linha_tempo_decorator.dart';
 import 'package:iris/widgets/app_acompanhamento_registro_card.dart';
 import 'package:iris/widgets/app_function_gradient_decoration.dart';
 import 'package:iris/widgets/app_function_headers.dart';
@@ -22,34 +26,29 @@ class AcompanhamentoScreen extends StatelessWidget {
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 340),
-          child: const Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AppFunctionHeaders(
-                onTap: _doNothing,
-                title: 'Histórico',
-                subTitle: 'Acompanhe a sua jornada',
-                bottomSpacing: 36,
+          child: AppFunctionHeaders(
+            onTap: _doNothing,
+            title: 'Histórico',
+            subTitle: 'Acompanhe a sua jornada',
+            bottomSpacing: 36,
+            acompanhamentoItems: [
+              AppNavAcompanhamentoItem(
+                label: 'Calendário',
+                iconPath: 'assets/icons/Calendario_white.png',
               ),
-              AppNavAcompanhamentoBar(
-                items: [
-                  AppNavAcompanhamentoItem(
-                    label: 'Calendário',
-                    iconPath: 'assets/icons/Calendario_white.png',
-                    isSelected: true,
-                  ),
-                  AppNavAcompanhamentoItem(
-                    label: 'Gráficos',
-                    iconPath: 'assets/icons/Grafico_purple.png',
-                  ),
-                  AppNavAcompanhamentoItem(
-                    label: 'Linha do\ntempo',
-                    iconPath: 'assets/icons/LinhaTempo_purple.png',
-                  ),
-                ],
+              AppNavAcompanhamentoItem(
+                label: 'Gráficos',
+                iconPath: 'assets/icons/Grafico_purple.png',
               ),
-              SizedBox(height: 34),
+              AppNavAcompanhamentoItem(
+                label: 'Linha do\ntempo',
+                iconPath: 'assets/icons/LinhaTempo_purple.png',
+              ),
+            ],
+            acompanhamentoContents: [
               _AcompanhamentoCalendarSection(),
+              AppAcompanhamentoGraficos(),
+              _AcompanhamentoLinhaTempoSection(),
             ],
           ),
         ),
@@ -99,6 +98,88 @@ class _AcompanhamentoCalendarSection extends StatelessWidget {
           AppAcompanhamentoRegistroCard(title: 'Diário'),
           SizedBox(height: 20),
           AppAcompanhamentoRegistroCard(title: 'Refeição'),
+        ],
+      ),
+    );
+  }
+}
+
+class _AcompanhamentoLinhaTempoSection extends StatelessWidget {
+  const _AcompanhamentoLinhaTempoSection();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(26, 21, 20, 20),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x1F28174E),
+            blurRadius: 7,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Linha do Tempo',
+            style: TextStyle(
+              color: AppColors.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(height: 31),
+          SizedBox(
+            height: 350,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: AppAcompanhamentoLinhaTempoDecorator(
+                    markerOffsets: <double>[13, 135, 257],
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.only(left: 34),
+                  child: Column(
+                    children: [
+                      SizedBox(
+                        height: 90,
+                        child: AppAcompanhamentoLinhaTempoCard(
+                          dateTime: '09/09/2026 · 14:30',
+                          title: 'Almoço',
+                          description: 'Possível descrição do que foi feito',
+                        ),
+                      ),
+                      SizedBox(height: 32),
+                      SizedBox(
+                        height: 90,
+                        child: AppAcompanhamentoLinhaTempoCard(
+                          dateTime: '09/09/2026 · 10:15',
+                          title: 'Check-in Rápido',
+                          description: 'Humor: MB, Alimentação: B',
+                        ),
+                      ),
+                      SizedBox(height: 32),
+                      SizedBox(
+                        height: 106,
+                        child: AppAcompanhamentoLinhaTempoCard(
+                          dateTime: '08/09/2026 · 19:45',
+                          title: 'Exercício de respiração',
+                          description:
+                              'Usei o Exercício de sla qual que vai estar disponível',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
