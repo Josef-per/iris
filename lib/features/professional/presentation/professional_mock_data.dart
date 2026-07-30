@@ -31,6 +31,34 @@ class ProfessionalPatient {
   final String birthDate;
   final String nextAppointment;
 
+  ProfessionalPatient copyWith({
+    String? id,
+    String? name,
+    int? age,
+    String? diagnosis,
+    String? lastActivity,
+    PatientStatus? status,
+    String? mood,
+    String? email,
+    String? phone,
+    String? birthDate,
+    String? nextAppointment,
+  }) {
+    return ProfessionalPatient(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      age: age ?? this.age,
+      diagnosis: diagnosis ?? this.diagnosis,
+      lastActivity: lastActivity ?? this.lastActivity,
+      status: status ?? this.status,
+      mood: mood ?? this.mood,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      birthDate: birthDate ?? this.birthDate,
+      nextAppointment: nextAppointment ?? this.nextAppointment,
+    );
+  }
+
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
     if (parts.length == 1) return parts.first.characters.first.toUpperCase();
@@ -63,6 +91,20 @@ class ProfessionalMedication {
   final String dose;
   final String frequency;
   final double adherence;
+
+  ProfessionalMedication copyWith({
+    String? name,
+    String? dose,
+    String? frequency,
+    double? adherence,
+  }) {
+    return ProfessionalMedication(
+      name: name ?? this.name,
+      dose: dose ?? this.dose,
+      frequency: frequency ?? this.frequency,
+      adherence: adherence ?? this.adherence,
+    );
+  }
 }
 
 class ProfessionalRecord {

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
@@ -8,10 +10,12 @@ enum _PatientFilter { all, active, inactive }
 class ProfessionalPatientsView extends StatefulWidget {
   const ProfessionalPatientsView({
     super.key,
+    required this.store,
     required this.onOpenPatient,
     required this.onInvitePatient,
   });
 
+  final ProfessionalFrontendStore store;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
   final VoidCallback onInvitePatient;
 
@@ -32,7 +36,7 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
 
   List<ProfessionalPatient> get _filteredPatients {
     final query = _searchController.text.trim().toLowerCase();
-    return ProfessionalMockData.patients.where((patient) {
+    return widget.store.patients.where((patient) {
       final matchesQuery =
           query.isEmpty ||
           patient.name.toLowerCase().contains(query) ||
@@ -54,15 +58,40 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
         children: [
           ProfessionalGradientHeader(
             title: 'Meus pacientes',
-            subtitle: '${ProfessionalMockData.patients.length} pacientes',
-            action: FilledButton.icon(
-              onPressed: widget.onInvitePatient,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.white.withValues(alpha: .16),
-                foregroundColor: AppColors.white,
-              ),
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text('Vincular paciente'),
+            subtitle: '${widget.store.patients.length} pacientes',
+            action: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: widget.onInvitePatient,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.white,
+                    side: const BorderSide(color: AppColors.white),
+                  ),
+                  icon: const Icon(Icons.qr_code_rounded),
+                  label: const Text('QR Code'),
+                ),
+                FilledButton.icon(
+                  key: const Key('professional-add-patient'),
+                  onPressed: () async {
+                    final saved = await showProfessionalPatientForm(
+                      context,
+                      widget.store,
+                    );
+                    if (!saved || !context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Paciente adicionado.')),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.deepPurple,
+                  ),
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Novo paciente'),
+                ),
+              ],
             ),
           ),
           ProfessionalPage(
@@ -148,6 +177,18 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                       child: _PatientCard(
                         patient: patient,
                         onTap: () => widget.onOpenPatient(patient),
+                        onEdit: () => showProfessionalPatientForm(
+                          context,
+                          widget.store,
+                          patient: patient,
+                        ),
+                        onToggleStatus: () => widget.store.updatePatient(
+                          patient.copyWith(
+                            status: patient.status == PatientStatus.active
+                                ? PatientStatus.inactive
+                                : PatientStatus.active,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -199,10 +240,17 @@ class _FilterButton extends StatelessWidget {
 }
 
 class _PatientCard extends StatelessWidget {
-  const _PatientCard({required this.patient, required this.onTap});
+  const _PatientCard({
+    required this.patient,
+    required this.onTap,
+    required this.onEdit,
+    required this.onToggleStatus,
+  });
 
   final ProfessionalPatient patient;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -276,9 +324,10 @@ class _PatientCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     PatientStatusBadge(status: patient.status),
                     const Spacer(),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppColors.muted,
+                    _PatientActions(
+                      patient: patient,
+                      onEdit: onEdit,
+                      onToggleStatus: onToggleStatus,
                     ),
                   ],
                 ),
@@ -299,9 +348,67 @@ class _PatientCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(width: 16),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+                _PatientActions(
+                  patient: patient,
+                  onEdit: onEdit,
+                  onToggleStatus: onToggleStatus,
+                ),
               ],
             ),
+    );
+  }
+}
+
+enum _PatientAction { edit, toggleStatus }
+
+class _PatientActions extends StatelessWidget {
+  const _PatientActions({
+    required this.patient,
+    required this.onEdit,
+    required this.onToggleStatus,
+  });
+
+  final ProfessionalPatient patient;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_PatientAction>(
+      tooltip: 'Ações do paciente',
+      onSelected: (action) {
+        switch (action) {
+          case _PatientAction.edit:
+            onEdit();
+          case _PatientAction.toggleStatus:
+            onToggleStatus();
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: _PatientAction.edit,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.edit_outlined),
+            title: Text('Editar'),
+          ),
+        ),
+        PopupMenuItem(
+          value: _PatientAction.toggleStatus,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              patient.status == PatientStatus.active
+                  ? Icons.pause_circle_outline_rounded
+                  : Icons.play_circle_outline_rounded,
+            ),
+            title: Text(
+              patient.status == PatientStatus.active ? 'Inativar' : 'Ativar',
+            ),
+          ),
+        ),
+      ],
+      icon: const Icon(Icons.more_vert_rounded, color: AppColors.muted),
     );
   }
 }

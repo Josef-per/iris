@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 class ProfessionalDashboardView extends StatelessWidget {
   const ProfessionalDashboardView({
     super.key,
+    required this.store,
     required this.onOpenPatients,
     required this.onOpenPatient,
   });
 
+  final ProfessionalFrontendStore store;
   final VoidCallback onOpenPatients;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
 
@@ -22,21 +26,35 @@ class ProfessionalDashboardView extends StatelessWidget {
           children: [
             ProfessionalPageHeader(
               title: 'Olá, Dra. Júlia! 👋',
-              subtitle: 'Verifique o resumo do seu dia.',
-              action: OutlinedButton.icon(
-                onPressed: onOpenPatients,
-                icon: const Icon(Icons.people_alt_outlined),
-                label: const Text('Ver pacientes'),
+              subtitle: 'Resumo do dia',
+              action: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onOpenPatients,
+                    icon: const Icon(Icons.people_alt_outlined),
+                    label: const Text('Pacientes'),
+                  ),
+                  FilledButton.icon(
+                    key: const Key('professional-add-appointment'),
+                    onPressed: () =>
+                        showProfessionalAppointmentForm(context, store),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Nova consulta'),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 30),
-            const _MetricsGrid(),
+            _MetricsGrid(store: store),
             const SizedBox(height: 30),
             LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 940;
                 final calendar = const _CalendarPanel();
                 final appointments = _AppointmentsPanel(
+                  store: store,
                   onOpenPatient: onOpenPatient,
                   onOpenPatients: onOpenPatients,
                 );
@@ -67,7 +85,9 @@ class ProfessionalDashboardView extends StatelessWidget {
 }
 
 class _MetricsGrid extends StatelessWidget {
-  const _MetricsGrid();
+  const _MetricsGrid({required this.store});
+
+  final ProfessionalFrontendStore store;
 
   @override
   Widget build(BuildContext context) {
@@ -88,16 +108,19 @@ class _MetricsGrid extends StatelessWidget {
               width: width,
               icon: Icons.calendar_month_outlined,
               title: 'Consultas hoje',
-              value: '5',
-              supporting: 'Próxima: 14:00',
+              value: '${store.appointments.length}',
+              supporting: store.appointments.isEmpty
+                  ? 'Sem consultas'
+                  : 'Próxima: ${store.appointments.first.time}',
               color: AppColors.deepPurple,
             ),
             _MetricCard(
               width: width,
               icon: Icons.sentiment_satisfied_alt_rounded,
               title: 'Pacientes ativos',
-              value: '28',
-              supporting: '+2 novos este mês',
+              value:
+                  '${store.patients.where((patient) => patient.status == PatientStatus.active).length}',
+              supporting: '${store.patients.length} no total',
               color: AppColors.success,
             ),
             _MetricCard(
@@ -214,25 +237,28 @@ class _CalendarPanel extends StatelessWidget {
 
 class _AppointmentsPanel extends StatelessWidget {
   const _AppointmentsPanel({
+    required this.store,
     required this.onOpenPatient,
     required this.onOpenPatients,
   });
 
+  final ProfessionalFrontendStore store;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
   final VoidCallback onOpenPatients;
 
   @override
   Widget build(BuildContext context) {
-    final appointments = ProfessionalMockData.appointments;
+    final appointments = store.appointments;
     return ProfessionalPanel(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
       child: Column(
         children: [
           ProfessionalSectionTitle(
             title: 'Próximas consultas',
-            trailing: TextButton(
-              onPressed: onOpenPatients,
-              child: const Text('Ver agenda completa'),
+            trailing: IconButton.filledTonal(
+              tooltip: 'Nova consulta',
+              onPressed: () => showProfessionalAppointmentForm(context, store),
+              icon: const Icon(Icons.add_rounded),
             ),
           ),
           const SizedBox(height: 10),
@@ -240,12 +266,19 @@ class _AppointmentsPanel extends StatelessWidget {
             (appointment) => _AppointmentRow(
               appointment: appointment,
               onTap: () => onOpenPatient(appointment.patient),
+              onRemove: () async {
+                final confirmed = await showProfessionalDeleteConfirmation(
+                  context,
+                  item: '${appointment.patient.name} às ${appointment.time}',
+                );
+                if (confirmed) store.removeAppointment(appointment);
+              },
             ),
           ),
           const SizedBox(height: 4),
           TextButton(
             onPressed: onOpenPatients,
-            child: const Text('Ver mais consultas'),
+            child: const Text('Ver pacientes'),
           ),
         ],
       ),
@@ -254,10 +287,15 @@ class _AppointmentsPanel extends StatelessWidget {
 }
 
 class _AppointmentRow extends StatelessWidget {
-  const _AppointmentRow({required this.appointment, required this.onTap});
+  const _AppointmentRow({
+    required this.appointment,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   final ProfessionalAppointment appointment;
   final VoidCallback onTap;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -303,17 +341,30 @@ class _AppointmentRow extends StatelessWidget {
               ),
             ),
             if (!compact)
-              FilledButton.tonalIcon(
+              FilledButton.tonal(
                 onPressed: onTap,
-                icon: const Icon(Icons.calendar_today_outlined, size: 15),
-                label: const Text('Ver detalhes'),
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-              )
-            else
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+                child: const Text('Abrir'),
+              ),
+            PopupMenuButton<String>(
+              tooltip: 'Ações da consulta',
+              onSelected: (value) {
+                if (value == 'remove') onRemove();
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'remove',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.delete_outline_rounded),
+                    title: Text('Remover'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

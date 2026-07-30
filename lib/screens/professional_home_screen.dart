@@ -4,6 +4,7 @@ import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/professional/presentation/professional_care_plan_view.dart';
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_notes_view.dart';
 import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
@@ -22,10 +23,21 @@ class ProfessionalHomeScreen extends StatefulWidget {
 class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _authService = AuthService();
+  final _store = ProfessionalFrontendStore.seeded();
+  final _notifications = <String>[
+    'Consulta com Ana Paula às 14:00',
+    'Carlos está há 24h sem check-in',
+  ];
 
   ProfessionalDestination _destination = ProfessionalDestination.dashboard;
   ProfessionalPatient _selectedPatient = ProfessionalMockData.patients.first;
   ProfessionalPatient? _detailPatient;
+
+  @override
+  void dispose() {
+    _store.dispose();
+    super.dispose();
+  }
 
   void _selectDestination(ProfessionalDestination destination) {
     setState(() {
@@ -76,7 +88,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Peça ao paciente para escanear este QR Code no aplicativo.',
+                'Peça ao paciente para escanear o QR Code.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
@@ -98,12 +110,6 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'Código fictício para visualização do front-end.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.muted, fontSize: 12),
-              ),
             ],
           ),
         ),
@@ -113,6 +119,47 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
             child: const Text('Fechar'),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _showNotifications() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Notificações'),
+          content: SizedBox(
+            width: 420,
+            child: _notifications.isEmpty
+                ? const Text('Nenhuma notificação.')
+                : Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final notification in _notifications)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: const Icon(Icons.notifications_none_rounded),
+                          title: Text(notification),
+                        ),
+                    ],
+                  ),
+          ),
+          actions: [
+            if (_notifications.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  setState(_notifications.clear);
+                  setDialogState(() {});
+                },
+                child: const Text('Marcar como lidas'),
+              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -139,17 +186,22 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (!desktop)
                   _MobileProfessionalBar(
                     title: _pageTitle,
+                    notificationCount: _notifications.length,
                     onMenuPressed: () =>
                         _scaffoldKey.currentState?.openDrawer(),
+                    onNotificationsPressed: _showNotifications,
                   ),
                 Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 180),
-                    child: KeyedSubtree(
-                      key: ValueKey(
-                        '${_destination.name}-${_detailPatient?.id ?? 'list'}',
+                  child: ListenableBuilder(
+                    listenable: _store,
+                    builder: (context, _) => AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: KeyedSubtree(
+                        key: ValueKey(
+                          '${_destination.name}-${_detailPatient?.id ?? 'list'}',
+                        ),
+                        child: _currentView,
                       ),
-                      child: _currentView,
                     ),
                   ),
                 ),
@@ -176,6 +228,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     final detailPatient = _detailPatient;
     if (detailPatient != null) {
       return ProfessionalPatientDetailView(
+        store: _store,
         patient: detailPatient,
         onBack: () => setState(() => _detailPatient = null),
         onOpenCarePlan: () => _openCarePlan(detailPatient),
@@ -184,22 +237,28 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
     return switch (_destination) {
       ProfessionalDestination.dashboard => ProfessionalDashboardView(
+        store: _store,
         onOpenPatients: () =>
             _selectDestination(ProfessionalDestination.patients),
         onOpenPatient: _openPatient,
       ),
       ProfessionalDestination.patients => ProfessionalPatientsView(
+        store: _store,
         onOpenPatient: _openPatient,
         onInvitePatient: _showInvitePatient,
       ),
       ProfessionalDestination.notes => ProfessionalNotesView(
+        store: _store,
         onOpenPatient: _openPatient,
       ),
       ProfessionalDestination.carePlan => ProfessionalCarePlanView(
+        store: _store,
         initialPatient: _selectedPatient,
         onOpenPatient: _openPatient,
       ),
-      ProfessionalDestination.settings => const ProfessionalSettingsView(),
+      ProfessionalDestination.settings => ProfessionalSettingsView(
+        store: _store,
+      ),
     };
   }
 }
@@ -404,11 +463,15 @@ class _ProfessionalIdentity extends StatelessWidget {
 class _MobileProfessionalBar extends StatelessWidget {
   const _MobileProfessionalBar({
     required this.title,
+    required this.notificationCount,
     required this.onMenuPressed,
+    required this.onNotificationsPressed,
   });
 
   final String title;
+  final int notificationCount;
   final VoidCallback onMenuPressed;
+  final VoidCallback onNotificationsPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -438,10 +501,11 @@ class _MobileProfessionalBar extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Notificações',
-                onPressed: () {},
-                icon: const Badge(
-                  smallSize: 7,
-                  child: Icon(Icons.notifications_none_rounded),
+                onPressed: onNotificationsPressed,
+                icon: Badge(
+                  isLabelVisible: notificationCount > 0,
+                  label: Text('$notificationCount'),
+                  child: const Icon(Icons.notifications_none_rounded),
                 ),
               ),
               const SizedBox(width: 8),
