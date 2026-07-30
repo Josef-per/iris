@@ -2,23 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 
 class AppAcompanhamentoGraficos extends StatelessWidget {
-  const AppAcompanhamentoGraficos({super.key});
+  const AppAcompanhamentoGraficos({
+    super.key,
+    required this.selectedDate,
+  });
+
+  final DateTime selectedDate;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    final weekStart = _startOfWeek(selectedDate);
+    final weekDays = List<DateTime>.generate(
+      DateTime.daysPerWeek,
+      (index) => weekStart.add(Duration(days: index)),
+    );
+
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _AcompanhamentoGraficoCard(
           title: 'Gráfico de Humor',
-          levelLabels: ['MB', 'B', 'N', 'M', 'MM'],
-          values: <double>[0, 2, 1, 3, 2, 4, 1],
+          levelLabels: const ['MB', 'B', 'N', 'M', 'MM'],
+          values: _simulatedValues(weekStart, multiplier: 3, offset: 1),
+          weekDays: weekDays,
         ),
-        SizedBox(height: 20),
+        const SizedBox(height: 20),
         _AcompanhamentoGraficoCard(
           title: 'Gráfico de Alimentação',
-          levelLabels: ['MB', 'B', 'N', 'R', 'MR'],
-          values: <double>[0, 2, 1, 3, 2, 4, 1],
+          levelLabels: const ['MB', 'B', 'N', 'R', 'MR'],
+          values: _simulatedValues(weekStart, multiplier: 5, offset: 3),
+          weekDays: weekDays,
           withAreaFill: true,
         ),
       ],
@@ -31,12 +44,14 @@ class _AcompanhamentoGraficoCard extends StatelessWidget {
     required this.title,
     required this.levelLabels,
     required this.values,
+    required this.weekDays,
     this.withAreaFill = false,
   });
 
   final String title;
   final List<String> levelLabels;
   final List<double> values;
+  final List<DateTime> weekDays;
   final bool withAreaFill;
 
   @override
@@ -72,6 +87,7 @@ class _AcompanhamentoGraficoCard extends StatelessWidget {
               painter: _AcompanhamentoLineChartPainter(
                 levelLabels: levelLabels,
                 values: values,
+                weekDays: weekDays,
                 withAreaFill: withAreaFill,
               ),
               child: const SizedBox.expand(),
@@ -87,11 +103,13 @@ class _AcompanhamentoLineChartPainter extends CustomPainter {
   const _AcompanhamentoLineChartPainter({
     required this.levelLabels,
     required this.values,
+    required this.weekDays,
     required this.withAreaFill,
   });
 
   final List<String> levelLabels;
   final List<double> values;
+  final List<DateTime> weekDays;
   final bool withAreaFill;
 
   @override
@@ -159,15 +177,12 @@ class _AcompanhamentoLineChartPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    const dateLabels = ['01/09', '03/09', '05/09', '07/09'];
-    const dateIndexes = [0, 2, 4, 6];
-    for (var index = 0; index < dateLabels.length; index++) {
-      final x = points[dateIndexes[index]].dx;
-      _paintLabel(
+    for (var index = 0; index < weekDays.length; index++) {
+      _paintCenteredLabel(
         canvas,
-        dateLabels[index],
+        _formatDayLabel(weekDays[index]),
         labelStyle,
-        Offset(x - 18, chartRect.bottom + 28),
+        Offset(points[index].dx, chartRect.bottom + 28),
       );
     }
   }
@@ -194,9 +209,53 @@ class _AcompanhamentoLineChartPainter extends CustomPainter {
     textPainter.paint(canvas, offset);
   }
 
+  void _paintCenteredLabel(
+    Canvas canvas,
+    String text,
+    TextStyle style,
+    Offset center,
+  ) {
+    final textPainter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    textPainter.paint(
+      canvas,
+      Offset(center.dx - (textPainter.width / 2), center.dy),
+    );
+  }
+
   @override
   bool shouldRepaint(covariant _AcompanhamentoLineChartPainter oldDelegate) =>
       oldDelegate.levelLabels != levelLabels ||
       oldDelegate.values != values ||
+      oldDelegate.weekDays != weekDays ||
       oldDelegate.withAreaFill != withAreaFill;
+}
+
+DateTime _startOfWeek(DateTime date) {
+  final dateOnly = DateTime(date.year, date.month, date.day);
+  return dateOnly.subtract(
+    Duration(days: dateOnly.weekday - DateTime.monday),
+  );
+}
+
+List<double> _simulatedValues(
+  DateTime weekStart, {
+  required int multiplier,
+  required int offset,
+}) {
+  final weekIndex = weekStart.difference(DateTime(2020)).inDays ~/ 7;
+
+  return List<double>.generate(
+    DateTime.daysPerWeek,
+    (index) => ((weekIndex * multiplier + (index * 2) + offset) % 5).toDouble(),
+  );
+}
+
+String _formatDayLabel(DateTime date) {
+  final day = date.day.toString().padLeft(2, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  return '$day/$month';
 }

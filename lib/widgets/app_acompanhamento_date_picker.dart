@@ -2,7 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 
 class AppAcompanhamentoDatePicker extends StatefulWidget {
-  const AppAcompanhamentoDatePicker({super.key});
+  const AppAcompanhamentoDatePicker({
+    super.key,
+    required this.selectedDate,
+    required this.onDateSelected,
+  });
+
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
 
   @override
   State<AppAcompanhamentoDatePicker> createState() =>
@@ -16,7 +23,6 @@ class _AppAcompanhamentoDatePickerState
   static const _dayCellSize = 42.0;
   static const _calendarHorizontalPadding = 8.0;
 
-  late DateTime _selectedDate;
   late DateTime _displayedMonth;
   late DateTime _calendarAnchorDate;
   var _calendarVersion = 0;
@@ -24,16 +30,31 @@ class _AppAcompanhamentoDatePickerState
   @override
   void initState() {
     super.initState();
-    _selectedDate = DateTime(2026, DateTime.september, 9);
-    _displayedMonth = DateTime(2026, DateTime.september);
-    _calendarAnchorDate = _selectedDate;
+    _displayedMonth = DateTime(
+      widget.selectedDate.year,
+      widget.selectedDate.month,
+    );
+    _calendarAnchorDate = widget.selectedDate;
+  }
+
+  @override
+  void didUpdateWidget(covariant AppAcompanhamentoDatePicker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!DateUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate)) {
+      _displayedMonth = DateTime(
+        widget.selectedDate.year,
+        widget.selectedDate.month,
+      );
+      _calendarAnchorDate = widget.selectedDate;
+      _calendarVersion++;
+    }
   }
 
   void _selectDate(DateTime date) {
     setState(() {
-      _selectedDate = date;
       _displayedMonth = DateTime(date.year, date.month);
     });
+    widget.onDateSelected(date);
   }
 
   void _changeMonth(int offset) {
@@ -146,7 +167,7 @@ class _AppAcompanhamentoDatePickerState
                   ),
                 ),
                 _SelectedDayOverlay(
-                  selectedDate: _selectedDate,
+                  selectedDate: widget.selectedDate,
                   displayedMonth: _displayedMonth,
                   dayCellSize: _dayCellSize,
                   horizontalPadding: _calendarHorizontalPadding,
