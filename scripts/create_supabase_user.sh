@@ -6,14 +6,15 @@ set -euo pipefail
 #   EMAIL='novo@exemplo.com' PASSWORD='Senha123!' ./scripts/create_supabase_user.sh
 # Opcional:
 #   DISPLAY_NAME='Nome Completo' ./scripts/create_supabase_user.sh
-# Alternativamente, defina SUPABASE_URL e SERVICE_ROLE_KEY no arquivo .env ou como variáveis de ambiente.
+# Alternativamente, defina SUPABASE_URL e SERVICE_ROLE_KEY no arquivo
+# .env.server ou como variáveis de ambiente.
 # Atenção: NÃO COMMITAR sua SERVICE_ROLE_KEY em repositórios públicos.
 
-# Carrega .env se existir
-if [ -f .env ]; then
+# Carrega .env.server se existir
+if [ -f .env.server ]; then
   set -o allexport
   # shellcheck disable=SC1091
-  source .env
+  source .env.server
   set +o allexport
 fi
 
@@ -21,12 +22,12 @@ SUPABASE_URL="${SUPABASE_URL:-}"
 SERVICE_ROLE_KEY="${SERVICE_ROLE_KEY:-}"
 
 if [ -z "$SUPABASE_URL" ]; then
-  echo "SUPABASE_URL não definido (export SUPABASE_URL ou adicione em .env)"
+  echo "SUPABASE_URL não definido (exporte a variável ou use .env.server)"
   exit 1
 fi
 
 if [ -z "$SERVICE_ROLE_KEY" ]; then
-  echo "SERVICE_ROLE_KEY não definido (export SERVICE_ROLE_KEY ou adicione em .env)"
+  echo "SERVICE_ROLE_KEY não definido (exporte a variável ou use .env.server)"
   exit 1
 fi
 

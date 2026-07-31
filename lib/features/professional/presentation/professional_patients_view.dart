@@ -27,6 +27,11 @@ class ProfessionalPatientsView extends StatefulWidget {
 class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
   final _searchController = TextEditingController();
   _PatientFilter _filter = _PatientFilter.all;
+  var _refreshing = false;
+
+  bool get _canManage =>
+      !widget.store.isConnected ||
+      widget.store.settings.credentialStatus == 'ativo';
 
   @override
   void dispose() {
@@ -63,33 +68,66 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
               spacing: 10,
               runSpacing: 10,
               children: [
-                OutlinedButton.icon(
-                  onPressed: widget.onInvitePatient,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.white,
-                    side: const BorderSide(color: AppColors.white),
+                if (widget.store.isConnected)
+                  OutlinedButton.icon(
+                    onPressed: _refreshing ? null : _refresh,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.white,
+                      disabledForegroundColor: Colors.white70,
+                      side: const BorderSide(color: AppColors.white),
+                    ),
+                    icon: _refreshing
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh_rounded),
+                    label: Text(_refreshing ? 'Atualizando...' : 'Atualizar'),
                   ),
-                  icon: const Icon(Icons.qr_code_rounded),
-                  label: const Text('QR Code'),
-                ),
+                if (!widget.store.isConnected)
+                  OutlinedButton.icon(
+                    onPressed: widget.onInvitePatient,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.white,
+                      side: const BorderSide(color: AppColors.white),
+                    ),
+                    icon: const Icon(Icons.qr_code_rounded),
+                    label: const Text('QR Code'),
+                  ),
                 FilledButton.icon(
                   key: const Key('professional-add-patient'),
-                  onPressed: () async {
-                    final saved = await showProfessionalPatientForm(
-                      context,
-                      widget.store,
-                    );
-                    if (!saved || !context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Paciente adicionado.')),
-                    );
-                  },
+                  onPressed: !_canManage
+                      ? null
+                      : () async {
+                          if (widget.store.isConnected) {
+                            widget.onInvitePatient();
+                            return;
+                          }
+                          final saved = await showProfessionalPatientForm(
+                            context,
+                            widget.store,
+                          );
+                          if (!saved || !context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Paciente adicionado.'),
+                            ),
+                          );
+                        },
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.white,
                     foregroundColor: AppColors.deepPurple,
                   ),
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Novo paciente'),
+                  icon: Icon(
+                    widget.store.isConnected
+                        ? Icons.qr_code_rounded
+                        : Icons.add_rounded,
+                  ),
+                  label: Text(
+                    widget.store.isConnected
+                        ? 'Vincular paciente'
+                        : 'Novo paciente',
+                  ),
                 ),
               ],
             ),
@@ -169,7 +207,14 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                 ),
                 const SizedBox(height: 24),
                 if (patients.isEmpty)
-                  const _NoPatientsFound()
+                  _NoPatientsFound(
+                    canInvite:
+                        widget.store.isConnected &&
+                        _canManage &&
+                        widget.store.patients.isEmpty &&
+                        _searchController.text.trim().isEmpty,
+                    onInvite: widget.onInvitePatient,
+                  )
                 else
                   ...patients.map(
                     (patient) => Padding(
@@ -182,13 +227,21 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                           widget.store,
                           patient: patient,
                         ),
-                        onToggleStatus: () => widget.store.updatePatient(
-                          patient.copyWith(
-                            status: patient.status == PatientStatus.active
-                                ? PatientStatus.inactive
-                                : PatientStatus.active,
-                          ),
-                        ),
+                        onToggleStatus: () async {
+                          try {
+                            await widget.store.updatePatient(
+                              patient.copyWith(
+                                status: patient.status == PatientStatus.active
+                                    ? PatientStatus.inactive
+                                    : PatientStatus.active,
+                              ),
+                            );
+                          } catch (error) {
+                            if (context.mounted) {
+                              showProfessionalOperationError(context, error);
+                            }
+                          }
+                        },
                       ),
                     ),
                   ),
@@ -198,6 +251,17 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
         ],
       ),
     );
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _refreshing = true);
+    try {
+      await widget.store.initialize();
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 }
 
@@ -460,28 +524,46 @@ class _MoodBadge extends StatelessWidget {
 }
 
 class _NoPatientsFound extends StatelessWidget {
-  const _NoPatientsFound();
+  const _NoPatientsFound({required this.canInvite, required this.onInvite});
+
+  final bool canInvite;
+  final VoidCallback onInvite;
 
   @override
   Widget build(BuildContext context) {
-    return const ProfessionalPanel(
+    return ProfessionalPanel(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 42),
+        padding: const EdgeInsets.symmetric(vertical: 42),
         child: Column(
           children: [
-            Icon(
+            const Icon(
               Icons.person_search_outlined,
               size: 48,
               color: AppColors.purple,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'Nenhum paciente encontrado.',
-              style: TextStyle(
+              canInvite
+                  ? 'Nenhum paciente vinculado.'
+                  : 'Nenhum paciente encontrado.',
+              style: const TextStyle(
                 color: AppColors.ink,
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (canInvite) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Gere um QR Code para o paciente concluir o vínculo.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: onInvite,
+                icon: const Icon(Icons.qr_code_rounded),
+                label: const Text('Gerar QR Code'),
+              ),
+            ],
           ],
         ),
       ),

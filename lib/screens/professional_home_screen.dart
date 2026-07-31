@@ -1,7 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/qr/professional_qr_payload.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
 import 'package:iris/features/professional/presentation/professional_care_plan_view.dart';
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
@@ -10,11 +16,14 @@ import 'package:iris/features/professional/presentation/professional_notes_view.
 import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
 import 'package:iris/features/professional/presentation/professional_patients_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
+import 'package:iris/features/professional/professional_repository.dart';
 import 'package:iris/screens/login_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfessionalHomeScreen extends StatefulWidget {
-  const ProfessionalHomeScreen({super.key});
+  const ProfessionalHomeScreen({super.key, this.demoMode = false});
+
+  final bool demoMode;
 
   @override
   State<ProfessionalHomeScreen> createState() => _ProfessionalHomeScreenState();
@@ -23,20 +32,95 @@ class ProfessionalHomeScreen extends StatefulWidget {
 class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _authService = AuthService();
-  final _store = ProfessionalFrontendStore.seeded();
-  final _notifications = <String>[
-    'Consulta com Ana Paula às 14:00',
-    'Carlos está há 24h sem check-in',
-  ];
+  final _professionalRepository = ProfessionalRepository();
+  late final ProfessionalFrontendStore _store;
+  final _notifications = <String>[];
 
   ProfessionalDestination _destination = ProfessionalDestination.dashboard;
-  ProfessionalPatient _selectedPatient = ProfessionalMockData.patients.first;
+  ProfessionalPatient? _selectedPatient;
   ProfessionalPatient? _detailPatient;
+  late ProfessionalSettingsDraft _lastRenderedSettings;
+
+  bool get _usesRemoteBackend =>
+      !widget.demoMode && SupabaseConfig.isConfigured;
+  bool get _credentialLocked =>
+      _store.isConnected && _store.settings.credentialStatus != 'ativo';
+  int get _notificationCount =>
+      _store.isConnected ? _store.alerts : _notifications.length;
+
+  @override
+  void initState() {
+    super.initState();
+    _store = _usesRemoteBackend
+        ? ProfessionalFrontendStore.connected(
+            SupabaseProfessionalWorkspaceBackend(),
+          )
+        : ProfessionalFrontendStore.seeded();
+
+    if (_store.patients.isNotEmpty) {
+      _selectedPatient = _store.patients[0];
+    }
+    _lastRenderedSettings = _store.settings;
+    _store.addListener(_syncSelectedPatient);
+    if (!_usesRemoteBackend) {
+      _notifications.addAll([
+        'Consulta com Ana Paula às 14:00',
+        'Carlos está há 24h sem check-in',
+      ]);
+    } else {
+      unawaited(_loadWorkspace());
+    }
+  }
 
   @override
   void dispose() {
+    _store.removeListener(_syncSelectedPatient);
     _store.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadWorkspace() async {
+    try {
+      await _store.initialize();
+    } catch (_) {
+      // O erro fica disponível no store e é exibido com opção de tentar de novo.
+    }
+  }
+
+  void _syncSelectedPatient() {
+    if (!mounted) return;
+    final settingsChanged = !identical(_lastRenderedSettings, _store.settings);
+    _lastRenderedSettings = _store.settings;
+    if (_store.patients.isEmpty) {
+      if (_selectedPatient != null ||
+          _detailPatient != null ||
+          settingsChanged) {
+        setState(() {
+          _selectedPatient = null;
+          _detailPatient = null;
+        });
+      }
+      return;
+    }
+
+    final selectedId = _selectedPatient?.id;
+    final detailId = _detailPatient?.id;
+    ProfessionalPatient? selected;
+    ProfessionalPatient? detail;
+    for (final patient in _store.patients) {
+      if (patient.id == selectedId) selected = patient;
+      if (patient.id == detailId) detail = patient;
+    }
+    final nextSelected = selected ?? _store.patients[0];
+    if (identical(nextSelected, _selectedPatient) &&
+        identical(detail, _detailPatient) &&
+        !settingsChanged) {
+      return;
+    }
+    setState(() {
+      _selectedPatient = nextSelected;
+      _detailPatient = detail;
+    });
   }
 
   void _selectDestination(ProfessionalDestination destination) {
@@ -58,6 +142,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   void _openCarePlan([ProfessionalPatient? patient]) {
+    final targetPatient = patient ?? _selectedPatient;
+    if (_store.isConnected &&
+        targetPatient != null &&
+        targetPatient.status != PatientStatus.active) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Ative o acompanhamento para editar o plano de cuidado.',
+          ),
+        ),
+      );
+      return;
+    }
     setState(() {
       if (patient != null) _selectedPatient = patient;
       _detailPatient = null;
@@ -66,7 +163,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Future<void> _signOut() async {
-    if (SupabaseConfig.isConfigured) {
+    if (_usesRemoteBackend) {
       await _authService.signOut();
       return;
     }
@@ -78,52 +175,41 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   void _showInvitePatient() {
-    showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Vincular novo paciente'),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 360),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Peça ao paciente para escanear o QR Code.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppColors.lavender),
-                ),
-                child: QrImageView(
-                  data: 'iris:professional:demo-julia-souza',
-                  size: 210,
-                  backgroundColor: AppColors.white,
-                  eyeStyle: const QrEyeStyle(color: AppColors.ink),
-                  dataModuleStyle: const QrDataModuleStyle(
-                    color: AppColors.ink,
-                  ),
-                ),
-              ),
-            ],
+    if (_credentialLocked) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'O QR Code será liberado quando seu cadastro profissional estiver ativo.',
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Fechar'),
-          ),
-        ],
+      );
+      return;
+    }
+    showDialog<void>(
+      context: context,
+      builder: (context) => _ProfessionalInviteDialog(
+        createInvite: _usesRemoteBackend
+            ? _professionalRepository.createLinkInvite
+            : () async {
+                const token =
+                    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+                    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+                return ProfessionalLinkInvite(
+                  id: 'demo',
+                  token: token,
+                  payload: ProfessionalQrPayload.build(token),
+                  expiresAt: DateTime.now().add(const Duration(minutes: 30)),
+                );
+              },
+        revokeInvite: _usesRemoteBackend
+            ? _professionalRepository.revokeLinkInvite
+            : (_) async {},
       ),
     );
   }
 
   Future<void> _showNotifications() async {
+    final remoteAlerts = _store.isConnected ? _store.alerts : 0;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -131,8 +217,22 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
           title: const Text('Notificações'),
           content: SizedBox(
             width: 420,
-            child: _notifications.isEmpty
-                ? const Text('Nenhuma notificação.')
+            child:
+                (_store.isConnected
+                    ? remoteAlerts == 0
+                    : _notifications.isEmpty)
+                ? const Text('Nenhum alerta no momento.')
+                : _store.isConnected
+                ? ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.warning_amber_rounded),
+                    title: Text(
+                      '$remoteAlerts ${remoteAlerts == 1 ? 'alerta clínico requer' : 'alertas clínicos requerem'} revisão.',
+                    ),
+                    subtitle: const Text(
+                      'Abra o painel para consultar os registros disponíveis.',
+                    ),
+                  )
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -146,7 +246,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                   ),
           ),
           actions: [
-            if (_notifications.isNotEmpty)
+            if (!_store.isConnected && _notifications.isNotEmpty)
               TextButton(
                 onPressed: () {
                   setState(_notifications.clear);
@@ -172,6 +272,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       showingPatientDetail: _detailPatient != null,
       onSelected: _selectDestination,
       onSignOut: _signOut,
+      settings: _store.settings,
     );
 
     return Scaffold(
@@ -186,7 +287,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 if (!desktop)
                   _MobileProfessionalBar(
                     title: _pageTitle,
-                    notificationCount: _notifications.length,
+                    notificationCount: _notificationCount,
                     onMenuPressed: () =>
                         _scaffoldKey.currentState?.openDrawer(),
                     onNotificationsPressed: _showNotifications,
@@ -194,15 +295,41 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                 Expanded(
                   child: ListenableBuilder(
                     listenable: _store,
-                    builder: (context, _) => AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: KeyedSubtree(
-                        key: ValueKey(
-                          '${_destination.name}-${_detailPatient?.id ?? 'list'}',
-                        ),
-                        child: _currentView,
-                      ),
-                    ),
+                    builder: (context, _) {
+                      final error = _store.loadError;
+                      late final Widget content;
+                      if (_store.isLoading) {
+                        content = const _ProfessionalWorkspaceLoading();
+                      } else if (error != null) {
+                        content = _ProfessionalWorkspaceError(
+                          message: AppErrorMessages.from(error),
+                          onRetry: _loadWorkspace,
+                        );
+                      } else {
+                        content = AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: KeyedSubtree(
+                            key: ValueKey(
+                              '${_destination.name}-${_detailPatient?.id ?? 'list'}',
+                            ),
+                            child: _currentView,
+                          ),
+                        );
+                      }
+
+                      return Column(
+                        children: [
+                          if (_credentialLocked)
+                            _ProfessionalCredentialBanner(
+                              status: _store.settings.credentialStatus,
+                              onOpenSettings: () => _selectDestination(
+                                ProfessionalDestination.settings,
+                              ),
+                            ),
+                          Expanded(child: content),
+                        ],
+                      );
+                    },
                   ),
                 ),
               ],
@@ -225,6 +352,15 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Widget get _currentView {
+    if (_store.isConnected &&
+        _store.settings.credentialStatus != 'ativo' &&
+        _destination != ProfessionalDestination.settings) {
+      return _ProfessionalCredentialPending(
+        status: _store.settings.credentialStatus,
+        onOpenSettings: () =>
+            _selectDestination(ProfessionalDestination.settings),
+      );
+    }
     final detailPatient = _detailPatient;
     if (detailPatient != null) {
       return ProfessionalPatientDetailView(
@@ -263,6 +399,325 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 }
 
+class _ProfessionalCredentialPending extends StatelessWidget {
+  const _ProfessionalCredentialPending({
+    required this.status,
+    required this.onOpenSettings,
+  });
+
+  final String status;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final rejected = status == 'rejeitado';
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.verified_user_outlined,
+                size: 58,
+                color: AppColors.purple,
+              ),
+              const SizedBox(height: 18),
+              Text(
+                rejected ? 'Cadastro requer revisão' : 'Cadastro em análise',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                rejected
+                    ? 'Revise os dados profissionais antes de solicitar uma nova análise.'
+                    : 'Confirme seus dados profissionais. O painel e o QR Code serão liberados após o credenciamento.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 22),
+              FilledButton.icon(
+                onPressed: onOpenSettings,
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Revisar cadastro'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfessionalWorkspaceLoading extends StatelessWidget {
+  const _ProfessionalWorkspaceLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Carregando área profissional...'),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProfessionalCredentialBanner extends StatelessWidget {
+  const _ProfessionalCredentialBanner({
+    required this.status,
+    required this.onOpenSettings,
+  });
+
+  final String status;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final rejected = status == 'rejeitado';
+    return Material(
+      color: rejected
+          ? AppColors.danger.withValues(alpha: .12)
+          : const Color(0xFFFFF3D8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              rejected
+                  ? Icons.error_outline_rounded
+                  : Icons.pending_actions_outlined,
+              color: rejected ? AppColors.danger : const Color(0xFF9A6814),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                rejected
+                    ? 'Seu cadastro profissional precisa ser revisado. Atualize seus dados para solicitar uma nova análise.'
+                    : 'Seu cadastro profissional está em análise. Pacientes e recursos clínicos serão liberados após a aprovação.',
+              ),
+            ),
+            const SizedBox(width: 10),
+            TextButton(
+              onPressed: onOpenSettings,
+              child: const Text('Ver perfil'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfessionalWorkspaceError extends StatelessWidget {
+  const _ProfessionalWorkspaceError({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final Future<void> Function() onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 52,
+                color: AppColors.danger,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Não foi possível carregar seus dados',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 8),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProfessionalInviteDialog extends StatefulWidget {
+  const _ProfessionalInviteDialog({
+    required this.createInvite,
+    required this.revokeInvite,
+  });
+
+  final Future<ProfessionalLinkInvite> Function() createInvite;
+  final Future<void> Function(String inviteId) revokeInvite;
+
+  @override
+  State<_ProfessionalInviteDialog> createState() =>
+      _ProfessionalInviteDialogState();
+}
+
+class _ProfessionalInviteDialogState extends State<_ProfessionalInviteDialog> {
+  late Future<ProfessionalLinkInvite> _inviteFuture;
+  bool _revoking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _inviteFuture = widget.createInvite();
+  }
+
+  void _retry() {
+    setState(() => _inviteFuture = widget.createInvite());
+  }
+
+  Future<void> _revoke(ProfessionalLinkInvite invite) async {
+    if (_revoking) return;
+    setState(() => _revoking = true);
+    try {
+      await widget.revokeInvite(invite.id);
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      Navigator.pop(context);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Convite revogado.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _revoking = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Vincular paciente'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380, minHeight: 260),
+        child: FutureBuilder<ProfessionalLinkInvite>(
+          future: _inviteFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.error_outline_rounded,
+                    size: 42,
+                    color: AppColors.danger,
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    AppErrorMessages.from(snapshot.error!),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 18),
+                  FilledButton.tonalIcon(
+                    onPressed: _retry,
+                    icon: const Icon(Icons.refresh_rounded),
+                    label: const Text('Tentar novamente'),
+                  ),
+                ],
+              );
+            }
+
+            final invite = snapshot.data!;
+            final hour = invite.expiresAt.hour.toString().padLeft(2, '0');
+            final minute = invite.expiresAt.minute.toString().padLeft(2, '0');
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Peça ao paciente para escanear o QR Code.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: AppColors.lavender),
+                  ),
+                  child: QrImageView(
+                    data: invite.payload,
+                    size: 210,
+                    backgroundColor: AppColors.white,
+                    eyeStyle: const QrEyeStyle(color: AppColors.ink),
+                    dataModuleStyle: const QrDataModuleStyle(
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Válido até $hour:$minute',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: invite.payload),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Código copiado.')),
+                    );
+                  },
+                  icon: const Icon(Icons.copy_rounded),
+                  label: const Text('Copiar código'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _revoking ? null : () => _revoke(invite),
+                  icon: _revoking
+                      ? const SizedBox.square(
+                          dimension: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.block_rounded),
+                  label: Text(_revoking ? 'Revogando...' : 'Revogar convite'),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _revoking ? null : () => Navigator.pop(context),
+          child: const Text('Fechar'),
+        ),
+      ],
+    );
+  }
+}
+
 class ProfessionalNavigation extends StatelessWidget {
   const ProfessionalNavigation({
     super.key,
@@ -270,12 +725,14 @@ class ProfessionalNavigation extends StatelessWidget {
     required this.showingPatientDetail,
     required this.onSelected,
     required this.onSignOut,
+    required this.settings,
   });
 
   final ProfessionalDestination destination;
   final bool showingPatientDetail;
   final ValueChanged<ProfessionalDestination> onSelected;
   final VoidCallback onSignOut;
+  final ProfessionalSettingsDraft settings;
 
   @override
   Widget build(BuildContext context) {
@@ -340,7 +797,7 @@ class ProfessionalNavigation extends StatelessWidget {
               const Spacer(),
               const Divider(color: Color(0x33FFFFFF)),
               const SizedBox(height: 14),
-              const _ProfessionalIdentity(),
+              _ProfessionalIdentity(settings: settings),
               const SizedBox(height: 14),
               const Divider(color: Color(0x33FFFFFF)),
               const SizedBox(height: 10),
@@ -421,35 +878,46 @@ class _NavigationItem extends StatelessWidget {
 }
 
 class _ProfessionalIdentity extends StatelessWidget {
-  const _ProfessionalIdentity();
+  const _ProfessionalIdentity({required this.settings});
+
+  final ProfessionalSettingsDraft settings;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 8),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          CircleAvatar(
+          const CircleAvatar(
             radius: 24,
             backgroundColor: Color(0x337D6AC6),
             child: Icon(Icons.person_outline_rounded, color: AppColors.white),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Júlia Souza',
-                  style: TextStyle(
+                  settings.name.isEmpty ? 'Profissional' : settings.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
                     color: AppColors.white,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(height: 2),
+                const SizedBox(height: 2),
                 Text(
-                  'Psiquiatra',
-                  style: TextStyle(color: AppColors.lavender, fontSize: 12),
+                  settings.specialty.isEmpty
+                      ? 'Profissional'
+                      : settings.specialty,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppColors.lavender,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (!SupabaseConfig.isConfigured) {
       final destination = _isProfessional
-          ? const ProfessionalHomeScreen()
+          ? const ProfessionalHomeScreen(demoMode: true)
           : const HomeScreen();
       Navigator.of(
         context,

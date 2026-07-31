@@ -29,7 +29,8 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
   late bool _crisisAlerts;
   late bool _automaticReports;
   late String _avatarInitials;
-  final _devices = <String>['Chrome · Este dispositivo', 'Android · São Paulo'];
+  late final List<String> _devices;
+  var _saving = false;
 
   @override
   void initState() {
@@ -47,6 +48,9 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     _crisisAlerts = settings.crisisAlerts;
     _automaticReports = settings.automaticReports;
     _avatarInitials = settings.avatarInitials;
+    _devices = widget.store.isConnected
+        ? []
+        : ['Chrome · Este dispositivo', 'Android · São Paulo'];
   }
 
   @override
@@ -62,27 +66,35 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     super.dispose();
   }
 
-  void _save() {
-    if (!_formKey.currentState!.validate()) return;
-    widget.store.updateSettings(
-      ProfessionalSettingsDraft(
-        name: _name.text.trim(),
-        email: _email.text.trim(),
-        phone: _phone.text.trim(),
-        specialty: _specialty.text.trim(),
-        registration: _registration.text.trim(),
-        biography: _biography.text.trim(),
-        clinic: _clinic.text.trim(),
-        clinicAddress: _clinicAddress.text.trim(),
-        avatarInitials: _avatarInitials,
-        appointmentNotifications: _appointmentNotifications,
-        crisisAlerts: _crisisAlerts,
-        automaticReports: _automaticReports,
-      ),
-    );
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Configurações salvas.')));
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate() || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.store.updateSettings(
+        ProfessionalSettingsDraft(
+          name: _name.text.trim(),
+          email: _email.text.trim(),
+          phone: _phone.text.trim(),
+          specialty: _specialty.text.trim(),
+          registration: _registration.text.trim(),
+          biography: _biography.text.trim(),
+          clinic: _clinic.text.trim(),
+          clinicAddress: _clinicAddress.text.trim(),
+          avatarInitials: _avatarInitials,
+          appointmentNotifications: _appointmentNotifications,
+          crisisAlerts: _crisisAlerts,
+          automaticReports: _automaticReports,
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Configurações salvas.')));
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   Future<void> _changeAvatar() async {
@@ -113,13 +125,13 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
             title: 'Perfil e configurações',
             subtitle: 'Dados e preferências',
             action: FilledButton.icon(
-              onPressed: _save,
+              onPressed: _saving ? null : _save,
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.white,
                 foregroundColor: AppColors.deepPurple,
               ),
               icon: const Icon(Icons.check_rounded),
-              label: const Text('Salvar'),
+              label: Text(_saving ? 'Salvando...' : 'Salvar'),
             ),
           ),
           ProfessionalPage(
@@ -198,59 +210,76 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     final current = TextEditingController();
     final password = TextEditingController();
     final confirmation = TextEditingController();
+    var saving = false;
     final saved = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Alterar senha'),
-        content: SizedBox(
-          width: 420,
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextFormField(
-                  controller: current,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Senha atual'),
-                  validator: _requiredField,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: password,
-                  obscureText: true,
-                  decoration: const InputDecoration(labelText: 'Nova senha'),
-                  validator: (value) => value == null || value.length < 8
-                      ? 'Use pelo menos 8 caracteres'
-                      : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: confirmation,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Confirmar senha',
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Alterar senha'),
+          content: SizedBox(
+            width: 420,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: current,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Senha atual'),
+                    validator: _requiredField,
                   ),
-                  validator: (value) =>
-                      value != password.text ? 'As senhas não conferem' : null,
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: password,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Nova senha'),
+                    validator: (value) => value == null || value.length < 8
+                        ? 'Use pelo menos 8 caracteres'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: confirmation,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Confirmar senha',
+                    ),
+                    validator: (value) => value != password.text
+                        ? 'As senhas não conferem'
+                        : null,
+                  ),
+                ],
+              ),
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(context, false),
+              child: const Text('Cancelar'),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => saving = true);
+                      try {
+                        await widget.store.changePassword(
+                          currentPassword: current.text,
+                          newPassword: password.text,
+                        );
+                        if (context.mounted) Navigator.pop(context, true);
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        setDialogState(() => saving = false);
+                        showProfessionalOperationError(context, error);
+                      }
+                    },
+              child: Text(saving ? 'Salvando...' : 'Salvar'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (!formKey.currentState!.validate()) return;
-              Navigator.pop(context, true);
-            },
-            child: const Text('Salvar'),
-          ),
-        ],
       ),
     );
     await Future<void>.delayed(const Duration(milliseconds: 250));
@@ -265,6 +294,24 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
   }
 
   Future<void> _showDevices() async {
+    if (widget.store.isConnected) {
+      await showDialog<void>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Dispositivos'),
+          content: const Text(
+            'A lista de sessões não está disponível. Use “Sair” para encerrar esta sessão.',
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fechar'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(

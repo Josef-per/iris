@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 
@@ -10,11 +11,34 @@ Future<void> _waitForDialogExit() {
   return Future<void>.delayed(const Duration(milliseconds: 250));
 }
 
+void showProfessionalOperationError(BuildContext context, Object error) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+}
+
+void showProfessionalPatientRequired(BuildContext context) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      const SnackBar(content: Text('Vincule um paciente antes de continuar.')),
+    );
+}
+
 Future<bool> showProfessionalPatientForm(
   BuildContext context,
   ProfessionalFrontendStore store, {
   ProfessionalPatient? patient,
 }) async {
+  if (patient == null && store.isConnected) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Use o QR Code para vincular um novo paciente.'),
+      ),
+    );
+    return false;
+  }
+
   final formKey = GlobalKey<FormState>();
   final name = TextEditingController(text: patient?.name);
   final age = TextEditingController(text: patient?.age.toString());
@@ -26,6 +50,7 @@ Future<bool> showProfessionalPatientForm(
     text: patient?.nextAppointment ?? 'A definir',
   );
   var status = patient?.status ?? PatientStatus.active;
+  var saving = false;
 
   final saved =
       await showDialog<bool>(
@@ -41,23 +66,35 @@ Future<bool> showProfessionalPatientForm(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (store.isConnected) ...[
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Dados pessoais são gerenciados pelo paciente.',
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       TextFormField(
                         key: const Key('professional-patient-name'),
                         controller: name,
+                        enabled: !store.isConnected,
                         textCapitalization: TextCapitalization.words,
                         decoration: const InputDecoration(labelText: 'Nome'),
-                        validator: _required,
+                        validator: store.isConnected ? null : _required,
                       ),
                       const SizedBox(height: 12),
                       _ResponsiveDialogFields(
                         children: [
                           TextFormField(
                             controller: age,
+                            enabled: !store.isConnected,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Idade',
                             ),
                             validator: (value) {
+                              if (store.isConnected) return null;
                               final parsed = int.tryParse(value ?? '');
                               if (parsed == null || parsed < 1) {
                                 return 'Idade inválida';
@@ -94,14 +131,16 @@ Future<bool> showProfessionalPatientForm(
                         decoration: const InputDecoration(
                           labelText: 'Diagnóstico',
                         ),
-                        validator: _required,
+                        validator: store.isConnected ? null : _required,
                       ),
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: email,
+                        enabled: !store.isConnected,
                         keyboardType: TextInputType.emailAddress,
                         decoration: const InputDecoration(labelText: 'E-mail'),
                         validator: (value) {
+                          if (store.isConnected) return null;
                           final error = _required(value);
                           if (error != null) return error;
                           return value!.contains('@')
@@ -112,29 +151,32 @@ Future<bool> showProfessionalPatientForm(
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: phone,
+                        enabled: !store.isConnected,
                         keyboardType: TextInputType.phone,
                         decoration: const InputDecoration(
                           labelText: 'Telefone',
                         ),
-                        validator: _required,
+                        validator: store.isConnected ? null : _required,
                       ),
                       const SizedBox(height: 12),
                       _ResponsiveDialogFields(
                         children: [
                           TextFormField(
                             controller: birthDate,
+                            enabled: !store.isConnected,
                             decoration: const InputDecoration(
                               labelText: 'Nascimento',
                               hintText: 'DD/MM/AAAA',
                             ),
-                            validator: _required,
+                            validator: store.isConnected ? null : _required,
                           ),
                           TextFormField(
                             controller: nextAppointment,
+                            enabled: !store.isConnected,
                             decoration: const InputDecoration(
                               labelText: 'Próxima consulta',
                             ),
-                            validator: _required,
+                            validator: store.isConnected ? null : _required,
                           ),
                         ],
                       ),
@@ -150,31 +192,45 @@ Future<bool> showProfessionalPatientForm(
               ),
               FilledButton(
                 key: const Key('professional-patient-save'),
-                onPressed: () {
-                  if (!formKey.currentState!.validate()) return;
-                  final result = ProfessionalPatient(
-                    id:
-                        patient?.id ??
-                        'patient-${DateTime.now().microsecondsSinceEpoch}',
-                    name: name.text.trim(),
-                    age: int.parse(age.text),
-                    diagnosis: diagnosis.text.trim(),
-                    lastActivity: patient?.lastActivity ?? 'Agora',
-                    status: status,
-                    mood: patient?.mood ?? 'Bem',
-                    email: email.text.trim(),
-                    phone: phone.text.trim(),
-                    birthDate: birthDate.text.trim(),
-                    nextAppointment: nextAppointment.text.trim(),
-                  );
-                  if (patient == null) {
-                    store.addPatient(result);
-                  } else {
-                    store.updatePatient(result);
-                  }
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Salvar'),
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        final result = store.isConnected && patient != null
+                            ? patient.copyWith(
+                                diagnosis: diagnosis.text.trim(),
+                                status: status,
+                              )
+                            : ProfessionalPatient(
+                                id:
+                                    patient?.id ??
+                                    'patient-${DateTime.now().microsecondsSinceEpoch}',
+                                name: name.text.trim(),
+                                age: int.parse(age.text),
+                                diagnosis: diagnosis.text.trim(),
+                                lastActivity: patient?.lastActivity ?? 'Agora',
+                                status: status,
+                                mood: patient?.mood ?? 'Bem',
+                                email: email.text.trim(),
+                                phone: phone.text.trim(),
+                                birthDate: birthDate.text.trim(),
+                                nextAppointment: nextAppointment.text.trim(),
+                              );
+                        setDialogState(() => saving = true);
+                        try {
+                          if (patient == null) {
+                            await store.addPatient(result);
+                          } else {
+                            await store.updatePatient(result);
+                          }
+                          if (context.mounted) Navigator.pop(context, true);
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          setDialogState(() => saving = false);
+                          showProfessionalOperationError(context, error);
+                        }
+                      },
+                child: Text(saving ? 'Salvando...' : 'Salvar'),
               ),
             ],
           ),
@@ -233,10 +289,33 @@ Future<bool> showProfessionalAppointmentForm(
   BuildContext context,
   ProfessionalFrontendStore store,
 ) async {
+  final eligiblePatients = store.isConnected
+      ? store.patients
+            .where((patient) => patient.status == PatientStatus.active)
+            .toList()
+      : store.patients;
+  if (eligiblePatients.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          store.patients.isEmpty
+              ? 'Vincule um paciente antes de continuar.'
+              : 'Ative o acompanhamento de um paciente antes de agendar.',
+        ),
+      ),
+    );
+    return false;
+  }
+
   final formKey = GlobalKey<FormState>();
+  var selectedDate = DateTime.now();
+  final date = TextEditingController(
+    text: _formatAppointmentDate(selectedDate),
+  );
   final time = TextEditingController();
-  var patient = store.patients.first;
+  var patient = eligiblePatients[0];
   var type = 'Online';
+  var saving = false;
 
   final saved =
       await showDialog<bool>(
@@ -254,7 +333,7 @@ Future<bool> showProfessionalAppointmentForm(
                     DropdownButtonFormField<ProfessionalPatient>(
                       initialValue: patient,
                       decoration: const InputDecoration(labelText: 'Paciente'),
-                      items: store.patients
+                      items: eligiblePatients
                           .map(
                             (item) => DropdownMenuItem(
                               value: item,
@@ -270,6 +349,30 @@ Future<bool> showProfessionalAppointmentForm(
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
+                      controller: date,
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Data',
+                        suffixIcon: Icon(Icons.calendar_today_outlined),
+                      ),
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate,
+                          firstDate: DateTime.now(),
+                          lastDate: DateTime.now().add(
+                            const Duration(days: 730),
+                          ),
+                        );
+                        if (picked == null) return;
+                        setDialogState(() {
+                          selectedDate = picked;
+                          date.text = _formatAppointmentDate(picked);
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
                       key: const Key('professional-appointment-time'),
                       controller: time,
                       keyboardType: TextInputType.datetime,
@@ -277,7 +380,13 @@ Future<bool> showProfessionalAppointmentForm(
                         labelText: 'Horário',
                         hintText: '14:30',
                       ),
-                      validator: _required,
+                      validator: (value) {
+                        final requiredError = _required(value);
+                        if (requiredError != null) return requiredError;
+                        return _parseAppointmentTime(value!) == null
+                            ? 'Use o formato HH:mm'
+                            : null;
+                      },
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -308,18 +417,33 @@ Future<bool> showProfessionalAppointmentForm(
               ),
               FilledButton(
                 key: const Key('professional-appointment-save'),
-                onPressed: () {
-                  if (!formKey.currentState!.validate()) return;
-                  store.addAppointment(
-                    ProfessionalAppointment(
-                      time: time.text.trim(),
-                      patient: patient,
-                      type: type,
-                    ),
-                  );
-                  Navigator.pop(context, true);
-                },
-                child: const Text('Adicionar'),
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        final cleanTime = time.text.trim();
+                        final startsAt = _combineAppointmentDateAndTime(
+                          selectedDate,
+                          cleanTime,
+                        );
+                        setDialogState(() => saving = true);
+                        try {
+                          await store.addAppointment(
+                            ProfessionalAppointment(
+                              startsAt: startsAt,
+                              time: cleanTime,
+                              patient: patient,
+                              type: type,
+                            ),
+                          );
+                          if (context.mounted) Navigator.pop(context, true);
+                        } catch (error) {
+                          if (!context.mounted) return;
+                          setDialogState(() => saving = false);
+                          showProfessionalOperationError(context, error);
+                        }
+                      },
+                child: Text(saving ? 'Adicionando...' : 'Adicionar'),
               ),
             ],
           ),
@@ -327,8 +451,41 @@ Future<bool> showProfessionalAppointmentForm(
       ) ??
       false;
   await _waitForDialogExit();
+  date.dispose();
   time.dispose();
   return saved;
+}
+
+DateTime? _parseAppointmentTime(String value) {
+  final match = RegExp(
+    r'^([01]?\d|2[0-3]):([0-5]\d)$',
+  ).firstMatch(value.trim());
+  if (match == null) return null;
+  final now = DateTime.now();
+  return DateTime(
+    now.year,
+    now.month,
+    now.day,
+    int.parse(match.group(1)!),
+    int.parse(match.group(2)!),
+  );
+}
+
+DateTime? _combineAppointmentDateAndTime(DateTime date, String time) {
+  final parsedTime = _parseAppointmentTime(time);
+  if (parsedTime == null) return null;
+  return DateTime(
+    date.year,
+    date.month,
+    date.day,
+    parsedTime.hour,
+    parsedTime.minute,
+  );
+}
+
+String _formatAppointmentDate(DateTime date) {
+  return '${date.day.toString().padLeft(2, '0')}/'
+      '${date.month.toString().padLeft(2, '0')}/${date.year}';
 }
 
 Future<ProfessionalMedication?> showProfessionalMedicationForm(

@@ -1,5 +1,7 @@
 import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
+import 'package:iris/features/users/user_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AppErrorMessages {
@@ -13,11 +15,19 @@ class AppErrorMessages {
     }
 
     if (error is SupabaseConfigException) {
-      return 'Configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no arquivo .env.';
+      return 'Configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY com --dart-define.';
     }
 
     if (error is AccountTypeMismatchException) {
       return 'Esta conta pertence a outro perfil. Selecione “Sou paciente” ou “Sou profissional” corretamente e tente novamente.';
+    }
+
+    if (error is UserRoleConflictException) {
+      return 'Esta conta já está vinculada a outro tipo de perfil.';
+    }
+
+    if (error is ProfessionalWorkspaceException) {
+      return error.message;
     }
 
     final message = error.toString().toLowerCase();
@@ -78,7 +88,7 @@ class AppErrorMessages {
     if (message.contains('database error') ||
         message.contains('saving new user') ||
         code == 'unexpected_failure') {
-      return 'O Supabase criou uma falha no gatilho de cadastro do banco. Aplique a migration 0004 e tente novamente.';
+      return 'O banco não concluiu o cadastro. Aplique todas as migrations do Supabase e tente novamente.';
     }
 
     return 'Nao foi possivel autenticar agora. Tente novamente.';
@@ -87,6 +97,61 @@ class AppErrorMessages {
   static String _fromDatabase(PostgrestException error) {
     final message = error.message.toLowerCase();
     final code = error.code;
+
+    if (message.contains('invalid_or_expired_invite') ||
+        message.contains('invite_already_used') ||
+        message.contains('invite_unavailable')) {
+      return 'Este QR Code expirou, foi revogado ou já foi utilizado.';
+    }
+
+    if (message.contains('invalid_invite')) {
+      return 'Código QR inválido.';
+    }
+
+    if (message.contains('professional_not_approved') ||
+        message.contains('professional_not_active')) {
+      return 'Seu cadastro profissional aguarda aprovação.';
+    }
+
+    if (message.contains('professional_required')) {
+      return 'Entre com uma conta profissional para continuar.';
+    }
+
+    if (message.contains('patient_required')) {
+      return 'Entre com uma conta de paciente para vincular o profissional.';
+    }
+
+    if (message.contains('auth_required')) {
+      return 'Sua sessão expirou. Entre novamente.';
+    }
+
+    if (message.contains('account_inactive')) {
+      return 'Esta conta está desativada. Procure o suporte.';
+    }
+
+    if (message.contains('email_required')) {
+      return 'Sua conta não possui um email válido.';
+    }
+
+    if (message.contains('invalid_account_type')) {
+      return 'Escolha “Sou paciente” ou “Sou profissional”.';
+    }
+
+    if (message.contains('link_access_denied')) {
+      return 'Este paciente não está disponível para sua conta.';
+    }
+
+    if (message.contains('invalid_follow_up_status')) {
+      return 'Escolha o status ativo ou inativo.';
+    }
+
+    if (message.contains('invalid_credential_status')) {
+      return 'Status de credenciamento inválido.';
+    }
+
+    if (message.contains('name_required')) {
+      return 'Informe seu nome.';
+    }
 
     if (code == '42P01') {
       return 'Tabela do banco nao encontrada. Aplique as migrations do Supabase.';

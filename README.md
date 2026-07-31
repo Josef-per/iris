@@ -1,138 +1,169 @@
 # Íris
 
-> Aplicativo desenvolvido como Trabalho de Conclusão de Curso (TCC) da ETEC Dr. Julio Cardoso, com o objetivo de auxiliar no acompanhamento emocional dos usuários por meio de um acompanhaento contínuo.
+Aplicação Flutter para acompanhamento entre pacientes com transtornos
+alimentares e seus profissionais de saúde. O mesmo projeto atende web,
+desktop e mobile.
 
----
+O projeto foi desenvolvido como TCC do curso de Desenvolvimento de Sistemas
+da ETEC Dr. Julio Cardoso.
 
-## Sobre o projeto
+## Estado dos dados
 
-O Íris é um aplicativo mobile e desktop desenvolvido em Flutter que busca auxiliar o tratamento de pessoas com transtornos alimentares entre sessões.
+A área profissional possui dois modos:
 
-O projeto foi desenvolvido como parte do Trabalho de Conclusão de Curso (TCC) do curso de Desenvolvimento de Sistemas da ETEC.
+- a prévia de design usa dados fictícios, sem persistência;
+- uma sessão autenticada com Supabase configurado usa somente dados reais do
+  banco e apresenta estados de carregamento, erro e lista vazia.
 
----
+Dados exibidos na prévia não representam pacientes reais. No modo conectado,
+pacientes são adicionados por um convite QR; o profissional não cria uma
+identidade de paciente manualmente.
 
 ## Funcionalidades
 
-### Mobile
+### Paciente
 
-- Login
-- Cadastro de usuário
-- Link da conta via QrCode
-- Página inicial
-- Diário emocional
-- Check-in alimentar
-- Chekc-in diário
+- autenticação e cadastro;
+- diário emocional e registros alimentares;
+- leitura ou digitação de convite QR;
+- confirmação e vínculo com o profissional.
 
-> Algumas funcionalidades ainda estão em desenvolvimento.
+### Profissional
 
-### Desktop
+- dashboard e agenda;
+- gerenciamento de pacientes ativos e inativos;
+- anotações clínicas;
+- plano de cuidado, metas e medicações;
+- perfil, clínica e preferências de notificação;
+- convite QR temporário para vínculo.
 
-> Ainda em prototipação e desenvolvimento
+## Tecnologias
 
----
+- Flutter e Dart;
+- Supabase Auth;
+- PostgreSQL, Row Level Security e RPCs do Supabase;
+- `qr_flutter` e `mobile_scanner`.
 
-## Tecnologias utilizadas
+## Configuração do Supabase
 
-### Front-end
+As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 
-- Flutter
-- Dart
+1. `0001_core_schema.sql`;
+2. `0005_patient_professional_link_rls.sql`;
+3. `0006_professional_backend.sql`.
 
-### Back-end
-
-- [Adicionar isso ainda]
-
-### Versionamento
-
-- Git
-- GitHub
-
----
-
-## Estrutura do projeto
-
-```text
-lib/
-│
-├── controllers/
-├── models/
-├── screens/
-├── widgets/
-└── main.dart
-```
-
----
-
-## Como executar
-
-### Clone o repositório
+Com o projeto Supabase vinculado pelo CLI:
 
 ```bash
-git clone https://github.com/SEU-USUARIO/NOME-DO-REPOSITORIO.git
+supabase db push
 ```
 
-Entre na pasta
+Também é possível aplicar os arquivos nessa ordem pelo SQL Editor. A migration
+`0006` cria consultas, anotações, planos de cuidado, convites e as RPCs usadas
+pelo aplicativo.
 
-```bash
-cd iris
+Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
+de validar especialidade e registro, um administrador pode aprovar pelo SQL
+Editor:
+
+```sql
+select public.iris_set_professional_credential_status(
+  (
+    select profissional.id
+    from public.profissionais profissional
+    join public.usuarios usuario on usuario.id = profissional.user_id
+    where lower(usuario.email) = lower('profissional@exemplo.com')
+  ),
+  'ativo'
+);
 ```
 
-Instale as dependências
+Essa RPC é restrita ao papel `service_role`; usuários autenticados não podem
+aprovar a própria conta nem alterar seu papel em `usuarios`.
+
+## Executar o aplicativo
+
+Instale as dependências:
 
 ```bash
 flutter pub get
 ```
 
-Execute o projeto
+Use apenas a URL e a chave publicável do Supabase no cliente:
 
 ```bash
-flutter run
+flutter run \
+  --dart-define=SUPABASE_URL=https://seu-projeto.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
 ```
 
----
+Instalações antigas também podem usar `SUPABASE_ANON_KEY` no lugar de
+`SUPABASE_PUBLISHABLE_KEY`.
 
-## Telas
+`--dart-define` faz parte do aplicativo compilado e não é um cofre de segredos.
+Por isso, nunca passe `SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEY`, senha de banco
+ou outra chave privada dessa forma.
 
-### Login
+## Segredos usados por scripts
 
-(Adicionar imagem)
+Scripts administrativos podem ler um arquivo local `.env.server`:
 
-### Cadastro
+```dotenv
+SUPABASE_URL=https://seu-projeto.supabase.co
+SERVICE_ROLE_KEY=sua-chave-de-servidor
+```
 
-(Adicionar imagem)
+O arquivo `.env.server` é ignorado pelo Git e deve existir apenas no ambiente
+administrativo. Ele não pode ser incluído em assets, código Flutter, build web
+ou aplicativo distribuído.
 
-### Home
+Se uma chave `service_role` ou secret já tiver sido incluída em um asset ou
+build, removê-la do repositório não basta: revogue/rotacione a chave no painel
+do Supabase e gere novos builds.
 
-(Adicionar imagem)
+## Segurança do convite QR
 
-### Cadastro QR Code
+O QR não contém o UUID permanente do profissional. O fluxo é:
 
-(Adicionar imagem)
+1. um profissional aprovado solicita um convite;
+2. o servidor gera um token aleatório de 256 bits, com prazo e limite de usos;
+3. somente o hash SHA-256 é persistido;
+4. o paciente autenticado visualiza o nome do profissional e confirma;
+5. o resgate ocorre de forma atômica e cria ou reativa o vínculo;
+6. ao trocar de profissional, a autorização anterior é revogada.
 
----
+Enquanto o convite estiver aberto, o profissional também pode revogá-lo
+manualmente antes da expiração.
 
-## Organização do Git
+O payload aceito pelo aplicativo segue o formato:
 
-Principais tipos de commit utilizados:
+```text
+iris://vincular/profissional?v=1&token=<64-caracteres-hexadecimais>
+```
 
-- feat
-- fix
-- refactor
-- docs
-- style
-- chore
+O status de acompanhamento (`ativo` ou `inativo`) é separado da autorização
+(`ativo` ou `revogado`). Assim, o profissional ainda gerencia a identificação
+de um paciente inativo autorizado, mas os registros clínicos só ficam
+disponíveis durante acompanhamento ativo.
 
-Fluxo de desenvolvimento utilizando branches.
+## Validação
 
----
+Execute análise e testes antes de publicar:
 
-## Status do projeto
+```bash
+flutter analyze
+flutter test
+flutter build web \
+  --dart-define=SUPABASE_URL=https://seu-projeto.supabase.co \
+  --dart-define=SUPABASE_PUBLISHABLE_KEY=sua-chave-publicavel
+./scripts/check_client_bundle.sh build/web
+./scripts/test_supabase_migrations.sh
+```
 
-🚧 Em desenvolvimento
-
----
+O teste de exposição de segredos verifica que `.env` não é asset nem arquivo
+do build e que identificadores de chave administrativa não aparecem no código
+do cliente.
 
 ## Licença
 
-Projeto desenvolvido exclusivamente para fins acadêmicos.
+Projeto desenvolvido para fins acadêmicos.

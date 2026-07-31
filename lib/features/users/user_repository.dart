@@ -3,7 +3,12 @@ import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserRepository {
-  SupabaseClient get _client => SupabaseClientProvider.client;
+  UserRepository({SupabaseClient? client}) : _clientOverride = client;
+
+  final SupabaseClient? _clientOverride;
+
+  SupabaseClient get _client =>
+      _clientOverride ?? SupabaseClientProvider.client;
 
   Future<String?> getCurrentUserType() async {
     final user = _client.auth.currentUser;
@@ -28,18 +33,13 @@ class UserRepository {
     String? displayName,
   }) async {
     final existingType = await getCurrentUserType();
-    final userType =
-        _userTypeFromMetadata(user) ?? existingType ?? UserTypes.paciente;
-
-    await _upsertUsuario(user, email: email, userType: userType);
-    await _ensureProfile(user.id, displayName);
-
-    if (userType == UserTypes.profissional) {
-      await _ensureProfessional(user.id);
-      return;
-    }
-
-    await _ensurePatient(user.id);
+    await _bootstrapCurrentUser(
+      requestedType:
+          existingType ?? _userTypeFromMetadata(user) ?? UserTypes.paciente,
+      displayName: displayName ?? _displayNameFromMetadata(user),
+      specialty: _metadataValue(user, 'especialidade'),
+      professionalRegistration: _metadataValue(user, 'registro_profissional'),
+    );
   }
 
   Future<void> ensureForProfessionalAuthUser(
@@ -47,9 +47,15 @@ class UserRepository {
     String? email,
     String? displayName,
   }) async {
-    await _upsertUsuario(user, email: email, userType: UserTypes.profissional);
-    await _ensureProfile(user.id, displayName);
-    await _ensureProfessional(user.id);
+    final userType = await _bootstrapCurrentUser(
+      requestedType: UserTypes.profissional,
+      displayName: displayName ?? _displayNameFromMetadata(user),
+      specialty: _metadataValue(user, 'especialidade'),
+      professionalRegistration: _metadataValue(user, 'registro_profissional'),
+    );
+    if (userType != UserTypes.profissional) {
+      throw const UserRoleConflictException();
+    }
   }
 
   Future<void> ensureForPatientAuthUser(
@@ -57,9 +63,13 @@ class UserRepository {
     String? email,
     String? displayName,
   }) async {
-    await _upsertUsuario(user, email: email, userType: UserTypes.paciente);
-    await _ensureProfile(user.id, displayName);
-    await _ensurePatient(user.id);
+    final userType = await _bootstrapCurrentUser(
+      requestedType: UserTypes.paciente,
+      displayName: displayName ?? _displayNameFromMetadata(user),
+    );
+    if (userType != UserTypes.paciente) {
+      throw const UserRoleConflictException();
+    }
   }
 
   Future<String> getOrCreateCurrentPatientId() async {
@@ -70,7 +80,11 @@ class UserRepository {
     }
 
     await ensureSessionForAuthUser(user);
-    return _ensurePatient(user.id);
+    final pacienteId = await _findPatientId(user.id);
+    if (pacienteId == null) {
+      throw const UserRoleConflictException();
+    }
+    return pacienteId;
   }
 
   Future<String?> findCurrentPatientId() async {
@@ -91,7 +105,11 @@ class UserRepository {
     }
 
     await ensureSessionForAuthUser(user);
-    return _ensureProfessional(user.id);
+    final profissionalId = await _findProfessionalId(user.id);
+    if (profissionalId == null) {
+      throw const UserRoleConflictException();
+    }
+    return profissionalId;
   }
 
   Future<String?> findCurrentProfessionalId() async {
@@ -104,73 +122,22 @@ class UserRepository {
     return _findProfessionalId(user.id);
   }
 
-  Future<void> _upsertUsuario(
-    User user, {
-    String? email,
-    required String userType,
+  Future<String> _bootstrapCurrentUser({
+    required String requestedType,
+    String? displayName,
+    String? specialty,
+    String? professionalRegistration,
   }) async {
-    final resolvedEmail = email ?? user.email;
-
-    if (resolvedEmail == null || resolvedEmail.trim().isEmpty) {
-      throw Exception('Usuario autenticado sem email.');
-    }
-
-    await _client.from(DatabaseTables.usuarios).upsert({
-      'id': user.id,
-      'email': resolvedEmail.trim().toLowerCase(),
-      'senha_hash': 'managed_by_supabase_auth',
-      'tipo_usuario': userType,
-      'ativo': true,
-      'atualizado_em': DateTime.now().toIso8601String(),
-    }, onConflict: 'id');
-  }
-
-  Future<void> _ensureProfile(String userId, String? displayName) async {
-    final existing = await _client
-        .from(DatabaseTables.perfis)
-        .select('id')
-        .eq('user_id', userId)
-        .limit(1)
-        .maybeSingle();
-
-    final cleanDisplayName = displayName?.trim();
-
-    if (existing == null) {
-      await _client.from(DatabaseTables.perfis).insert({
-        'user_id': userId,
-        if (cleanDisplayName != null && cleanDisplayName.isNotEmpty)
-          'nome_social': cleanDisplayName,
-        if (cleanDisplayName != null && cleanDisplayName.isNotEmpty)
-          'nome_completo': cleanDisplayName,
-      });
-      return;
-    }
-
-    if (cleanDisplayName != null && cleanDisplayName.isNotEmpty) {
-      await _client
-          .from(DatabaseTables.perfis)
-          .update({
-            'nome_social': cleanDisplayName,
-            'nome_completo': cleanDisplayName,
-          })
-          .eq('id', existing['id'] as String);
-    }
-  }
-
-  Future<String> _ensurePatient(String userId) async {
-    final existing = await _findPatientId(userId);
-
-    if (existing != null) {
-      return existing;
-    }
-
-    final created = await _client
-        .from(DatabaseTables.pacientes)
-        .insert({'user_id': userId})
-        .select('id')
-        .single();
-
-    return created['id'] as String;
+    final result = await _client.rpc(
+      'iris_bootstrap_current_user',
+      params: {
+        'p_display_name': _emptyToNull(displayName),
+        'p_requested_type': requestedType,
+        'p_specialty': _emptyToNull(specialty),
+        'p_registration': _emptyToNull(professionalRegistration),
+      },
+    );
+    return result.toString();
   }
 
   Future<String?> _findPatientId(String userId) async {
@@ -182,22 +149,6 @@ class UserRepository {
         .maybeSingle();
 
     return existing?['id'] as String?;
-  }
-
-  Future<String> _ensureProfessional(String userId) async {
-    final existing = await _findProfessionalId(userId);
-
-    if (existing != null) {
-      return existing;
-    }
-
-    final created = await _client
-        .from(DatabaseTables.profissionais)
-        .insert({'user_id': userId})
-        .select('id')
-        .single();
-
-    return created['id'] as String;
   }
 
   Future<String?> _findProfessionalId(String userId) async {
@@ -224,4 +175,24 @@ class UserRepository {
     }
     return null;
   }
+
+  String? _displayNameFromMetadata(User user) {
+    return _metadataValue(user, 'display_name');
+  }
+
+  String? _metadataValue(User user, String key) {
+    return _emptyToNull(user.userMetadata?[key]?.toString());
+  }
+
+  String? _emptyToNull(String? value) {
+    final normalized = value?.trim();
+    return normalized == null || normalized.isEmpty ? null : normalized;
+  }
+}
+
+class UserRoleConflictException implements Exception {
+  const UserRoleConflictException();
+
+  @override
+  String toString() => 'O perfil solicitado não corresponde à conta.';
 }

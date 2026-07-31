@@ -14,7 +14,7 @@ class ProfessionalCarePlanView extends StatefulWidget {
   });
 
   final ProfessionalFrontendStore store;
-  final ProfessionalPatient initialPatient;
+  final ProfessionalPatient? initialPatient;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
 
   @override
@@ -23,27 +23,26 @@ class ProfessionalCarePlanView extends StatefulWidget {
 }
 
 class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
-  late ProfessionalPatient _patient;
+  ProfessionalPatient? _patient;
   final _orientationController = TextEditingController();
   var _goals = <ProfessionalGoal>[];
   var _medications = <ProfessionalMedication>[];
   var _crisisSteps = <String>[];
   bool _shareWithPatient = true;
   bool _notifyMissedCheckIns = true;
+  bool _saving = false;
 
   @override
   void initState() {
     super.initState();
-    _patient = widget.store.patientById(widget.initialPatient.id);
-    _loadPlan();
+    _resolvePatient();
   }
 
   @override
   void didUpdateWidget(covariant ProfessionalCarePlanView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.initialPatient.id != widget.initialPatient.id) {
-      _patient = widget.store.patientById(widget.initialPatient.id);
-      _loadPlan();
+    if (oldWidget.initialPatient?.id != widget.initialPatient?.id) {
+      _resolvePatient();
     }
   }
 
@@ -53,8 +52,18 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
     super.dispose();
   }
 
+  void _resolvePatient() {
+    final initialId = widget.initialPatient?.id;
+    _patient = initialId == null
+        ? (widget.store.patients.isEmpty ? null : widget.store.patients[0])
+        : widget.store.patientByIdOrNull(initialId);
+    if (_patient != null) _loadPlan();
+  }
+
   void _loadPlan() {
-    final plan = widget.store.carePlanFor(_patient.id);
+    final patient = _patient;
+    if (patient == null) return;
+    final plan = widget.store.carePlanFor(patient.id);
     _goals = [...plan.goals];
     _medications = [...plan.medications];
     _crisisSteps = [...plan.crisisSteps];
@@ -63,40 +72,139 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
     _orientationController.text = plan.orientation;
   }
 
-  void _save({bool showMessage = true}) {
-    widget.store.updateCarePlan(
-      _patient.id,
-      ProfessionalCarePlanDraft(
-        goals: [..._goals],
-        orientation: _orientationController.text.trim(),
-        medications: [..._medications],
-        crisisSteps: [..._crisisSteps],
-        shareWithPatient: _shareWithPatient,
-        notifyMissedCheckIns: _notifyMissedCheckIns,
-      ),
-    );
-    if (!showMessage) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Plano salvo.')));
+  Future<bool> _save({bool showMessage = true}) async {
+    final patient = _patient;
+    if (patient == null || _saving) return false;
+    setState(() => _saving = true);
+    try {
+      await widget.store.updateCarePlan(
+        patient.id,
+        ProfessionalCarePlanDraft(
+          goals: [..._goals],
+          orientation: _orientationController.text.trim(),
+          medications: [..._medications],
+          crisisSteps: [..._crisisSteps],
+          shareWithPatient: _shareWithPatient,
+          notifyMissedCheckIns: _notifyMissedCheckIns,
+        ),
+      );
+      if (!mounted) return true;
+      if (showMessage) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Plano salvo.')));
+      }
+      return true;
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+      return false;
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final patient = _patient;
+    if (patient == null) {
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            ProfessionalGradientHeader(
+              title: 'Plano de cuidado',
+              subtitle: 'Nenhum paciente selecionado',
+              action: FilledButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.check_rounded),
+                label: const Text('Salvar'),
+              ),
+            ),
+            const ProfessionalPage(
+              paddingTop: 22,
+              child: ProfessionalPanel(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 42),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.health_and_safety_outlined,
+                        size: 50,
+                        color: AppColors.purple,
+                      ),
+                      SizedBox(height: 14),
+                      Text(
+                        'Vincule um paciente para criar um plano de cuidado.',
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    if (widget.store.isConnected && patient.status != PatientStatus.active) {
+      return SingleChildScrollView(
+        child: Column(
+          children: [
+            ProfessionalGradientHeader(
+              title: 'Plano de cuidado',
+              subtitle: patient.name,
+              action: FilledButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.lock_outline_rounded),
+                label: const Text('Acompanhamento inativo'),
+              ),
+            ),
+            ProfessionalPage(
+              paddingTop: 22,
+              child: ProfessionalPanel(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.pause_circle_outline_rounded,
+                        size: 50,
+                        color: AppColors.purple,
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Ative o acompanhamento para editar o plano de cuidado.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 18),
+                      OutlinedButton.icon(
+                        onPressed: () => widget.onOpenPatient(patient),
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Abrir paciente'),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       child: Column(
         children: [
           ProfessionalGradientHeader(
             title: 'Plano de cuidado',
-            subtitle: _patient.name,
+            subtitle: patient.name,
             action: FilledButton.icon(
-              onPressed: _save,
+              onPressed: _saving ? null : () => _save(),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.white,
                 foregroundColor: AppColors.deepPurple,
               ),
               icon: const Icon(Icons.check_rounded),
-              label: const Text('Salvar'),
+              label: Text(_saving ? 'Salvando...' : 'Salvar'),
             ),
           ),
           ProfessionalPage(
@@ -105,15 +213,16 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
               children: [
                 _PatientSelector(
                   patients: widget.store.patients,
-                  patient: _patient,
-                  onChanged: (patient) {
-                    _save(showMessage: false);
+                  patient: patient,
+                  onChanged: (nextPatient) async {
+                    final saved = await _save(showMessage: false);
+                    if (!saved || !mounted) return;
                     setState(() {
-                      _patient = patient;
+                      _patient = nextPatient;
                       _loadPlan();
                     });
                   },
-                  onOpenPatient: () => widget.onOpenPatient(_patient),
+                  onOpenPatient: () => widget.onOpenPatient(patient),
                 ),
                 const SizedBox(height: 22),
                 LayoutBuilder(

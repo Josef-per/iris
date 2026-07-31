@@ -16,6 +16,6 @@ class SupabaseConfigException implements Exception {
 
   @override
   String toString() {
-    return 'Supabase nao configurado. Execute o app com SUPABASE_URL e SUPABASE_ANON_KEY.';
+    return 'Supabase nao configurado. Use --dart-define para URL e chave publicavel.';
   }
 }

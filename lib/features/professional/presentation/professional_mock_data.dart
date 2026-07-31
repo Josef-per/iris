@@ -7,6 +7,7 @@ enum PatientStatus { active, inactive }
 class ProfessionalPatient {
   const ProfessionalPatient({
     required this.id,
+    this.linkId,
     required this.name,
     required this.age,
     required this.diagnosis,
@@ -20,6 +21,7 @@ class ProfessionalPatient {
   });
 
   final String id;
+  final String? linkId;
   final String name;
   final int age;
   final String diagnosis;
@@ -33,6 +35,7 @@ class ProfessionalPatient {
 
   ProfessionalPatient copyWith({
     String? id,
+    String? linkId,
     String? name,
     int? age,
     String? diagnosis,
@@ -46,6 +49,7 @@ class ProfessionalPatient {
   }) {
     return ProfessionalPatient(
       id: id ?? this.id,
+      linkId: linkId ?? this.linkId,
       name: name ?? this.name,
       age: age ?? this.age,
       diagnosis: diagnosis ?? this.diagnosis,
@@ -69,14 +73,34 @@ class ProfessionalPatient {
 
 class ProfessionalAppointment {
   const ProfessionalAppointment({
+    this.id,
+    this.startsAt,
     required this.time,
     required this.patient,
     required this.type,
   });
 
+  final String? id;
+  final DateTime? startsAt;
   final String time;
   final ProfessionalPatient patient;
   final String type;
+
+  ProfessionalAppointment copyWith({
+    String? id,
+    DateTime? startsAt,
+    String? time,
+    ProfessionalPatient? patient,
+    String? type,
+  }) {
+    return ProfessionalAppointment(
+      id: id ?? this.id,
+      startsAt: startsAt ?? this.startsAt,
+      time: time ?? this.time,
+      patient: patient ?? this.patient,
+      type: type ?? this.type,
+    );
+  }
 }
 
 class ProfessionalMedication {

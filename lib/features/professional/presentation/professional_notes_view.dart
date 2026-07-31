@@ -22,11 +22,19 @@ class ProfessionalNotesView extends StatefulWidget {
 class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
   final _searchController = TextEditingController();
 
+  List<ProfessionalPatient> get _eligiblePatients {
+    if (!widget.store.isConnected) return widget.store.patients;
+    return widget.store.patients
+        .where((patient) => patient.status == PatientStatus.active)
+        .toList();
+  }
+
   List<ProfessionalClinicalNote> get _notes {
     final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return widget.store.notes;
     return widget.store.notes.where((note) {
-      final patient = widget.store.patientById(note.patientId);
+      final patient = widget.store.patientByIdOrNull(note.patientId);
+      if (patient == null) return false;
+      if (query.isEmpty) return true;
       return patient.name.toLowerCase().contains(query) ||
           note.text.toLowerCase().contains(query) ||
           note.tag.toLowerCase().contains(query);
@@ -50,7 +58,9 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
               title: 'Anotações clínicas',
               subtitle: '${widget.store.notes.length} registros',
               action: FilledButton.icon(
-                onPressed: () => _showNewNoteDialog(context),
+                onPressed: _eligiblePatients.isEmpty
+                    ? null
+                    : () => _showNewNoteDialog(context),
                 icon: const Icon(Icons.note_add_outlined),
                 label: const Text('Nova anotação'),
               ),
@@ -68,25 +78,63 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
               ),
             ),
             const SizedBox(height: 22),
-            ..._notes.map((note) {
-              final patient = widget.store.patientById(note.patientId);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _ClinicalNoteCard(
-                  note: note,
-                  patient: patient,
-                  onOpenPatient: () => widget.onOpenPatient(patient),
-                  onEdit: () => _showNoteDialog(context, note: note),
-                  onDelete: () async {
-                    final confirmed = await showProfessionalDeleteConfirmation(
-                      context,
-                      item: 'Anotação de ${patient.name}',
-                    );
-                    if (confirmed) widget.store.removeNote(note.id);
-                  },
+            if (_notes.isEmpty)
+              ProfessionalPanel(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 34),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.note_alt_outlined,
+                          size: 44,
+                          color: AppColors.purple,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.store.patients.isEmpty
+                              ? 'Vincule um paciente para criar anotações.'
+                              : _eligiblePatients.isEmpty
+                              ? 'Ative o acompanhamento para criar anotações.'
+                              : 'Nenhuma anotação encontrada.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              );
-            }),
+              )
+            else
+              ..._notes.map((note) {
+                final patient = widget.store.patientByIdOrNull(note.patientId)!;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _ClinicalNoteCard(
+                    note: note,
+                    patient: patient,
+                    canEdit:
+                        !widget.store.isConnected ||
+                        patient.status == PatientStatus.active,
+                    onOpenPatient: () => widget.onOpenPatient(patient),
+                    onEdit: () => _showNoteDialog(context, note: note),
+                    onDelete: () async {
+                      final confirmed =
+                          await showProfessionalDeleteConfirmation(
+                            context,
+                            item: 'Anotação de ${patient.name}',
+                          );
+                      if (!confirmed) return;
+                      try {
+                        await widget.store.removeNote(note.id);
+                      } catch (error) {
+                        if (context.mounted) {
+                          showProfessionalOperationError(context, error);
+                        }
+                      }
+                    },
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -101,12 +149,33 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
     BuildContext context, {
     ProfessionalClinicalNote? note,
   }) async {
+    final eligiblePatients = _eligiblePatients;
+    final notePatient = note == null
+        ? null
+        : widget.store.patientByIdOrNull(note.patientId);
+    if (eligiblePatients.isEmpty ||
+        (notePatient != null &&
+            widget.store.isConnected &&
+            notePatient.status != PatientStatus.active)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.store.patients.isEmpty
+                ? 'Vincule um paciente antes de continuar.'
+                : 'Ative o acompanhamento para alterar anotações.',
+          ),
+        ),
+      );
+      return;
+    }
+
     final formKey = GlobalKey<FormState>();
     final controller = TextEditingController(text: note?.text);
     var selectedPatient = note == null
-        ? widget.store.patients.first
+        ? eligiblePatients[0]
         : widget.store.patientById(note.patientId);
     var tag = note?.tag ?? 'Evolução';
+    var saving = false;
     await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -122,7 +191,7 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
                   DropdownButtonFormField<ProfessionalPatient>(
                     initialValue: selectedPatient,
                     decoration: const InputDecoration(labelText: 'Paciente'),
-                    items: widget.store.patients
+                    items: eligiblePatients
                         .map(
                           (patient) => DropdownMenuItem(
                             value: patient,
@@ -184,25 +253,36 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
-                if (!formKey.currentState!.validate()) return;
-                final text = controller.text.trim();
-                if (note == null) {
-                  widget.store.addNote(
-                    ProfessionalClinicalNote(
-                      id: 'note-${DateTime.now().microsecondsSinceEpoch}',
-                      patientId: selectedPatient.id,
-                      text: text,
-                      date: 'Agora',
-                      tag: tag,
-                    ),
-                  );
-                } else {
-                  widget.store.updateNote(note.copyWith(text: text, tag: tag));
-                }
-                Navigator.pop(context);
-              },
-              child: const Text('Salvar'),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      final text = controller.text.trim();
+                      setDialogState(() => saving = true);
+                      try {
+                        if (note == null) {
+                          await widget.store.addNote(
+                            ProfessionalClinicalNote(
+                              id: 'note-${DateTime.now().microsecondsSinceEpoch}',
+                              patientId: selectedPatient.id,
+                              text: text,
+                              date: 'Agora',
+                              tag: tag,
+                            ),
+                          );
+                        } else {
+                          await widget.store.updateNote(
+                            note.copyWith(text: text, tag: tag),
+                          );
+                        }
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        setDialogState(() => saving = false);
+                        showProfessionalOperationError(context, error);
+                      }
+                    },
+              child: Text(saving ? 'Salvando...' : 'Salvar'),
             ),
           ],
         ),
@@ -218,6 +298,7 @@ class _ClinicalNoteCard extends StatelessWidget {
     required this.note,
     required this.patient,
     required this.onOpenPatient,
+    required this.canEdit,
     required this.onEdit,
     required this.onDelete,
   });
@@ -225,6 +306,7 @@ class _ClinicalNoteCard extends StatelessWidget {
   final ProfessionalClinicalNote note;
   final ProfessionalPatient patient;
   final VoidCallback onOpenPatient;
+  final bool canEdit;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -278,7 +360,10 @@ class _ClinicalNoteCard extends StatelessWidget {
                     ),
                   ),
                   PopupMenuButton<String>(
-                    tooltip: 'Ações',
+                    enabled: canEdit,
+                    tooltip: canEdit
+                        ? 'Ações'
+                        : 'Ative o acompanhamento para alterar',
                     onSelected: (value) =>
                         value == 'edit' ? onEdit() : onDelete(),
                     itemBuilder: (context) => const [
