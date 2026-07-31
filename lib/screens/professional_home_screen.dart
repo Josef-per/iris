@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/qr/professional_qr_payload.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
@@ -746,8 +747,8 @@ class ProfessionalNavigation extends StatelessWidget {
             children: [
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Image.asset(
-                  'assets/images/Login.png',
+                child: SvgPicture.asset(
+                  'assets/images/Login.svg',
                   height: 92,
                   fit: BoxFit.contain,
                 ),
