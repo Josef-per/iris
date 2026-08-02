@@ -54,6 +54,21 @@ void main() {
     expect(message, isNot(contains('PGRST205')));
   });
 
+  test('orienta corrigir RPC de QR incompatível com schema legado', () {
+    final message = AppErrorMessages.from(
+      const PostgrestException(
+        message: 'structure of query does not match function result type',
+        code: '42804',
+      ),
+    );
+
+    expect(
+      message,
+      contains('0007_professional_invite_legacy_text_compat.sql'),
+    );
+    expect(message, isNot(contains('42804')));
+  });
+
   test('traduz falha de trigger ao criar usuario', () {
     final message = AppErrorMessages.from(
       AuthApiException(

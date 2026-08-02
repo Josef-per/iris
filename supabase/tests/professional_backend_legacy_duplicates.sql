@@ -2,6 +2,15 @@
 
 -- Reproduz o estado permitido pelo schema anterior: um mesmo paciente com
 -- dois profissionais ativos. A migration 0006 deve reconciliar esse legado.
+-- O banco original tambem usava varchar nos campos exibidos pelas RPCs de QR;
+-- as funcoes RETURNS TABLE precisam normaliza-los explicitamente para text.
+alter table public.perfis
+  alter column nome_completo type varchar(255),
+  alter column nome_social type varchar(255);
+
+alter table public.profissionais
+  add column especialidade varchar(255);
+
 insert into auth.users (id, email)
 values
   ('10000000-0000-4000-8000-000000000001', 'legacy-patient@example.com'),

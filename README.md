@@ -50,7 +50,8 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 
 1. `0001_core_schema.sql`;
 2. `0005_patient_professional_link_rls.sql`;
-3. `0006_professional_backend.sql`.
+3. `0006_professional_backend.sql`;
+4. `0007_professional_invite_legacy_text_compat.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -60,7 +61,8 @@ supabase db push
 
 Também é possível aplicar os arquivos nessa ordem pelo SQL Editor. A migration
 `0006` cria consultas, anotações, planos de cuidado, convites e as RPCs usadas
-pelo aplicativo.
+pelo aplicativo. A `0007` corrige a compatibilidade das RPCs de QR em bancos
+legados cujos campos de perfil ainda usam `varchar`.
 
 Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
 de validar especialidade e registro, um administrador pode aprovar pelo SQL

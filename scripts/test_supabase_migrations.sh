@@ -36,6 +36,7 @@ run_sql /workspace/supabase/migrations/0001_core_schema.sql
 run_sql /workspace/supabase/migrations/0005_patient_professional_link_rls.sql
 run_sql /workspace/supabase/tests/professional_backend_legacy_duplicates.sql
 run_sql /workspace/supabase/migrations/0006_professional_backend.sql
+run_sql /workspace/supabase/migrations/0007_professional_invite_legacy_text_compat.sql
 run_sql /workspace/supabase/tests/professional_backend_smoke.sql
 run_sql /workspace/supabase/tests/professional_backend_flow.sql
 

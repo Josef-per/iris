@@ -113,6 +113,12 @@ class AppErrorMessages {
           'Aplique as migrations pendentes do Supabase.';
     }
 
+    if (code == '42804' &&
+        message.contains('structure of query does not match function result')) {
+      return 'O backend do QR Code está desatualizado. '
+          'Aplique a migration 0007_professional_invite_legacy_text_compat.sql.';
+    }
+
     if (message.contains('invalid_or_expired_invite') ||
         message.contains('invite_already_used') ||
         message.contains('invite_unavailable')) {

@@ -591,8 +591,12 @@ begin
   return query
   select
     profissional.id,
-    coalesce(perfil.nome_social, perfil.nome_completo, 'Profissional'),
-    profissional.especialidade,
+    coalesce(
+      perfil.nome_social,
+      perfil.nome_completo,
+      'Profissional'
+    )::text,
+    profissional.especialidade::text,
     convite.expira_em
   from public.convites_vinculo_profissional convite
   join public.profissionais profissional
@@ -730,8 +734,12 @@ begin
   select
     v_link_id,
     profissional.id,
-    coalesce(perfil.nome_social, perfil.nome_completo, 'Profissional'),
-    profissional.especialidade
+    coalesce(
+      perfil.nome_social,
+      perfil.nome_completo,
+      'Profissional'
+    )::text,
+    profissional.especialidade::text
   from public.profissionais profissional
   left join public.perfis perfil
     on perfil.user_id = profissional.user_id
