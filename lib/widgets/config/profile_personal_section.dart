@@ -60,12 +60,11 @@ class ProfilePersonalSection extends StatelessWidget {
           ),
           SizedBox(
             height: 33,
-            child: OutlinedButton.icon(
+            child: OutlinedButton(
               onPressed: _doNothing,
-              icon: const Icon(Icons.logout, size: 16),
-              label: const Text('Sair da conta'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.danger,
+                backgroundColor: const Color(0x33F29C9D),
                 side: const BorderSide(color: Color(0xFFFF8E8E)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(11),
@@ -74,6 +73,14 @@ class ProfilePersonalSection extends StatelessWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.logout, size: 16),
+                  SizedBox(width: 8),
+                  Text('Sair da conta'),
+                ],
               ),
             ),
           ),

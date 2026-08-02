@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iris/widgets/app_function_gradient_decoration.dart';
 import 'package:iris/widgets/app_function_headers.dart';
 import 'package:iris/widgets/app_nav_acompanhamento.dart';
+import 'package:iris/widgets/config/emergency_contacts_section.dart';
+import 'package:iris/widgets/config/settings_section.dart';
 import 'package:iris/widgets/config/profile_personal_section.dart';
 
 class ConfigScreen extends StatelessWidget {
@@ -43,8 +45,8 @@ class ConfigScreen extends StatelessWidget {
             ],
             acompanhamentoContents: const [
               ProfilePersonalSection(),
-              SizedBox.shrink(),
-              SizedBox.shrink(),
+              EmergencyContactsSection(),
+              SettingsSection(),
             ],
           ),
         ),

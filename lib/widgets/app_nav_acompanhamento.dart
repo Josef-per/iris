@@ -105,7 +105,13 @@ class _AppNavAcompanhamentoButton extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(item.iconPath, width: 27, height: 27),
+                ColorFiltered(
+                  colorFilter: ColorFilter.mode(
+                    foregroundColor,
+                    BlendMode.srcIn,
+                  ),
+                  child: Image.asset(item.iconPath, width: 27, height: 27),
+                ),
                 const SizedBox(height: 8),
                 Text(
                   item.label,
