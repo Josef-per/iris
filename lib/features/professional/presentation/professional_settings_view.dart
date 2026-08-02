@@ -29,7 +29,6 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
   late bool _crisisAlerts;
   late bool _automaticReports;
   late String _avatarInitials;
-  late final List<String> _devices;
   var _saving = false;
 
   @override
@@ -48,9 +47,6 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     _crisisAlerts = settings.crisisAlerts;
     _automaticReports = settings.automaticReports;
     _avatarInitials = settings.avatarInitials;
-    _devices = widget.store.isConnected
-        ? []
-        : ['Chrome · Este dispositivo', 'Android · São Paulo'];
   }
 
   @override
@@ -294,60 +290,19 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
   }
 
   Future<void> _showDevices() async {
-    if (widget.store.isConnected) {
-      await showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Dispositivos'),
-          content: const Text(
-            'A lista de sessões não está disponível. Use “Sair” para encerrar esta sessão.',
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Fechar'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
     await showDialog<void>(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Dispositivos'),
-          content: SizedBox(
-            width: 440,
-            child: _devices.isEmpty
-                ? const Text('Nenhum dispositivo conectado.')
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final device in _devices)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.devices_outlined),
-                          title: Text(device),
-                          trailing: IconButton(
-                            tooltip: 'Desconectar',
-                            onPressed: () {
-                              setState(() => _devices.remove(device));
-                              setDialogState(() {});
-                            },
-                            icon: const Icon(Icons.logout_rounded),
-                          ),
-                        ),
-                    ],
-                  ),
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Fechar'),
-            ),
-          ],
+      builder: (context) => AlertDialog(
+        title: const Text('Dispositivos'),
+        content: const Text(
+          'A lista de sessões não está disponível. Use “Sair” para encerrar esta sessão.',
         ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fechar'),
+          ),
+        ],
       ),
     );
   }

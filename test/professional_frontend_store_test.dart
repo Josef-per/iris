@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 
 void main() {
   group('ProfessionalFrontendStore conectado', () {

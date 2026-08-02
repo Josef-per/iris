@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 enum _PatientFilter { all, active, inactive }

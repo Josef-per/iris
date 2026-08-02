@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 
 class ProfessionalPage extends StatelessWidget {
   const ProfessionalPage({
