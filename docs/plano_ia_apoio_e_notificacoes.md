@@ -68,6 +68,77 @@ bloqueada e conselhos incompatíveis com o plano de cuidado.
 - usar conteúdo do diário no título ou corpo da notificação do sistema;
 - funcionar para menores antes de existir um projeto específico de proteção.
 
+### A IA pode dar conselhos?
+
+**Sim, desde que sejam sugestões de apoio de baixo risco e não orientações
+clínicas.** O produto deve trabalhar com três níveis:
+
+| Nível | O que a IA faz | Decisão |
+|---|---|---|
+| 1 — Seleção segura | escolhe uma reflexão, exercício, vídeo ou ação de conexão de um catálogo aprovado | permitido no MVP |
+| 2 — Formulação limitada | redige uma frase curta e tentativa dentro de uma categoria aprovada | somente em piloto controlado, dentro do app |
+| 3 — Orientação clínica | diagnostica, prescreve, interpreta risco ou orienta alimentação, medicação e tratamento | proibido sem produto clínico validado e regularizado |
+
+Na maior parte dos casos, o que a pessoa percebe como “conselho personalizado”
+pode ser produzido com o nível 1:
+
+> Você registrou alguns dias mais difíceis e prefere práticas curtas. Talvez
+> “Ancorar no presente” seja uma opção agora. Isso faz sentido para você?
+
+O modelo escolhe os IDs e os motivos; um template aprovado cria a frase. Esse é
+o padrão recomendado para produção inicial.
+
+#### Conselhos permitidos
+
+- convidar a nomear uma emoção ou necessidade;
+- propor uma pergunta de autorreflexão;
+- sugerir um exercício aprovado e compatível com as preferências;
+- sugerir uma pausa breve ou mudança simples de ambiente;
+- convidar a procurar alguém seguro escolhido pela própria pessoa;
+- sugerir guardar um tema para conversar com o profissional;
+- reconhecer incerteza e perguntar se a interpretação combina com a pessoa.
+
+Exemplos:
+
+- “Talvez ajude separar dois minutos para perceber o que você precisa agora.”;
+- “Você gostaria de experimentar uma prática curta para voltar ao presente?”;
+- “Se fizer sentido, considere conversar com alguém que seja seguro para você.”;
+- “Este tema pode ser útil na próxima conversa com seu profissional. Quer
+  guardá-lo?”
+
+#### Conselhos proibidos
+
+- “Você deveria reduzir/aumentar o que come.”;
+- “Compense essa refeição fazendo exercício.”;
+- “Pare, aumente ou troque sua medicação.”;
+- “Você está com depressão/ansiedade/anorexia.”;
+- “Seu quadro está piorando.”;
+- “Não conte isso ao seu profissional/familiar.”;
+- “Termine esse relacionamento” ou “confronte essa pessoa.”;
+- “Você não está em risco” ou qualquer conclusão automática sobre crise;
+- prometer que determinada ação fará a pessoa melhorar.
+
+#### Formulação generativa limitada
+
+Depois de o nível 1 estar validado, um piloto pode permitir que a IA redija a
+frase de apoio, mas apenas se todas estas condições forem atendidas:
+
+- aparece somente dentro do app autenticado, nunca diretamente no push;
+- usa sinais estruturados ou tópicos confirmados, não o diário bruto por padrão;
+- tem no máximo duas frases curtas;
+- usa linguagem tentativa: “talvez”, “se fizer sentido”, “você gostaria?”;
+- só pode propor ações presentes em uma allowlist;
+- não adiciona fato, causa, diagnóstico ou interpretação não confirmada;
+- passa por schema, filtros determinísticos e catálogo de termos/temas proibidos;
+- inclui uma ação concreta aprovada ou permite não fazer nada;
+- mostra “Por que isto?” e “Isso não combina comigo”;
+- qualquer incerteza, falha de validação ou tema sensível produz silêncio ou
+  template fixo, não uma tentativa livre;
+- é avaliada em shadow mode e red team antes de chegar a pacientes.
+
+Um aviso de “a IA pode errar” não substitui essas restrições. A segurança deve
+estar no contrato de saída e na arquitetura, não apenas no texto legal.
+
 ## 3. Separação entre apoio e segurança
 
 Notificações são assíncronas, podem atrasar, ser silenciadas ou vistas por outra
@@ -75,11 +146,13 @@ pessoa. Portanto, não são um canal de emergência.
 
 O diário deve sempre oferecer, depois de salvar, um card estático:
 
-> Precisa de apoio agora? Você pode abrir “Não estou bem” a qualquer momento.
+> Quer apoio agora? Você pode iniciar um exercício, abrir “Não estou bem” ou
+> escolher “Ajuda urgente”.
 
-Esse card não depende de análise do texto. O fluxo “Não estou bem”, os números
-192/188 e a checagem de segurança permanecem determinísticos, como definidos no
-plano anterior.
+Esse card não depende de análise do texto. Exercícios e sugestões por
+notificação abrem sem checagem obrigatória. A pergunta de segurança, os números
+192/188 e a rota determinística aparecem somente quando a pessoa escolhe “Ajuda
+urgente”, como definido no plano anterior.
 
 O produto deve dizer com clareza:
 
@@ -103,7 +176,7 @@ Configurar Sugestões de apoio
 
 Registrar humor ou diário
   └─ salvar normalmente
-       ├─ acesso imediato e estático a “Não estou bem”
+       ├─ acessos estáticos a exercício, “Não estou bem” e “Ajuda urgente”
        └─ mecanismo fictício cria um candidato de sugestão
             └─ política determinística valida horário, frequência e consentimento
                  └─ notificação genérica simulada
@@ -116,6 +189,9 @@ Registrar humor ou diário
                                 ├─ falar com alguém seguro
                                 ├─ guardar para o profissional
                                 └─ agora não / parar sugestões
+
+“Ajuda urgente” permanece visível, mas a sugestão não exige uma checagem antes
+de reflexão ou exercício.
 ```
 
 ## 5. Consentimento e controles
@@ -513,8 +589,13 @@ as sugestões em regras genéricas ou desativa a entrega.
 11. “Falar com alguém” nunca escolhe contato nem afirma que enviou mensagem.
 12. Conteúdo de diário não aparece em preview, log, URL ou payload.
 13. Exercício marcado como “não ajudou/pior” não é repetido imediatamente.
-14. “Não estou bem” continua acessível sem personalização ou permissão de push.
-15. O protótipo funciona em tema claro/escuro, 320 px e texto a 200%.
+14. Exercícios e sugestões abrem sem checagem de segurança obrigatória.
+15. Somente a escolha explícita “Ajuda urgente” abre a pergunta de segurança.
+16. “Não estou bem” continua acessível sem personalização ou permissão de push.
+17. O protótipo funciona em tema claro/escuro, 320 px e texto a 200%.
+18. No MVP, todo conselho percebido pelo usuário é montado com template aprovado.
+19. Formulação generativa, se habilitada em piloto, aparece apenas dentro do app,
+    usa linguagem tentativa e nunca trata temas clínicos proibidos.
 
 ## 18. Testes propostos
 
@@ -526,6 +607,8 @@ as sugestões em regras genéricas ou desativa a entrega.
 - deep link contém apenas ID opaco e exige autenticação;
 - analytics e logs de teste não recebem texto sensível;
 - usuário sem push mantém todas as funções no app.
+- deep link de sugestão abre seu detalhe sem passar pela checagem de segurança;
+- “Ajuda urgente” continua disponível no detalhe em um toque.
 
 ### Recomendação
 
@@ -536,6 +619,8 @@ as sugestões em regras genéricas ou desativa a entrega.
 - feedback negativo ativa cooldown e muda a categoria;
 - ausência de dado resulta em sugestão genérica ou nenhuma sugestão;
 - mesma entrada do mock produz resultado reproduzível.
+- conselho referencia somente sinais permitidos e confirmados;
+- tema não permitido gera abstenção ou template fixo, nunca texto livre.
 
 ### Política de notificação
 
@@ -554,6 +639,8 @@ as sugestões em regras genéricas ou desativa a entrega.
 - sugestão de contato não presume que família/parceiro é seguro;
 - nenhum texto personifica a IA ou incentiva segredo/dependência;
 - nenhuma saída recomenda alimento, peso, medicação ou exercício físico;
+- nenhuma saída afirma diagnóstico, causa, piora ou ausência de risco;
+- formulação generativa não ultrapassa o tamanho nem as ações permitidas;
 - testes em linguagem coloquial, erros ortográficos e variações regionais.
 
 ### Acessibilidade
@@ -621,7 +708,7 @@ Não otimizar clique, retenção, número de diários ou dependência da IA.
 ### Fase 3 — IA em shadow mode
 
 - IA recebe somente sinais estruturados;
-- suas escolhas não chegam ao paciente;
+- suas escolhas e eventuais rascunhos de conselho não chegam ao paciente;
 - comparar com regras e revisão clínica;
 - red team, análise por grupos e documentação de falhas.
 
@@ -629,6 +716,7 @@ Não otimizar clique, retenção, número de diários ou dependência da IA.
 
 - consentimento específico e amostra adulta acompanhada;
 - catálogo reduzido, frequência conservadora e monitoramento humano;
+- começar por seleção de templates; testar formulação limitada separadamente;
 - kill switch e fallback por regras;
 - avaliação independente de dano, utilidade e privacidade.
 

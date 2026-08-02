@@ -10,13 +10,15 @@ A funcionalidade deve ser apresentada como **apoio breve para o momento**, e nã
 como diagnóstico, tratamento autônomo, substituto do profissional ou recurso de
 emergência.
 
-O botão **“Não estou bem”** abre um fluxo em tela cheia que:
+O acesso aos exercícios não deve pressupor crise. A Home oferece duas entradas:
 
-1. verifica primeiro se pode haver risco imediato;
-2. se não houver, entende o que a pessoa precisa e quanto tempo/energia tem;
-3. recomenda um exercício interativo curto, mantendo vídeo como alternativa;
-4. pergunta como a pessoa está depois da atividade;
-5. oferece outro recurso ou contato humano quando necessário.
+1. **Exercícios**, para abrir diretamente o catálogo e recomendações;
+2. **Não estou bem**, para escolher entre uma prática curta, vídeo, contato
+   humano ou ajuda urgente.
+
+Nenhuma dessas duas entradas obriga a pessoa a responder uma pergunta sobre
+suicídio. A checagem de segurança aparece somente quando a própria pessoa toca
+em **“Ajuda urgente”**. Essa ação permanece visível durante todo o fluxo.
 
 O formato “estilo Duolingo” significa uma instrução por tela, passos pequenos,
 interações simples e progresso claro. Não significa competição, pontuação ou
@@ -24,8 +26,8 @@ pressão para voltar ao app.
 
 ### Objetivo do MVP
 
-Permitir que uma pessoa encontre e conclua, em até cinco minutos, uma prática
-breve e segura de regulação emocional, com uma rota de ajuda humana acessível a
+Permitir que uma pessoa inicie uma prática sem triagem obrigatória e a conclua
+em até cinco minutos, mantendo uma rota explícita de ajuda urgente acessível a
 qualquer momento.
 
 ### Fora do escopo do MVP
@@ -43,58 +45,84 @@ qualquer momento.
 
 ```text
 Home
+  ├─ Exercícios
+  │    └─ Catálogo / recomendação → exercício → check-out
   └─ Não estou bem
-       └─ Checagem de segurança
-            ├─ Sim / Talvez
-            │    └─ Ajuda agora: 192, 188, pessoa de confiança,
-            │       profissional e orientação para não ficar só
-            └─ Não
-                 └─ Do que você precisa agora?
-                      └─ Preferências rápidas: 1–2, 3 ou 5 min;
-                         interativo, áudio ou vídeo
-                           └─ Recomendação explicada
-                                ├─ Exercício interativo
-                                └─ Biblioteca de vídeos
-                                      └─ Check-out
-                                           ├─ Pior → ajuda humana / outra opção leve
-                                           ├─ Igual → escolher outra ferramenta
-                                           └─ Um pouco melhor / melhor → concluir
+       └─ Como podemos apoiar você agora?
+            ├─ Fazer uma prática curta
+            │    └─ necessidade + tempo → recomendação → exercício
+            ├─ Prefiro assistir
+            │    └─ biblioteca de vídeos
+            ├─ Falar com alguém seguro
+            │    └─ rede de apoio / profissional (simulado)
+            └─ Ajuda urgente
+                 └─ Checagem de segurança
+                      ├─ Sim / Talvez
+                      │    └─ 192, 188, pessoa de confiança e profissional
+                      └─ Não
+                           └─ voltar às opções de apoio
+
+Notificação personalizada
+  └─ sugestão detalhada → exercício/reflexão, sem checagem obrigatória
 ```
 
-“Ajuda agora” deve permanecer disponível no cabeçalho de todas as telas do
-fluxo. Sair do exercício nunca deve exigir confirmação culpabilizante.
+“Ajuda urgente” deve permanecer disponível no cabeçalho de todas as telas do
+fluxo. “Pior” no check-out não significa automaticamente risco de suicídio.
+Sair do exercício nunca deve exigir confirmação culpabilizante.
 
-## 3. Entrada e checagem de segurança
+## 3. Entradas e rota de segurança
 
 ### Entrada na Home
 
-Adicionar um card de largura total logo abaixo do cabeçalho e antes dos cards de
+Adicionar dois acessos claros logo abaixo do cabeçalho e antes dos cards de
 registro:
 
+- **Exercícios** — “Práticas curtas para diferentes momentos.”; abre diretamente
+  o catálogo;
+- **Não estou bem** — “Encontre uma prática ou procure apoio.”; abre o menu de
+  apoio em tela cheia.
+
+O card “Não estou bem” mantém:
+
 - título: **Não estou bem**;
-- apoio: “Encontre uma prática curta ou fale com alguém.”;
+- apoio: “Encontre uma prática ou procure apoio.”;
 - ícone: apoio/cuidado, sem sirene;
 - cor: roxo profundo da marca, não vermelho por padrão;
 - ação: abre uma rota em tela cheia, não um bottom sheet.
 
-### Primeira tela
+### Primeira tela de “Não estou bem”
 
 Texto sugerido:
 
-> Sinto muito que este momento esteja difícil. Antes de continuar: você corre
-> risco de se machucar, não consegue se manter em segurança ou está com um
-> sintoma físico grave agora?
+> Sinto muito que este momento esteja difícil. Como podemos apoiar você agora?
 
 Opções grandes e explícitas:
 
+- **Fazer uma prática curta**;
+- **Prefiro assistir**;
+- **Falar com alguém seguro**;
+- **Ajuda urgente**.
+
+As três primeiras opções seguem sem checagem. A pessoa também pode abrir o
+catálogo pela Home sem passar por esta tela.
+
+### Checagem somente após “Ajuda urgente”
+
+Texto sugerido:
+
+> Você corre risco de se machucar, não consegue se manter em segurança ou está
+> com um sintoma físico grave agora?
+
+Opções:
+
 - **Sim**;
 - **Talvez / não tenho certeza**;
-- **Não**.
+- **Não** — volta às opções de apoio, sem bloquear exercícios.
 
 “Sim” e “Talvez” seguem a mesma rota determinística. Nenhuma IA participa dessa
 decisão.
 
-### Tela “Ajuda agora”
+### Tela “Ajuda urgente”
 
 Ordem recomendada:
 
@@ -165,7 +193,7 @@ acompanhamento profissional e procedimento para piora.
 
 Cada exercício usa de três a seis telas:
 
-- cabeçalho com “Sair”, título e “Ajuda agora”;
+- cabeçalho com “Sair”, título e “Ajuda urgente”;
 - indicador `Etapa 2 de 5`, legível por leitor de tela;
 - uma instrução curta por tela;
 - no máximo uma decisão principal;
@@ -222,8 +250,9 @@ Pergunta: **“Como este momento está agora?”**
 
 Não usar nota, estrelinhas ou “sucesso/falha”.
 
-- **Pior:** priorizar “Falar com alguém” e “Ajuda agora”; oferecer apenas uma
-  alternativa leve, sem insistir em completar outra atividade.
+- **Pior:** priorizar “Falar com alguém” e deixar “Ajuda urgente” em destaque;
+  oferecer apenas uma alternativa leve, sem presumir crise nem insistir em
+  completar outra atividade.
 - **Igual:** permitir escolher outra ferramenta, vídeo ou encerrar.
 - **Um pouco melhor / melhor:** reconhecer o tempo dedicado e permitir concluir.
 
@@ -386,31 +415,38 @@ trimestral. A tela deve informar a data da última verificação.
 
 ## 14. Critérios de aceite do protótipo
 
-1. “Não estou bem” aparece na Home e é acessível por teclado/leitor de tela.
-2. “Sim” ou “Talvez” na checagem leva diretamente à ajuda, sem recomendador.
-3. 192 e 188 ficam visíveis e acionáveis na tela de ajuda.
-4. A pessoa pode acessar “Ajuda agora” de qualquer etapa em um toque.
-5. Há pelo menos cinco exercícios fictícios, três deles completamente
+1. “Exercícios” abre o catálogo sem checagem de segurança.
+2. “Não estou bem” abre opções de apoio e não uma pergunta sobre suicídio.
+3. Somente “Ajuda urgente” abre a checagem de segurança.
+4. “Sim” ou “Talvez” na checagem leva diretamente à ajuda, sem recomendador.
+5. 192 e 188 ficam visíveis e acionáveis na tela de ajuda.
+6. A pessoa pode acessar “Ajuda urgente” de qualquer etapa em um toque.
+7. Uma sugestão por notificação abre seu detalhe sem checagem obrigatória.
+8. Há pelo menos cinco exercícios fictícios, três deles completamente
    navegáveis, com três ou mais tipos de interação.
-6. Vídeo é alternativa, com legenda/transcrição fictícia e sem autoplay.
-7. A recomendação mock respeita tempo, formato e exclusão de respiração.
-8. O check-out aceita qualquer resposta sem julgamento ou bloqueio.
-9. Nenhum fluxo usa sequência, XP, ranking, calorias, peso ou punição.
-10. Nenhuma resposta é persistida e nenhuma mensagem é realmente enviada.
-11. O fluxo funciona em 320 px, tablet, tema claro/escuro e texto a 200%.
-12. Testes comprovam que a rota de risco não pode ser sobrescrita pela
+9. Vídeo é alternativa, com legenda/transcrição fictícia e sem autoplay.
+10. A recomendação mock respeita tempo, formato e exclusão de respiração.
+11. O check-out aceita qualquer resposta sem julgamento ou bloqueio; “Pior” não
+    é tratado automaticamente como ideação suicida.
+12. Nenhum fluxo usa sequência, XP, ranking, calorias, peso ou punição.
+13. Nenhuma resposta é persistida e nenhuma mensagem é realmente enviada.
+14. O fluxo funciona em 320 px, tablet, tema claro/escuro e texto a 200%.
+15. Testes comprovam que a rota de urgência não pode ser sobrescrita pela
     recomendação simulada.
 
 ## 15. Testes propostos
 
 ### Widget e navegação
 
-- Home abre `SupportFlowScreen`;
+- Home abre o catálogo diretamente por “Exercícios”;
+- “Não estou bem” abre o menu de apoio sem checagem obrigatória;
+- notificação abre a sugestão sem checagem obrigatória;
+- somente “Ajuda urgente” abre a pergunta de segurança;
 - cada resposta de segurança chega à rota correta;
 - ajuda permanece acessível em todas as etapas;
 - pular, voltar e sair preservam controle da pessoa;
 - cada tipo de `ExerciseStep` renderiza e avança corretamente;
-- resultado “Pior” prioriza ajuda humana;
+- resultado “Pior” prioriza ajuda humana sem presumir intenção suicida;
 - modo vídeo expõe legenda/transcrição;
 - nenhum CTA fictício afirma ter enviado mensagem.
 
@@ -420,7 +456,7 @@ trimestral. A tela deve informar a data da última verificação.
 - preferência “sem respiração” filtra conteúdos incompatíveis;
 - formato e duração são respeitados;
 - catálogo vazio ou erro usa fallback estático seguro;
-- contexto de risco nunca chega ao recomendador.
+- rota de urgência nunca chega ao recomendador.
 
 ### Acessibilidade e visual
 
@@ -435,9 +471,9 @@ trimestral. A tela deve informar a data da última verificação.
 
 ### Fase 1 — segurança e estrutura
 
-- CTA na Home;
+- CTAs “Exercícios” e “Não estou bem” na Home;
 - shell do fluxo em tela cheia;
-- checagem e tela “Ajuda agora”;
+- menu de apoio, checagem opcional e tela “Ajuda urgente”;
 - modelos, catálogo/recomendador mock;
 - testes das rotas críticas.
 
