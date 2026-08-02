@@ -49,7 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_isProfessional) {
         setState(() {
           _errorMessage =
-              'Configure o Supabase para acessar a área profissional.';
+              'Supabase não carregado. Inicie o app com '
+              './scripts/flutter_run.sh.';
         });
         return;
       }

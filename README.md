@@ -89,7 +89,24 @@ Instale as dependências:
 flutter pub get
 ```
 
-Use apenas a URL e a chave publicável do Supabase no cliente:
+O arquivo `.env` não é carregado como asset, pois ele pode conter credenciais
+administrativas. Para desenvolvimento, use o inicializador seguro do projeto:
+
+```bash
+./scripts/flutter_run.sh
+```
+
+Ele lê somente `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou a chave
+`SUPABASE_ANON_KEY` legada) do `.env`. Qualquer chave secreta presente no
+arquivo é ignorada e nunca é encaminhada ao aplicativo. Argumentos adicionais
+do Flutter podem ser informados normalmente, por exemplo:
+
+```bash
+./scripts/flutter_run.sh -d chrome
+```
+
+Em builds automatizados, passe apenas a URL e a chave publicável do Supabase
+diretamente ao Flutter:
 
 ```bash
 flutter run \

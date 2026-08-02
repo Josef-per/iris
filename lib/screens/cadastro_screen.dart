@@ -58,7 +58,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
       if (_isProfessional) {
         setState(() {
           _errorMessage =
-              'Configure o Supabase para cadastrar um profissional.';
+              'Supabase não carregado. Inicie o app com '
+              './scripts/flutter_run.sh.';
         });
         return;
       }
