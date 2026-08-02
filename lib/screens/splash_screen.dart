@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/theme/app_theme.dart';
 
 class IrisSplashScreen extends StatefulWidget {
@@ -65,8 +66,8 @@ class _IrisSplashScreenState extends State<IrisSplashScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Image.asset(
-                    'assets/images/Login.png',
+                  SvgPicture.asset(
+                    'assets/images/Login.svg',
                     width: MediaQuery.sizeOf(context).width < 600 ? 230 : 330,
                     fit: BoxFit.contain,
                   ),

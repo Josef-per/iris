@@ -1,5 +1,3 @@
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 class SupabaseConfig {
   static const _url = String.fromEnvironment('SUPABASE_URL');
   static const _dartDefinePublishableKey = String.fromEnvironment(
@@ -8,19 +6,7 @@ class SupabaseConfig {
   static const _dartDefineAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
 
   static String get url {
-    if (_url.isNotEmpty) {
-      return _url;
-    }
-
-    if (!dotenv.isInitialized) {
-      return '';
-    }
-
-    if (!dotenv.isInitialized) {
-      return '';
-    }
-
-    return dotenv.maybeGet('SUPABASE_URL') ?? '';
+    return _url.trim();
   }
 
   static String get publishableKey {
@@ -31,18 +17,7 @@ class SupabaseConfig {
     if (_dartDefineAnonKey.isNotEmpty) {
       return _dartDefineAnonKey;
     }
-
-    if (!dotenv.isInitialized) {
-      return '';
-    }
-
-    if (!dotenv.isInitialized) {
-      return '';
-    }
-
-    return dotenv.maybeGet('SUPABASE_PUBLISHABLE_KEY') ??
-        dotenv.maybeGet('SUPABASE_ANON_KEY') ??
-        '';
+    return '';
   }
 
   static bool get isConfigured => url.isNotEmpty && publishableKey.isNotEmpty;

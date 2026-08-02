@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 class ProfessionalNotesView extends StatefulWidget {
-  const ProfessionalNotesView({super.key, required this.onOpenPatient});
+  const ProfessionalNotesView({
+    super.key,
+    required this.store,
+    required this.onOpenPatient,
+  });
 
+  final ProfessionalFrontendStore store;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
 
   @override
@@ -15,43 +22,23 @@ class ProfessionalNotesView extends StatefulWidget {
 class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
   final _searchController = TextEditingController();
 
-  List<_ClinicalNote> get _notes {
-    final all = [
-      _ClinicalNote(
-        patient: ProfessionalMockData.patients[0],
-        text:
-            'Paciente relata melhora na rotina do café da manhã. Manter '
-            'reforço positivo e revisar o sono.',
-        date: 'Hoje, 11:40',
-        tag: 'Evolução',
-      ),
-      _ClinicalNote(
-        patient: ProfessionalMockData.patients[2],
-        text:
-            'Reavaliar episódios de compulsão no período noturno e atualizar '
-            'a estratégia de prevenção de recaída.',
-        date: 'Ontem, 17:10',
-        tag: 'Atenção',
-      ),
-      _ClinicalNote(
-        patient: ProfessionalMockData.patients[1],
-        text:
-            'Boa adesão ao plano de cuidado. Paciente conseguiu realizar '
-            'refeições em companhia durante o fim de semana.',
-        date: '25 jul, 15:30',
-        tag: 'Evolução',
-      ),
-    ];
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return all;
-    return all
-        .where(
-          (note) =>
-              note.patient.name.toLowerCase().contains(query) ||
-              note.text.toLowerCase().contains(query) ||
-              note.tag.toLowerCase().contains(query),
-        )
+  List<ProfessionalPatient> get _eligiblePatients {
+    if (!widget.store.isConnected) return widget.store.patients;
+    return widget.store.patients
+        .where((patient) => patient.status == PatientStatus.active)
         .toList();
+  }
+
+  List<ProfessionalClinicalNote> get _notes {
+    final query = _searchController.text.trim().toLowerCase();
+    return widget.store.notes.where((note) {
+      final patient = widget.store.patientByIdOrNull(note.patientId);
+      if (patient == null) return false;
+      if (query.isEmpty) return true;
+      return patient.name.toLowerCase().contains(query) ||
+          note.text.toLowerCase().contains(query) ||
+          note.tag.toLowerCase().contains(query);
+    }).toList();
   }
 
   @override
@@ -69,10 +56,11 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
           children: [
             ProfessionalPageHeader(
               title: 'Anotações clínicas',
-              subtitle:
-                  'Registre e encontre observações importantes do acompanhamento.',
+              subtitle: '${widget.store.notes.length} registros',
               action: FilledButton.icon(
-                onPressed: () => _showNewNoteDialog(context),
+                onPressed: _eligiblePatients.isEmpty
+                    ? null
+                    : () => _showNewNoteDialog(context),
                 icon: const Icon(Icons.note_add_outlined),
                 label: const Text('Nova anotação'),
               ),
@@ -84,21 +72,69 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
-                  hintText: 'Buscar por paciente, conteúdo ou marcador...',
+                  hintText: 'Buscar anotações...',
                   prefixIcon: Icon(Icons.search_rounded),
                 ),
               ),
             ),
             const SizedBox(height: 22),
-            ..._notes.map(
-              (note) => Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _ClinicalNoteCard(
-                  note: note,
-                  onOpenPatient: () => widget.onOpenPatient(note.patient),
+            if (_notes.isEmpty)
+              ProfessionalPanel(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 34),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        const Icon(
+                          Icons.note_alt_outlined,
+                          size: 44,
+                          color: AppColors.purple,
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          widget.store.patients.isEmpty
+                              ? 'Vincule um paciente para criar anotações.'
+                              : _eligiblePatients.isEmpty
+                              ? 'Ative o acompanhamento para criar anotações.'
+                              : 'Nenhuma anotação encontrada.',
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              )
+            else
+              ..._notes.map((note) {
+                final patient = widget.store.patientByIdOrNull(note.patientId)!;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: _ClinicalNoteCard(
+                    note: note,
+                    patient: patient,
+                    canEdit:
+                        !widget.store.isConnected ||
+                        patient.status == PatientStatus.active,
+                    onOpenPatient: () => widget.onOpenPatient(patient),
+                    onEdit: () => _showNoteDialog(context, note: note),
+                    onDelete: () async {
+                      final confirmed =
+                          await showProfessionalDeleteConfirmation(
+                            context,
+                            item: 'Anotação de ${patient.name}',
+                          );
+                      if (!confirmed) return;
+                      try {
+                        await widget.store.removeNote(note.id);
+                      } catch (error) {
+                        if (context.mounted) {
+                          showProfessionalOperationError(context, error);
+                        }
+                      }
+                    },
+                  ),
+                );
+              }),
           ],
         ),
       ),
@@ -106,46 +142,109 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
   }
 
   Future<void> _showNewNoteDialog(BuildContext context) async {
-    final controller = TextEditingController();
-    var selectedPatient = ProfessionalMockData.patients.first;
+    await _showNoteDialog(context);
+  }
+
+  Future<void> _showNoteDialog(
+    BuildContext context, {
+    ProfessionalClinicalNote? note,
+  }) async {
+    final eligiblePatients = _eligiblePatients;
+    final notePatient = note == null
+        ? null
+        : widget.store.patientByIdOrNull(note.patientId);
+    if (eligiblePatients.isEmpty ||
+        (notePatient != null &&
+            widget.store.isConnected &&
+            notePatient.status != PatientStatus.active)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.store.patients.isEmpty
+                ? 'Vincule um paciente antes de continuar.'
+                : 'Ative o acompanhamento para alterar anotações.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final formKey = GlobalKey<FormState>();
+    final controller = TextEditingController(text: note?.text);
+    var selectedPatient = note == null
+        ? eligiblePatients[0]
+        : widget.store.patientById(note.patientId);
+    var tag = note?.tag ?? 'Evolução';
+    var saving = false;
     await showDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Nova anotação clínica'),
+          title: Text(note == null ? 'Nova anotação' : 'Editar anotação'),
           content: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<ProfessionalPatient>(
-                  initialValue: selectedPatient,
-                  decoration: const InputDecoration(labelText: 'Paciente'),
-                  items: ProfessionalMockData.patients
-                      .map(
-                        (patient) => DropdownMenuItem(
-                          value: patient,
-                          child: Text(patient.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setDialogState(() => selectedPatient = value);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: controller,
-                  minLines: 4,
-                  maxLines: 7,
-                  decoration: const InputDecoration(
-                    labelText: 'Anotação',
-                    alignLabelWithHint: true,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<ProfessionalPatient>(
+                    initialValue: selectedPatient,
+                    decoration: const InputDecoration(labelText: 'Paciente'),
+                    items: eligiblePatients
+                        .map(
+                          (patient) => DropdownMenuItem(
+                            value: patient,
+                            child: Text(patient.name),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: note == null
+                        ? (value) {
+                            if (value != null) {
+                              setDialogState(() => selectedPatient = value);
+                            }
+                          }
+                        : null,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: tag,
+                    decoration: const InputDecoration(labelText: 'Marcador'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'Evolução',
+                        child: Text('Evolução'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Atenção',
+                        child: Text('Atenção'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'Consulta',
+                        child: Text('Consulta'),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => tag = value);
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    key: const Key('professional-note-text'),
+                    controller: controller,
+                    minLines: 4,
+                    maxLines: 7,
+                    decoration: const InputDecoration(
+                      labelText: 'Anotação',
+                      alignLabelWithHint: true,
+                    ),
+                    validator: (value) => value == null || value.trim().isEmpty
+                        ? 'Digite uma anotação'
+                        : null,
+                  ),
+                ],
+              ),
             ),
           ),
           actions: [
@@ -154,31 +253,62 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
               child: const Text('Cancelar'),
             ),
             FilledButton(
-              onPressed: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Anotação salva localmente para visualização.',
-                    ),
-                  ),
-                );
-              },
-              child: const Text('Salvar'),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      final text = controller.text.trim();
+                      setDialogState(() => saving = true);
+                      try {
+                        if (note == null) {
+                          await widget.store.addNote(
+                            ProfessionalClinicalNote(
+                              id: 'note-${DateTime.now().microsecondsSinceEpoch}',
+                              patientId: selectedPatient.id,
+                              text: text,
+                              date: 'Agora',
+                              tag: tag,
+                            ),
+                          );
+                        } else {
+                          await widget.store.updateNote(
+                            note.copyWith(text: text, tag: tag),
+                          );
+                        }
+                        if (context.mounted) Navigator.pop(context);
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        setDialogState(() => saving = false);
+                        showProfessionalOperationError(context, error);
+                      }
+                    },
+              child: Text(saving ? 'Salvando...' : 'Salvar'),
             ),
           ],
         ),
       ),
     );
+    await Future<void>.delayed(const Duration(milliseconds: 250));
     controller.dispose();
   }
 }
 
 class _ClinicalNoteCard extends StatelessWidget {
-  const _ClinicalNoteCard({required this.note, required this.onOpenPatient});
+  const _ClinicalNoteCard({
+    required this.note,
+    required this.patient,
+    required this.onOpenPatient,
+    required this.canEdit,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
-  final _ClinicalNote note;
+  final ProfessionalClinicalNote note;
+  final ProfessionalPatient patient;
   final VoidCallback onOpenPatient;
+  final bool canEdit;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -189,14 +319,14 @@ class _ClinicalNoteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              PatientAvatar(patient: note.patient, size: 48),
+              PatientAvatar(patient: patient, size: 48),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      note.patient.name,
+                      patient.name,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: AppColors.deepPurple,
                       ),
@@ -208,23 +338,40 @@ class _ClinicalNoteCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.lavender.withValues(alpha: .32),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  note.tag,
-                  style: const TextStyle(
-                    color: AppColors.deepPurple,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.lavender.withValues(alpha: .32),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      note.tag,
+                      style: const TextStyle(
+                        color: AppColors.deepPurple,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-                ),
+                  PopupMenuButton<String>(
+                    enabled: canEdit,
+                    tooltip: canEdit
+                        ? 'Ações'
+                        : 'Ative o acompanhamento para alterar',
+                    onSelected: (value) =>
+                        value == 'edit' ? onEdit() : onDelete(),
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'edit', child: Text('Editar')),
+                      PopupMenuItem(value: 'delete', child: Text('Remover')),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -243,18 +390,4 @@ class _ClinicalNoteCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ClinicalNote {
-  const _ClinicalNote({
-    required this.patient,
-    required this.text,
-    required this.date,
-    required this.tag,
-  });
-
-  final ProfessionalPatient patient;
-  final String text;
-  final String date;
-  final String tag;
 }

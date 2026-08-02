@@ -2,19 +2,21 @@
 set -euo pipefail
 
 # Cria um profissional confirmado no Supabase Auth e registros em usuarios,
-# perfis e profissionais. Imprime o payload do QR Code para vinculo de pacientes.
+# perfis e profissionais. Em seguida, autentica o profissional e solicita um
+# convite QR temporario pela mesma RPC segura usada pelo aplicativo.
 #
 # Uso:
 #   EMAIL='psiquiatra@exemplo.com' PASSWORD='Senha123!' ./scripts/create_supabase_professional.sh
 # Opcional:
-#   DISPLAY_NAME='Dra. Ana Silva' ./scripts/create_supabase_professional.sh
+#   DISPLAY_NAME='Dra. Ana Silva' SPECIALTY='Psiquiatria' \
+#     REGISTRATION='CRM/SP 123456' ./scripts/create_supabase_professional.sh
 #
-# Requer SUPABASE_URL e SERVICE_ROLE_KEY no .env ou no ambiente.
+# Requer SUPABASE_URL e SERVICE_ROLE_KEY no .env.server ou no ambiente.
 
-if [ -f .env ]; then
+if [ -f .env.server ]; then
   set -o allexport
   # shellcheck disable=SC1091
-  source .env
+  source .env.server
   set +o allexport
 fi
 
@@ -48,6 +50,8 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 display_name="${DISPLAY_NAME:-}"
+specialty="${SPECIALTY:-Psiquiatria}"
+registration="${REGISTRATION:-}"
 
 auth_payload=$(jq -n \
   --arg email "$EMAIL" \
@@ -127,13 +131,22 @@ if [ -n "$display_name" ]; then
   fi
 fi
 
-profissional_payload=$(jq -n --arg user_id "$user_id" '{user_id: $user_id}')
+profissional_payload=$(jq -n \
+  --arg user_id "$user_id" \
+  --arg specialty "$specialty" \
+  --arg registration "$registration" \
+  '{
+    user_id: $user_id,
+    especialidade: (if ($specialty | length) > 0 then $specialty else null end),
+    registro_profissional: (if ($registration | length) > 0 then $registration else null end),
+    credenciamento_status: "ativo"
+  }')
 
-profissional_resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/profissionais" \
+profissional_resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/profissionais?on_conflict=user_id" \
   -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
   -H "apikey: $SERVICE_ROLE_KEY" \
   -H "Content-Type: application/json" \
-  -H "Prefer: return=representation" \
+  -H "Prefer: resolution=merge-duplicates,return=representation" \
   -d "$profissional_payload")
 
 profissional_id=$(echo "$profissional_resp" | jq -r '.[0].id // empty')
@@ -149,7 +162,43 @@ if [ -z "$profissional_id" ]; then
   exit 1
 fi
 
-qr_payload="iris://vincular/profissional/${profissional_id,,}"
+session_payload=$(jq -n \
+  --arg email "$EMAIL" \
+  --arg password "$PASSWORD" \
+  '{email: $email, password: $password}')
+
+session_resp=$(curl -sS -X POST \
+  "$SUPABASE_URL/auth/v1/token?grant_type=password" \
+  -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d "$session_payload")
+
+access_token=$(echo "$session_resp" | jq -r '.access_token // empty')
+if [ -z "$access_token" ]; then
+  echo "Profissional criado, mas nao foi possivel autenticar para gerar o convite:"
+  echo "$session_resp" | jq .
+  exit 1
+fi
+
+invite_resp=$(curl -sS -X POST \
+  "$SUPABASE_URL/rest/v1/rpc/iris_create_professional_invite" \
+  -H "Authorization: Bearer $access_token" \
+  -H "apikey: $SERVICE_ROLE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"p_ttl_minutes":30,"p_max_uses":1}')
+
+invite_token=$(echo "$invite_resp" | jq -r \
+  'if type == "array" then .[0].token else .token end // empty')
+expires_at=$(echo "$invite_resp" | jq -r \
+  'if type == "array" then .[0].expires_at else .expires_at end // empty')
+if [ -z "$invite_token" ]; then
+  echo "Profissional criado, mas a RPC nao gerou o convite:"
+  echo "$invite_resp" | jq .
+  echo "Aplique todas as migrations em supabase/migrations e tente novamente."
+  exit 1
+fi
+
+qr_payload="iris://vincular/profissional?v=1&token=$invite_token"
 qr_file="qr-profissional-${profissional_id}.png"
 
 echo
@@ -157,6 +206,7 @@ echo "Profissional criado com sucesso."
 echo "User ID:         $user_id"
 echo "Profissional ID: $profissional_id"
 echo "QR payload:      $qr_payload"
+echo "Expira em:       $expires_at"
 echo
 
 if command -v qrencode >/dev/null 2>&1; then
@@ -169,6 +219,6 @@ fi
 
 echo
 echo "Proximo passo:"
-echo "1. Aplique supabase/migrations/0005_patient_professional_link_rls.sql no Supabase."
-echo "2. Faca login com o profissional para exibir o QR Code no app."
-echo "3. Crie ou entre com um paciente e escaneie o QR Code."
+echo "1. Mantenha a SERVICE_ROLE_KEY somente no servidor e em .env.server."
+echo "2. Faca login com o profissional para renovar ou revogar convites."
+echo "3. Crie ou entre com um paciente e escaneie o QR Code antes da expiracao."

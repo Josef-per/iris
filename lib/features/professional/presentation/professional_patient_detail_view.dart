@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 class ProfessionalPatientDetailView extends StatefulWidget {
   const ProfessionalPatientDetailView({
     super.key,
+    required this.store,
     required this.patient,
     required this.onBack,
     required this.onOpenCarePlan,
   });
 
+  final ProfessionalFrontendStore store;
   final ProfessionalPatient patient;
   final VoidCallback onBack;
   final VoidCallback onOpenCarePlan;
@@ -23,11 +27,8 @@ class ProfessionalPatientDetailView extends StatefulWidget {
 class _ProfessionalPatientDetailViewState
     extends State<ProfessionalPatientDetailView> {
   final _noteController = TextEditingController();
-  final List<String> _notes = [
-    'Paciente relata melhora na rotina do café da manhã.',
-    'Reavaliar adesão à medicação na próxima consulta.',
-  ];
   var _selectedTab = 0;
+  var _savingNote = false;
 
   @override
   void dispose() {
@@ -35,22 +36,65 @@ class _ProfessionalPatientDetailViewState
     super.dispose();
   }
 
-  void _addNote() {
+  Future<void> _addNote() async {
+    final patient = widget.store.patientByIdOrNull(widget.patient.id);
+    if (widget.store.isConnected && patient?.status != PatientStatus.active) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ative o acompanhamento para criar anotações.'),
+        ),
+      );
+      return;
+    }
     final note = _noteController.text.trim();
-    if (note.isEmpty) return;
-    setState(() {
-      _notes.insert(0, note);
+    if (note.isEmpty || _savingNote) return;
+    setState(() => _savingNote = true);
+    try {
+      await widget.store.addNote(
+        ProfessionalClinicalNote(
+          id: 'note-${DateTime.now().microsecondsSinceEpoch}',
+          patientId: widget.patient.id,
+          text: note,
+          date: 'Agora',
+          tag: 'Consulta',
+        ),
+      );
       _noteController.clear();
-    });
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+    } finally {
+      if (mounted) setState(() => _savingNote = false);
+    }
+  }
+
+  Future<void> _deleteNote(String id) async {
+    final patient = widget.store.patientByIdOrNull(widget.patient.id);
+    if (widget.store.isConnected && patient?.status != PatientStatus.active) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Ative o acompanhamento para alterar anotações.'),
+        ),
+      );
+      return;
+    }
+    try {
+      await widget.store.removeNote(id);
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final patient = widget.store.patientById(widget.patient.id);
+    final notes = widget.store.notes
+        .where((note) => note.patientId == patient.id)
+        .toList();
     return SingleChildScrollView(
       child: Column(
         children: [
           _PatientHero(
-            patient: widget.patient,
+            patient: patient,
             onBack: widget.onBack,
             onOpenCarePlan: widget.onOpenCarePlan,
           ),
@@ -68,14 +112,24 @@ class _ProfessionalPatientDetailViewState
                   child: switch (_selectedTab) {
                     0 => _OverviewTab(
                       key: const ValueKey('overview'),
-                      patient: widget.patient,
+                      patient: patient,
+                      store: widget.store,
                     ),
-                    1 => const _HistoryTab(key: ValueKey('history')),
+                    1 => _HistoryTab(
+                      key: const ValueKey('history'),
+                      demoMode: !widget.store.isConnected,
+                    ),
                     _ => _NotesTab(
                       key: const ValueKey('notes'),
                       controller: _noteController,
-                      notes: _notes,
+                      notes: notes,
                       onAdd: _addNote,
+                      onDelete: _deleteNote,
+                      saving: _savingNote,
+                      authorName: widget.store.settings.name,
+                      canEdit:
+                          !widget.store.isConnected ||
+                          patient.status == PatientStatus.active,
                     ),
                   },
                 ),
@@ -137,7 +191,7 @@ class _PatientHero extends StatelessWidget {
                     foregroundColor: AppColors.deepPurple,
                   ),
                   icon: const Icon(Icons.health_and_safety_outlined),
-                  label: const Text('Abrir plano de cuidado'),
+                  label: const Text('Plano de cuidado'),
                 ),
               ],
             )
@@ -153,7 +207,7 @@ class _PatientHero extends StatelessWidget {
                     foregroundColor: AppColors.deepPurple,
                   ),
                   icon: const Icon(Icons.health_and_safety_outlined),
-                  label: const Text('Abrir plano de cuidado'),
+                  label: const Text('Plano de cuidado'),
                 ),
               ],
             ),
@@ -253,9 +307,10 @@ class _PatientTabs extends StatelessWidget {
 }
 
 class _OverviewTab extends StatelessWidget {
-  const _OverviewTab({super.key, required this.patient});
+  const _OverviewTab({super.key, required this.patient, required this.store});
 
   final ProfessionalPatient patient;
+  final ProfessionalFrontendStore store;
 
   @override
   Widget build(BuildContext context) {
@@ -264,18 +319,32 @@ class _OverviewTab extends StatelessWidget {
         final wide = constraints.maxWidth >= 920;
         final left = Column(
           children: [
-            _PersonalInfoPanel(patient: patient),
+            _PersonalInfoPanel(
+              patient: patient,
+              onEdit: () =>
+                  showProfessionalPatientForm(context, store, patient: patient),
+            ),
             const SizedBox(height: 20),
-            const _LastCheckInPanel(),
+            if (store.isConnected)
+              _RemoteLastCheckInPanel(patient: patient)
+            else
+              const _LastCheckInPanel(),
             const SizedBox(height: 20),
-            const _FoodEvolutionPanel(),
+            if (store.isConnected)
+              const _ClinicalDataEmptyPanel(
+                title: 'Evolução alimentar',
+                message: 'Nenhum registro alimentar disponível.',
+                icon: Icons.restaurant_outlined,
+              )
+            else
+              const _FoodEvolutionPanel(),
           ],
         );
-        final right = const Column(
+        final right = Column(
           children: [
-            _MedicationPanel(),
-            SizedBox(height: 20),
-            _RecentRecordsPanel(),
+            _MedicationPanel(patient: patient, store: store),
+            const SizedBox(height: 20),
+            _RecentRecordsPanel(records: store.recordsFor(patient.id)),
           ],
         );
         if (!wide) {
@@ -295,9 +364,10 @@ class _OverviewTab extends StatelessWidget {
 }
 
 class _PersonalInfoPanel extends StatelessWidget {
-  const _PersonalInfoPanel({required this.patient});
+  const _PersonalInfoPanel({required this.patient, required this.onEdit});
 
   final ProfessionalPatient patient;
+  final VoidCallback onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -305,9 +375,13 @@ class _PersonalInfoPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ProfessionalSectionTitle(
+          ProfessionalSectionTitle(
             title: 'Informações pessoais',
-            subtitle: 'Dados de identificação e contato',
+            trailing: IconButton(
+              tooltip: 'Editar paciente',
+              onPressed: onEdit,
+              icon: const Icon(Icons.edit_outlined),
+            ),
           ),
           const SizedBox(height: 22),
           LayoutBuilder(
@@ -418,6 +492,74 @@ class _LastCheckInPanel extends StatelessWidget {
   }
 }
 
+class _RemoteLastCheckInPanel extends StatelessWidget {
+  const _RemoteLastCheckInPanel({required this.patient});
+
+  final ProfessionalPatient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasActivity =
+        patient.lastActivity.trim().isNotEmpty &&
+        patient.lastActivity != 'Sem registros';
+    return ProfessionalPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfessionalSectionTitle(
+            title: 'Último check-in',
+            subtitle: hasActivity ? patient.lastActivity : null,
+          ),
+          const SizedBox(height: 20),
+          if (!hasActivity)
+            const Text('Nenhum check-in disponível.')
+          else
+            _CheckInValue(
+              icon: Icons.sentiment_satisfied_alt_rounded,
+              label: 'Humor',
+              value: patient.mood,
+              color: AppColors.success,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClinicalDataEmptyPanel extends StatelessWidget {
+  const _ClinicalDataEmptyPanel({
+    required this.title,
+    required this.message,
+    required this.icon,
+  });
+
+  final String title;
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return ProfessionalPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfessionalSectionTitle(title: title),
+          const SizedBox(height: 22),
+          Center(
+            child: Column(
+              children: [
+                Icon(icon, size: 36, color: AppColors.purple),
+                const SizedBox(height: 10),
+                Text(message, textAlign: TextAlign.center),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _RiskBadge extends StatelessWidget {
   const _RiskBadge();
 
@@ -490,29 +632,83 @@ class _CheckInValue extends StatelessWidget {
 }
 
 class _MedicationPanel extends StatelessWidget {
-  const _MedicationPanel();
+  const _MedicationPanel({required this.patient, required this.store});
+
+  final ProfessionalPatient patient;
+  final ProfessionalFrontendStore store;
 
   @override
   Widget build(BuildContext context) {
+    final plan = store.carePlanFor(patient.id);
+    final medications = plan.medications;
+    final canEdit =
+        !store.isConnected || patient.status == PatientStatus.active;
+
+    Future<void> saveMedications(List<ProfessionalMedication> updated) async {
+      try {
+        await store.updateCarePlan(
+          patient.id,
+          plan.copyWith(medications: updated),
+        );
+      } catch (error) {
+        if (context.mounted) {
+          showProfessionalOperationError(context, error);
+        }
+      }
+    }
+
     return ProfessionalPanel(
       child: Column(
         children: [
           ProfessionalSectionTitle(
             title: 'Medicações',
-            subtitle: 'Adesão dos últimos 30 dias',
-            trailing: IconButton(
-              tooltip: 'Editar medicações',
-              onPressed: () {},
-              icon: const Icon(Icons.edit_outlined),
+            subtitle: '${medications.length} itens',
+            trailing: IconButton.filledTonal(
+              tooltip: canEdit
+                  ? 'Adicionar medicação'
+                  : 'Ative o acompanhamento para alterar',
+              onPressed: !canEdit
+                  ? null
+                  : () async {
+                      final result = await showProfessionalMedicationForm(
+                        context,
+                      );
+                      if (result == null) return;
+                      await saveMedications([...medications, result]);
+                    },
+              icon: const Icon(Icons.add_rounded),
             ),
           ),
           const SizedBox(height: 14),
-          ...ProfessionalMockData.medications.map(
-            (medication) => Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _MedicationRow(medication: medication),
+          if (medications.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Text('Nenhuma medicação.'),
+            )
+          else
+            ...medications.asMap().entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: _MedicationRow(
+                  medication: entry.value,
+                  canEdit: canEdit,
+                  onEdit: () async {
+                    final result = await showProfessionalMedicationForm(
+                      context,
+                      medication: entry.value,
+                    );
+                    if (result == null) return;
+                    final updated = [...medications];
+                    updated[entry.key] = result;
+                    await saveMedications(updated);
+                  },
+                  onDelete: () async {
+                    final updated = [...medications]..removeAt(entry.key);
+                    await saveMedications(updated);
+                  },
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -520,9 +716,17 @@ class _MedicationPanel extends StatelessWidget {
 }
 
 class _MedicationRow extends StatelessWidget {
-  const _MedicationRow({required this.medication});
+  const _MedicationRow({
+    required this.medication,
+    required this.canEdit,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final ProfessionalMedication medication;
+  final bool canEdit;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +767,17 @@ class _MedicationRow extends StatelessWidget {
                   color: AppColors.success,
                   fontWeight: FontWeight.w800,
                 ),
+              ),
+              PopupMenuButton<String>(
+                enabled: canEdit,
+                tooltip: canEdit
+                    ? 'Ações da medicação'
+                    : 'Ative o acompanhamento para alterar',
+                onSelected: (value) => value == 'edit' ? onEdit() : onDelete(),
+                itemBuilder: (context) => const [
+                  PopupMenuItem(value: 'edit', child: Text('Editar')),
+                  PopupMenuItem(value: 'delete', child: Text('Remover')),
+                ],
               ),
             ],
           ),
@@ -667,21 +882,24 @@ class _FoodProgress extends StatelessWidget {
 }
 
 class _RecentRecordsPanel extends StatelessWidget {
-  const _RecentRecordsPanel();
+  const _RecentRecordsPanel({required this.records});
+
+  final List<ProfessionalRecord> records;
 
   @override
   Widget build(BuildContext context) {
     return ProfessionalPanel(
       child: Column(
         children: [
-          const ProfessionalSectionTitle(
-            title: 'Registros recentes',
-            subtitle: 'Atividades sincronizadas pelo aplicativo',
-          ),
+          const ProfessionalSectionTitle(title: 'Registros recentes'),
           const SizedBox(height: 14),
-          ...ProfessionalMockData.records.map(
-            (record) => _RecordRow(record: record),
-          ),
+          if (records.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text('Nenhum registro recente disponível.'),
+            )
+          else
+            ...records.map((record) => _RecordRow(record: record)),
         ],
       ),
     );
@@ -746,7 +964,9 @@ class _RecordRow extends StatelessWidget {
 }
 
 class _HistoryTab extends StatelessWidget {
-  const _HistoryTab({super.key});
+  const _HistoryTab({super.key, required this.demoMode});
+
+  final bool demoMode;
 
   @override
   Widget build(BuildContext context) {
@@ -760,59 +980,65 @@ class _HistoryTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const ProfessionalSectionTitle(
-            title: 'Histórico de acompanhamento',
-            subtitle: 'Resumo semanal dos principais indicadores',
-          ),
+          const ProfessionalSectionTitle(title: 'Histórico'),
           const SizedBox(height: 22),
-          ...weeks.map(
-            (week) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.lavender.withValues(alpha: .14),
-                borderRadius: BorderRadius.circular(14),
+          if (!demoMode)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text('Nenhum histórico consolidado disponível.'),
               ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final compact = constraints.maxWidth < 650;
-                  final details = [
-                    _HistoryValue(label: 'Humor médio', value: week.$2),
-                    _HistoryValue(label: 'Refeições', value: week.$3),
-                    _HistoryValue(label: 'Medicação', value: week.$4),
-                    _HistoryValue(label: 'Alertas', value: week.$5),
-                  ];
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        week.$1,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(color: AppColors.deepPurple),
-                      ),
-                      const SizedBox(height: 14),
-                      if (compact)
-                        Wrap(
-                          spacing: 24,
-                          runSpacing: 16,
-                          children: details
-                              .map(
-                                (value) => SizedBox(width: 135, child: value),
-                              )
-                              .toList(),
-                        )
-                      else
-                        Row(
-                          children: [
-                            for (final value in details) Expanded(child: value),
-                          ],
+            )
+          else
+            ...weeks.map(
+              (week) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.lavender.withValues(alpha: .14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 650;
+                    final details = [
+                      _HistoryValue(label: 'Humor médio', value: week.$2),
+                      _HistoryValue(label: 'Refeições', value: week.$3),
+                      _HistoryValue(label: 'Medicação', value: week.$4),
+                      _HistoryValue(label: 'Alertas', value: week.$5),
+                    ];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          week.$1,
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(color: AppColors.deepPurple),
                         ),
-                    ],
-                  );
-                },
+                        const SizedBox(height: 14),
+                        if (compact)
+                          Wrap(
+                            spacing: 24,
+                            runSpacing: 16,
+                            children: details
+                                .map(
+                                  (value) => SizedBox(width: 135, child: value),
+                                )
+                                .toList(),
+                          )
+                        else
+                          Row(
+                            children: [
+                              for (final value in details)
+                                Expanded(child: value),
+                            ],
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -844,11 +1070,19 @@ class _NotesTab extends StatelessWidget {
     required this.controller,
     required this.notes,
     required this.onAdd,
+    required this.onDelete,
+    required this.saving,
+    required this.authorName,
+    required this.canEdit,
   });
 
   final TextEditingController controller;
-  final List<String> notes;
-  final VoidCallback onAdd;
+  final List<ProfessionalClinicalNote> notes;
+  final Future<void> Function() onAdd;
+  final Future<void> Function(String) onDelete;
+  final bool saving;
+  final String authorName;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -858,18 +1092,14 @@ class _NotesTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessionalSectionTitle(
-                title: 'Nova anotação clínica',
-                subtitle: 'Visível somente para profissionais autorizados',
-              ),
+              const ProfessionalSectionTitle(title: 'Nova anotação'),
               const SizedBox(height: 18),
               TextField(
                 controller: controller,
                 minLines: 4,
                 maxLines: 7,
                 decoration: const InputDecoration(
-                  hintText:
-                      'Registre observações da consulta ou do acompanhamento...',
+                  hintText: 'Escreva uma observação...',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -877,9 +1107,9 @@ class _NotesTab extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
-                  onPressed: onAdd,
+                  onPressed: saving || !canEdit ? null : () => onAdd(),
                   icon: const Icon(Icons.add_comment_outlined),
-                  label: const Text('Salvar anotação'),
+                  label: Text(saving ? 'Salvando...' : 'Salvar anotação'),
                 ),
               ),
             ],
@@ -890,11 +1120,9 @@ class _NotesTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ProfessionalSectionTitle(
-                title: 'Anotações anteriores',
-                subtitle: 'Ordenadas da mais recente para a mais antiga',
-              ),
+              const ProfessionalSectionTitle(title: 'Anotações anteriores'),
               const SizedBox(height: 14),
+              if (notes.isEmpty) const Text('Nenhuma anotação.'),
               ...notes.asMap().entries.map(
                 (entry) => Container(
                   width: double.infinity,
@@ -907,15 +1135,27 @@ class _NotesTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        entry.value,
-                        style: Theme.of(context).textTheme.bodyLarge,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.value.text,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Remover anotação',
+                            onPressed: canEdit
+                                ? () => onDelete(entry.value.id)
+                                : null,
+                            icon: const Icon(Icons.delete_outline_rounded),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        entry.key == 0
-                            ? 'Hoje, 11:40 · Dra. Júlia Souza'
-                            : '22 jul, 16:10 · Dra. Júlia Souza',
+                        '${entry.value.date} · $authorName',
                         style: Theme.of(
                           context,
                         ).textTheme.bodyMedium?.copyWith(fontSize: 11),

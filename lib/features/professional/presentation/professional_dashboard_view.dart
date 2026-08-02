@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 class ProfessionalDashboardView extends StatelessWidget {
   const ProfessionalDashboardView({
     super.key,
+    required this.store,
     required this.onOpenPatients,
     required this.onOpenPatient,
   });
 
+  final ProfessionalFrontendStore store;
   final VoidCallback onOpenPatients;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
 
@@ -21,22 +25,37 @@ class ProfessionalDashboardView extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ProfessionalPageHeader(
-              title: 'Olá, Dra. Júlia! 👋',
-              subtitle: 'Verifique o resumo do seu dia.',
-              action: OutlinedButton.icon(
-                onPressed: onOpenPatients,
-                icon: const Icon(Icons.people_alt_outlined),
-                label: const Text('Ver pacientes'),
+              title: 'Olá, ${_displayName(store.settings.name)}! 👋',
+              subtitle: 'Resumo do dia',
+              action: Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onOpenPatients,
+                    icon: const Icon(Icons.people_alt_outlined),
+                    label: const Text('Pacientes'),
+                  ),
+                  FilledButton.icon(
+                    key: const Key('professional-add-appointment'),
+                    onPressed: _canManage(store)
+                        ? () => showProfessionalAppointmentForm(context, store)
+                        : null,
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Nova consulta'),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 30),
-            const _MetricsGrid(),
+            _MetricsGrid(store: store),
             const SizedBox(height: 30),
             LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 940;
-                final calendar = const _CalendarPanel();
+                final calendar = _CalendarPanel(store: store);
                 final appointments = _AppointmentsPanel(
+                  store: store,
                   onOpenPatient: onOpenPatient,
                   onOpenPatients: onOpenPatients,
                 );
@@ -52,7 +71,7 @@ class ProfessionalDashboardView extends StatelessWidget {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Expanded(flex: 11, child: _CalendarPanel()),
+                    Expanded(flex: 11, child: calendar),
                     const SizedBox(width: 24),
                     Expanded(flex: 10, child: appointments),
                   ],
@@ -67,10 +86,22 @@ class ProfessionalDashboardView extends StatelessWidget {
 }
 
 class _MetricsGrid extends StatelessWidget {
-  const _MetricsGrid();
+  const _MetricsGrid({required this.store});
+
+  final ProfessionalFrontendStore store;
 
   @override
   Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final appointmentsToday = store.isConnected
+        ? store.appointments.where((appointment) {
+            final startsAt = appointment.startsAt?.toLocal();
+            return startsAt != null &&
+                startsAt.year == today.year &&
+                startsAt.month == today.month &&
+                startsAt.day == today.day;
+          }).length
+        : store.appointments.length;
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth >= 1120
@@ -87,24 +118,27 @@ class _MetricsGrid extends StatelessWidget {
             _MetricCard(
               width: width,
               icon: Icons.calendar_month_outlined,
-              title: 'Consultas hoje',
-              value: '5',
-              supporting: 'Próxima: 14:00',
+              title: store.isConnected ? 'Restantes hoje' : 'Consultas hoje',
+              value: '$appointmentsToday',
+              supporting: appointmentsToday == 0
+                  ? 'Sem consultas'
+                  : 'Agenda do dia',
               color: AppColors.deepPurple,
             ),
             _MetricCard(
               width: width,
               icon: Icons.sentiment_satisfied_alt_rounded,
               title: 'Pacientes ativos',
-              value: '28',
-              supporting: '+2 novos este mês',
+              value:
+                  '${store.patients.where((patient) => patient.status == PatientStatus.active).length}',
+              supporting: '${store.patients.length} no total',
               color: AppColors.success,
             ),
             _MetricCard(
               width: width,
               icon: Icons.warning_amber_rounded,
               title: 'Alertas',
-              value: '0',
+              value: '${store.alerts}',
               supporting: 'Ver todos',
               color: AppColors.danger,
             ),
@@ -112,8 +146,8 @@ class _MetricsGrid extends StatelessWidget {
               width: width,
               icon: Icons.trending_up_rounded,
               title: 'Consultas este mês',
-              value: '42',
-              supporting: 'Crescimento de 12%',
+              value: '${store.appointmentsThisMonth}',
+              supporting: 'Agenda carregada',
               color: const Color(0xFF466BC7),
             ),
           ],
@@ -192,10 +226,58 @@ class _MetricCard extends StatelessWidget {
 }
 
 class _CalendarPanel extends StatelessWidget {
-  const _CalendarPanel();
+  const _CalendarPanel({required this.store});
+
+  final ProfessionalFrontendStore store;
 
   @override
   Widget build(BuildContext context) {
+    if (store.isConnected) {
+      final now = DateTime.now();
+      final todayAppointments = store.appointments
+          .where((appointment) {
+            final startsAt = appointment.startsAt?.toLocal();
+            return startsAt != null &&
+                startsAt.year == now.year &&
+                startsAt.month == now.month &&
+                startsAt.day == now.day;
+          })
+          .toList(growable: false);
+      return ProfessionalPanel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const ProfessionalSectionTitle(title: 'Próximas de hoje'),
+            const SizedBox(height: 18),
+            if (todayAppointments.isEmpty)
+              const _DashboardEmptyState(
+                icon: Icons.event_available_outlined,
+                title: 'Agenda livre',
+                message: 'Não há consultas agendadas para hoje.',
+              )
+            else
+              ...todayAppointments.map(
+                (appointment) => ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(
+                    Icons.schedule_rounded,
+                    color: AppColors.deepPurple,
+                  ),
+                  title: Text(appointment.patient.name),
+                  subtitle: Text(appointment.type),
+                  trailing: Text(
+                    appointment.time,
+                    style: const TextStyle(
+                      color: AppColors.deepPurple,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    }
     return ProfessionalPanel(
       padding: EdgeInsets.zero,
       child: ClipRRect(
@@ -214,38 +296,68 @@ class _CalendarPanel extends StatelessWidget {
 
 class _AppointmentsPanel extends StatelessWidget {
   const _AppointmentsPanel({
+    required this.store,
     required this.onOpenPatient,
     required this.onOpenPatients,
   });
 
+  final ProfessionalFrontendStore store;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
   final VoidCallback onOpenPatients;
 
   @override
   Widget build(BuildContext context) {
-    final appointments = ProfessionalMockData.appointments;
+    final appointments = store.appointments;
     return ProfessionalPanel(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
       child: Column(
         children: [
           ProfessionalSectionTitle(
             title: 'Próximas consultas',
-            trailing: TextButton(
-              onPressed: onOpenPatients,
-              child: const Text('Ver agenda completa'),
+            trailing: IconButton.filledTonal(
+              tooltip: 'Nova consulta',
+              onPressed: _canManage(store)
+                  ? () => showProfessionalAppointmentForm(context, store)
+                  : null,
+              icon: const Icon(Icons.add_rounded),
             ),
           ),
           const SizedBox(height: 10),
-          ...appointments.map(
-            (appointment) => _AppointmentRow(
-              appointment: appointment,
-              onTap: () => onOpenPatient(appointment.patient),
+          if (appointments.isEmpty)
+            const _DashboardEmptyState(
+              icon: Icons.calendar_today_outlined,
+              title: 'Nenhuma consulta',
+              message: 'Adicione uma consulta para organizar sua agenda.',
+            )
+          else
+            ...appointments.map(
+              (appointment) => _AppointmentRow(
+                appointment: appointment,
+                canEdit:
+                    _canManage(store) &&
+                    (!store.isConnected ||
+                        appointment.patient.status == PatientStatus.active),
+                onTap: () => onOpenPatient(appointment.patient),
+                onRemove: () async {
+                  final confirmed = await showProfessionalDeleteConfirmation(
+                    context,
+                    item: '${appointment.patient.name} às ${appointment.time}',
+                  );
+                  if (!confirmed) return;
+                  try {
+                    await store.removeAppointment(appointment);
+                  } catch (error) {
+                    if (context.mounted) {
+                      showProfessionalOperationError(context, error);
+                    }
+                  }
+                },
+              ),
             ),
-          ),
           const SizedBox(height: 4),
           TextButton(
             onPressed: onOpenPatients,
-            child: const Text('Ver mais consultas'),
+            child: const Text('Ver pacientes'),
           ),
         ],
       ),
@@ -253,11 +365,62 @@ class _AppointmentsPanel extends StatelessWidget {
   }
 }
 
+class _DashboardEmptyState extends StatelessWidget {
+  const _DashboardEmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 22),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(icon, size: 38, color: AppColors.purple),
+            const SizedBox(height: 10),
+            Text(title, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _displayName(String name) {
+  final cleanName = name.trim();
+  if (cleanName.isEmpty) return 'profissional';
+  return cleanName.split(RegExp(r'\s+'))[0];
+}
+
+bool _canManage(ProfessionalFrontendStore store) {
+  return !store.isConnected || store.settings.credentialStatus == 'ativo';
+}
+
 class _AppointmentRow extends StatelessWidget {
-  const _AppointmentRow({required this.appointment, required this.onTap});
+  const _AppointmentRow({
+    required this.appointment,
+    required this.canEdit,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   final ProfessionalAppointment appointment;
+  final bool canEdit;
   final VoidCallback onTap;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
@@ -270,12 +433,13 @@ class _AppointmentRow extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
-              width: compact ? 44 : 54,
+              width: compact ? 58 : 72,
               child: Text(
-                appointment.time,
+                _appointmentLabel(appointment),
                 style: const TextStyle(
                   color: AppColors.deepPurple,
                   fontWeight: FontWeight.w700,
+                  fontSize: 12,
                 ),
               ),
             ),
@@ -303,20 +467,50 @@ class _AppointmentRow extends StatelessWidget {
               ),
             ),
             if (!compact)
-              FilledButton.tonalIcon(
+              FilledButton.tonal(
                 onPressed: onTap,
-                icon: const Icon(Icons.calendar_today_outlined, size: 15),
-                label: const Text('Ver detalhes'),
                 style: FilledButton.styleFrom(
                   visualDensity: VisualDensity.compact,
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-              )
-            else
-              const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+                child: const Text('Abrir'),
+              ),
+            PopupMenuButton<String>(
+              enabled: canEdit,
+              tooltip: canEdit
+                  ? 'Ações da consulta'
+                  : 'Ative o acompanhamento para alterar',
+              onSelected: (value) {
+                if (value == 'remove') onRemove();
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'remove',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.delete_outline_rounded),
+                    title: Text('Remover'),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+String _appointmentLabel(ProfessionalAppointment appointment) {
+  final startsAt = appointment.startsAt?.toLocal();
+  if (startsAt == null) return appointment.time;
+  final now = DateTime.now();
+  if (startsAt.year == now.year &&
+      startsAt.month == now.month &&
+      startsAt.day == now.day) {
+    return appointment.time;
+  }
+  final day = startsAt.day.toString().padLeft(2, '0');
+  final month = startsAt.month.toString().padLeft(2, '0');
+  return '$day/$month\n${appointment.time}';
 }

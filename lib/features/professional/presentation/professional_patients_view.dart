@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
+import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_mock_data.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
@@ -8,10 +10,12 @@ enum _PatientFilter { all, active, inactive }
 class ProfessionalPatientsView extends StatefulWidget {
   const ProfessionalPatientsView({
     super.key,
+    required this.store,
     required this.onOpenPatient,
     required this.onInvitePatient,
   });
 
+  final ProfessionalFrontendStore store;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
   final VoidCallback onInvitePatient;
 
@@ -23,6 +27,11 @@ class ProfessionalPatientsView extends StatefulWidget {
 class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
   final _searchController = TextEditingController();
   _PatientFilter _filter = _PatientFilter.all;
+  var _refreshing = false;
+
+  bool get _canManage =>
+      !widget.store.isConnected ||
+      widget.store.settings.credentialStatus == 'ativo';
 
   @override
   void dispose() {
@@ -32,7 +41,7 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
 
   List<ProfessionalPatient> get _filteredPatients {
     final query = _searchController.text.trim().toLowerCase();
-    return ProfessionalMockData.patients.where((patient) {
+    return widget.store.patients.where((patient) {
       final matchesQuery =
           query.isEmpty ||
           patient.name.toLowerCase().contains(query) ||
@@ -54,15 +63,73 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
         children: [
           ProfessionalGradientHeader(
             title: 'Meus pacientes',
-            subtitle: '${ProfessionalMockData.patients.length} pacientes',
-            action: FilledButton.icon(
-              onPressed: widget.onInvitePatient,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.white.withValues(alpha: .16),
-                foregroundColor: AppColors.white,
-              ),
-              icon: const Icon(Icons.person_add_alt_1_rounded),
-              label: const Text('Vincular paciente'),
+            subtitle: '${widget.store.patients.length} pacientes',
+            action: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                if (widget.store.isConnected)
+                  OutlinedButton.icon(
+                    onPressed: _refreshing ? null : _refresh,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.white,
+                      disabledForegroundColor: Colors.white70,
+                      side: const BorderSide(color: AppColors.white),
+                    ),
+                    icon: _refreshing
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh_rounded),
+                    label: Text(_refreshing ? 'Atualizando...' : 'Atualizar'),
+                  ),
+                if (!widget.store.isConnected)
+                  OutlinedButton.icon(
+                    onPressed: widget.onInvitePatient,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.white,
+                      side: const BorderSide(color: AppColors.white),
+                    ),
+                    icon: const Icon(Icons.qr_code_rounded),
+                    label: const Text('QR Code'),
+                  ),
+                FilledButton.icon(
+                  key: const Key('professional-add-patient'),
+                  onPressed: !_canManage
+                      ? null
+                      : () async {
+                          if (widget.store.isConnected) {
+                            widget.onInvitePatient();
+                            return;
+                          }
+                          final saved = await showProfessionalPatientForm(
+                            context,
+                            widget.store,
+                          );
+                          if (!saved || !context.mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Paciente adicionado.'),
+                            ),
+                          );
+                        },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.deepPurple,
+                  ),
+                  icon: Icon(
+                    widget.store.isConnected
+                        ? Icons.qr_code_rounded
+                        : Icons.add_rounded,
+                  ),
+                  label: Text(
+                    widget.store.isConnected
+                        ? 'Vincular paciente'
+                        : 'Novo paciente',
+                  ),
+                ),
+              ],
             ),
           ),
           ProfessionalPage(
@@ -140,7 +207,14 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                 ),
                 const SizedBox(height: 24),
                 if (patients.isEmpty)
-                  const _NoPatientsFound()
+                  _NoPatientsFound(
+                    canInvite:
+                        widget.store.isConnected &&
+                        _canManage &&
+                        widget.store.patients.isEmpty &&
+                        _searchController.text.trim().isEmpty,
+                    onInvite: widget.onInvitePatient,
+                  )
                 else
                   ...patients.map(
                     (patient) => Padding(
@@ -148,6 +222,26 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                       child: _PatientCard(
                         patient: patient,
                         onTap: () => widget.onOpenPatient(patient),
+                        onEdit: () => showProfessionalPatientForm(
+                          context,
+                          widget.store,
+                          patient: patient,
+                        ),
+                        onToggleStatus: () async {
+                          try {
+                            await widget.store.updatePatient(
+                              patient.copyWith(
+                                status: patient.status == PatientStatus.active
+                                    ? PatientStatus.inactive
+                                    : PatientStatus.active,
+                              ),
+                            );
+                          } catch (error) {
+                            if (context.mounted) {
+                              showProfessionalOperationError(context, error);
+                            }
+                          }
+                        },
                       ),
                     ),
                   ),
@@ -157,6 +251,17 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
         ],
       ),
     );
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _refreshing = true);
+    try {
+      await widget.store.initialize();
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 }
 
@@ -199,10 +304,17 @@ class _FilterButton extends StatelessWidget {
 }
 
 class _PatientCard extends StatelessWidget {
-  const _PatientCard({required this.patient, required this.onTap});
+  const _PatientCard({
+    required this.patient,
+    required this.onTap,
+    required this.onEdit,
+    required this.onToggleStatus,
+  });
 
   final ProfessionalPatient patient;
   final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -276,9 +388,10 @@ class _PatientCard extends StatelessWidget {
                     const SizedBox(width: 8),
                     PatientStatusBadge(status: patient.status),
                     const Spacer(),
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      color: AppColors.muted,
+                    _PatientActions(
+                      patient: patient,
+                      onEdit: onEdit,
+                      onToggleStatus: onToggleStatus,
                     ),
                   ],
                 ),
@@ -299,9 +412,67 @@ class _PatientCard extends StatelessWidget {
                   ],
                 ),
                 const SizedBox(width: 16),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.muted),
+                _PatientActions(
+                  patient: patient,
+                  onEdit: onEdit,
+                  onToggleStatus: onToggleStatus,
+                ),
               ],
             ),
+    );
+  }
+}
+
+enum _PatientAction { edit, toggleStatus }
+
+class _PatientActions extends StatelessWidget {
+  const _PatientActions({
+    required this.patient,
+    required this.onEdit,
+    required this.onToggleStatus,
+  });
+
+  final ProfessionalPatient patient;
+  final VoidCallback onEdit;
+  final VoidCallback onToggleStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_PatientAction>(
+      tooltip: 'Ações do paciente',
+      onSelected: (action) {
+        switch (action) {
+          case _PatientAction.edit:
+            onEdit();
+          case _PatientAction.toggleStatus:
+            onToggleStatus();
+        }
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: _PatientAction.edit,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.edit_outlined),
+            title: Text('Editar'),
+          ),
+        ),
+        PopupMenuItem(
+          value: _PatientAction.toggleStatus,
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(
+              patient.status == PatientStatus.active
+                  ? Icons.pause_circle_outline_rounded
+                  : Icons.play_circle_outline_rounded,
+            ),
+            title: Text(
+              patient.status == PatientStatus.active ? 'Inativar' : 'Ativar',
+            ),
+          ),
+        ),
+      ],
+      icon: const Icon(Icons.more_vert_rounded, color: AppColors.muted),
     );
   }
 }
@@ -353,28 +524,46 @@ class _MoodBadge extends StatelessWidget {
 }
 
 class _NoPatientsFound extends StatelessWidget {
-  const _NoPatientsFound();
+  const _NoPatientsFound({required this.canInvite, required this.onInvite});
+
+  final bool canInvite;
+  final VoidCallback onInvite;
 
   @override
   Widget build(BuildContext context) {
-    return const ProfessionalPanel(
+    return ProfessionalPanel(
       child: Padding(
-        padding: EdgeInsets.symmetric(vertical: 42),
+        padding: const EdgeInsets.symmetric(vertical: 42),
         child: Column(
           children: [
-            Icon(
+            const Icon(
               Icons.person_search_outlined,
               size: 48,
               color: AppColors.purple,
             ),
-            SizedBox(height: 12),
+            const SizedBox(height: 12),
             Text(
-              'Nenhum paciente encontrado.',
-              style: TextStyle(
+              canInvite
+                  ? 'Nenhum paciente vinculado.'
+                  : 'Nenhum paciente encontrado.',
+              style: const TextStyle(
                 color: AppColors.ink,
                 fontWeight: FontWeight.w700,
               ),
             ),
+            if (canInvite) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Gere um QR Code para o paciente concluir o vínculo.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 18),
+              FilledButton.icon(
+                onPressed: onInvite,
+                icon: const Icon(Icons.qr_code_rounded),
+                label: const Text('Gerar QR Code'),
+              ),
+            ],
           ],
         ),
       ),

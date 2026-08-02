@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/widgets/app_responsive.dart';
 
@@ -78,8 +79,8 @@ class _Brand extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(
-            'assets/images/Login.png',
+          SvgPicture.asset(
+            'assets/images/Login.svg',
             width: 250,
             height: 120,
             fit: BoxFit.contain,

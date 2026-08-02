@@ -47,11 +47,11 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
       return;
     }
 
-    final profissionalId = ProfessionalQrParser.parseProfissionalId(rawCode);
+    final inviteToken = ProfessionalQrParser.parseInviteToken(rawCode);
 
-    if (profissionalId == null) {
+    if (inviteToken == null) {
       setState(() {
-        _errorMessage = 'Codigo QR invalido.';
+        _errorMessage = 'Código QR inválido.';
       });
       return;
     }
@@ -63,7 +63,16 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
 
     try {
       await _scannerController.stop();
-      await _repository.linkCurrentPatientToProfessional(profissionalId);
+      final preview = await _repository.previewInvite(inviteToken);
+
+      if (!mounted) return;
+      final confirmed = await _confirmProfessional(preview);
+      if (!confirmed) {
+        if (_showScanner) await _scannerController.start();
+        return;
+      }
+
+      await _repository.linkCurrentPatientToProfessional(inviteToken);
 
       if (!mounted) {
         return;
@@ -96,6 +105,44 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
     }
   }
 
+  Future<bool> _confirmProfessional(ProfessionalInvitePreview preview) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Confirmar vínculo'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  preview.name,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                if (preview.specialty?.trim().isNotEmpty ?? false) ...[
+                  const SizedBox(height: 4),
+                  Text(preview.specialty!),
+                ],
+                const SizedBox(height: 16),
+                const Text(
+                  'Esse profissional poderá acompanhar seus registros.',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancelar'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Vincular'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   void _openScanner() {
     setState(() {
       _showScanner = true;
@@ -118,11 +165,11 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Codigo do profissional'),
+          title: const Text('Código do profissional'),
           content: TextField(
             controller: _manualCodeController,
             decoration: const InputDecoration(
-              hintText: 'Cole o codigo do QR Code',
+              hintText: 'Cole o código do QR Code',
             ),
             autofocus: true,
           ),
@@ -201,7 +248,7 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Escaneie o QR Code fornecido pelo profissional responsável pelo seu acompanhamento.',
+                        'Escaneie o QR Code exibido pelo profissional.',
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),

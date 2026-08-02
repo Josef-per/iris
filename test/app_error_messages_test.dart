@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -37,7 +38,7 @@ void main() {
       ),
     );
 
-    expect(message, contains('migration 0004'));
+    expect(message, contains('migrations do Supabase'));
     expect(message, isNot(contains('AuthApiException')));
   });
 
@@ -48,5 +49,15 @@ void main() {
 
     expect(message, contains('Entre na sua conta'));
     expect(message, isNot(contains('Exception')));
+  });
+
+  test('preserva mensagem segura do backend profissional', () {
+    final message = AppErrorMessages.from(
+      const ProfessionalWorkspaceException(
+        'Informe uma data e um horário futuros.',
+      ),
+    );
+
+    expect(message, 'Informe uma data e um horário futuros.');
   });
 }
