@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/users/user_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 

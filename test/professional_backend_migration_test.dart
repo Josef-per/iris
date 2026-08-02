@@ -4,11 +4,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   late String migration;
+  late String qrCompatibilityMigration;
   late String lockdown;
 
   setUpAll(() {
     migration = File(
       'supabase/migrations/0006_professional_backend.sql',
+    ).readAsStringSync();
+    qrCompatibilityMigration = File(
+      'supabase/migrations/0007_professional_invite_legacy_text_compat.sql',
     ).readAsStringSync();
     lockdown = File(
       'supabase/migrations/0005_patient_professional_link_rls.sql',
@@ -33,6 +37,25 @@ void main() {
     expect(migration, contains('iris_vinculo_autorizado_por_paciente_unique'));
   });
 
+  test('RPCs de QR normalizam colunas varchar legadas para text', () {
+    for (final sql in [migration, qrCompatibilityMigration]) {
+      expect(
+        RegExp(
+          r"coalesce\([\s\S]*?'Profissional'[\s\S]*?\)::text",
+          caseSensitive: false,
+        ).allMatches(sql),
+        hasLength(2),
+      );
+      expect(
+        RegExp(
+          r'profissional\.especialidade::text',
+          caseSensitive: false,
+        ).allMatches(sql),
+        hasLength(2),
+      );
+    }
+  });
+
   test('separa acompanhamento inativo de autorizacao revogada', () {
     expect(migration, contains('autorizacao_status'));
     expect(migration, contains('iris_professional_manages_link'));
@@ -40,6 +63,22 @@ void main() {
       migration,
       contains("check (autorizacao_status in ('ativo', 'revogado'))"),
     );
+  });
+
+  test('reconcilia autorizacoes legadas antes do indice unico', () {
+    final reconciliation = migration.indexOf(
+      'with vinculos_autorizados_ordenados as',
+    );
+    final uniqueIndex = migration.indexOf(
+      'create unique index if not exists '
+      'iris_vinculo_autorizado_por_paciente_unique',
+    );
+
+    expect(reconciliation, greaterThanOrEqualTo(0));
+    expect(uniqueIndex, greaterThan(reconciliation));
+    expect(migration, contains('row_number() over'));
+    expect(migration, contains("set autorizacao_status = 'revogado'"));
+    expect(migration, contains('and ordenado.ordem > 1'));
   });
 
   test('migration anterior nao permite promover papel ou criar vinculo', () {

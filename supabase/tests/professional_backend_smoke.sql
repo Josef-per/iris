@@ -56,5 +56,21 @@ begin
   ) then
     raise exception 'DML sensível concedido diretamente ao cliente';
   end if;
+
+  if not exists (
+    select 1
+      from public.paciente_profissional
+     where paciente_id = '20000000-0000-4000-8000-000000000001'
+     group by paciente_id
+    having count(*) filter (where autorizacao_status = 'ativo') = 1
+       and count(*) filter (where autorizacao_status = 'revogado') = 1
+       and count(*) filter (
+             where autorizacao_status = 'ativo'
+               and profissional_id =
+                 '20000000-0000-4000-8000-000000000003'
+           ) = 1
+  ) then
+    raise exception 'Vínculos autorizados legados não foram reconciliados';
+  end if;
 end;
 $$;

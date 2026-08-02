@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:iris/features/users/user_repository.dart';
@@ -51,6 +52,7 @@ class _SessionGateState extends State<SessionGate> {
         }
 
         if (snapshot.hasError) {
+          final message = AppErrorMessages.from(snapshot.error!);
           return Scaffold(
             body: Center(
               child: Padding(
@@ -58,10 +60,13 @@ class _SessionGateState extends State<SessionGate> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      'Nao foi possivel carregar sua sessao.',
+                    Text(
+                      'Não foi possível carregar sua sessão',
                       textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
+                    const SizedBox(height: 8),
+                    Text(message, textAlign: TextAlign.center),
                     const SizedBox(height: 16),
                     FilledButton(
                       onPressed: _refreshUserType,

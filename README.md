@@ -50,7 +50,8 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 
 1. `0001_core_schema.sql`;
 2. `0005_patient_professional_link_rls.sql`;
-3. `0006_professional_backend.sql`.
+3. `0006_professional_backend.sql`;
+4. `0007_professional_invite_legacy_text_compat.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -60,7 +61,8 @@ supabase db push
 
 Também é possível aplicar os arquivos nessa ordem pelo SQL Editor. A migration
 `0006` cria consultas, anotações, planos de cuidado, convites e as RPCs usadas
-pelo aplicativo.
+pelo aplicativo. A `0007` corrige a compatibilidade das RPCs de QR em bancos
+legados cujos campos de perfil ainda usam `varchar`.
 
 Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
 de validar especialidade e registro, um administrador pode aprovar pelo SQL
@@ -81,6 +83,15 @@ select public.iris_set_professional_credential_status(
 Essa RPC é restrita ao papel `service_role`; usuários autenticados não podem
 aprovar a própria conta nem alterar seu papel em `usuarios`.
 
+### Erro ao carregar a sessão
+
+Se o aplicativo informar que `iris_bootstrap_current_user` não foi encontrado,
+a conexão com o Supabase está ativa, mas a migration do backend ainda não foi
+aplicada nesse projeto. Execute todo o arquivo
+`supabase/migrations/0006_professional_backend.sql` no SQL Editor do Supabase
+ou use `supabase db push`. A migration solicita ao PostgREST o recarregamento
+do schema ao terminar; depois disso, recarregue o aplicativo e tente novamente.
+
 ## Executar o aplicativo
 
 Instale as dependências:
@@ -89,7 +100,38 @@ Instale as dependências:
 flutter pub get
 ```
 
-Use apenas a URL e a chave publicável do Supabase no cliente:
+O arquivo `.env` não é carregado como asset, pois ele pode conter credenciais
+administrativas. Para desenvolvimento, use o inicializador seguro do projeto:
+
+```bash
+./scripts/flutter_run.sh
+```
+
+Ele lê somente `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou a chave
+`SUPABASE_ANON_KEY` legada) do `.env`. Qualquer chave secreta presente no
+arquivo é ignorada e nunca é encaminhada ao aplicativo. Argumentos adicionais
+do Flutter podem ser informados normalmente, por exemplo:
+
+```bash
+./scripts/flutter_run.sh -d chrome
+```
+
+Em ambientes sem interface gráfica, como GitHub Codespaces, o inicializador
+seleciona automaticamente o dispositivo `web-server`, publica em `0.0.0.0` e
+usa a porta `8080`. Nesse caso, o modo `release` é usado por padrão para evitar
+o carregamento lento dos centenas de módulos separados do modo debug pelo
+proxy. Abra essa porta pelo encaminhamento do ambiente. Para usar outra porta:
+
+```bash
+IRIS_WEB_PORT=3000 ./scripts/flutter_run.sh
+```
+
+Uma escolha explícita de dispositivo continua sendo respeitada com `-d`.
+Para diagnosticar especificamente a versão web, ainda é possível solicitar
+`--debug` de forma explícita.
+
+Em builds automatizados, passe apenas a URL e a chave publicável do Supabase
+diretamente ao Flutter:
 
 ```bash
 flutter run \

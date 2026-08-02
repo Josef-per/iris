@@ -216,6 +216,38 @@ create index if not exists iris_medicacoes_plano_ordem_idx
 create index if not exists iris_convites_profissional_ativos_idx
   on public.convites_vinculo_profissional(profissional_id, expira_em)
   where revogado_em is null;
+
+-- Bancos legados podiam manter mais de um profissional autorizado para o
+-- mesmo paciente. Preserva o vínculo ativo mais recente e revoga os demais
+-- sem apagar o histórico clínico associado a eles.
+with vinculos_autorizados_ordenados as (
+  select
+    vinculo.id,
+    row_number() over (
+      partition by vinculo.paciente_id
+      order by
+        case when vinculo.status = 'ativo' then 0 else 1 end,
+        coalesce(
+          vinculo.atualizado_em,
+          vinculo.criado_em,
+          '-infinity'::timestamptz
+        ) desc,
+        vinculo.id desc
+    ) as ordem
+  from public.paciente_profissional vinculo
+  where vinculo.autorizacao_status = 'ativo'
+)
+update public.paciente_profissional vinculo
+   set autorizacao_status = 'revogado',
+       autorizacao_revogada_em = coalesce(
+         vinculo.autorizacao_revogada_em,
+         now()
+       ),
+       atualizado_em = now()
+  from vinculos_autorizados_ordenados ordenado
+ where vinculo.id = ordenado.id
+   and ordenado.ordem > 1;
+
 create unique index if not exists iris_vinculo_autorizado_por_paciente_unique
   on public.paciente_profissional(paciente_id)
   where autorizacao_status = 'ativo';
@@ -559,8 +591,12 @@ begin
   return query
   select
     profissional.id,
-    coalesce(perfil.nome_social, perfil.nome_completo, 'Profissional'),
-    profissional.especialidade,
+    coalesce(
+      perfil.nome_social,
+      perfil.nome_completo,
+      'Profissional'
+    )::text,
+    profissional.especialidade::text,
     convite.expira_em
   from public.convites_vinculo_profissional convite
   join public.profissionais profissional
@@ -698,8 +734,12 @@ begin
   select
     v_link_id,
     profissional.id,
-    coalesce(perfil.nome_social, perfil.nome_completo, 'Profissional'),
-    profissional.especialidade
+    coalesce(
+      perfil.nome_social,
+      perfil.nome_completo,
+      'Profissional'
+    )::text,
+    profissional.especialidade::text
   from public.profissionais profissional
   left join public.perfis perfil
     on perfil.user_id = profissional.user_id
@@ -1455,3 +1495,7 @@ grant select, insert, update, delete on public.anotacoes_clinicas to authenticat
 grant select on public.planos_cuidado to authenticated;
 grant select on public.metas_cuidado to authenticated;
 grant select on public.medicacoes_plano to authenticated;
+
+-- Garante que as novas tabelas e RPCs fiquem disponíveis imediatamente na
+-- API REST depois da execução pelo SQL Editor ou pela CLI.
+notify pgrst, 'reload schema';

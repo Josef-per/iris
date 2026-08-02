@@ -5,6 +5,7 @@ import 'package:iris/features/professional/presentation/professional_care_plan_v
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
 import 'package:iris/features/professional/presentation/professional_form_dialogs.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/professional/presentation/professional_notes_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
 
@@ -25,7 +26,7 @@ void main() {
   }
 
   testWidgets('adiciona consulta pelo dashboard', (tester) async {
-    final store = ProfessionalFrontendStore.seeded();
+    final store = await _createStore();
     addTearDown(store.dispose);
     final initialCount = store.appointments.length;
 
@@ -51,8 +52,8 @@ void main() {
     expect(store.appointments.first.time, '09:30');
   });
 
-  testWidgets('adiciona paciente com formulario completo', (tester) async {
-    final store = ProfessionalFrontendStore.seeded();
+  testWidgets('exige QR Code para vincular paciente', (tester) async {
+    final store = await _createStore();
     addTearDown(store.dispose);
 
     await pumpScreen(
@@ -67,22 +68,15 @@ void main() {
     await tester.tap(find.text('Abrir'));
     await tester.pumpAndSettle();
 
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), 'Marina Lima');
-    await tester.enterText(fields.at(1), '29');
-    await tester.enterText(fields.at(2), 'Ansiedade');
-    await tester.enterText(fields.at(3), 'marina@example.com');
-    await tester.enterText(fields.at(4), '(11) 90000-0000');
-    await tester.enterText(fields.at(5), '10/02/1997');
-    await tester.enterText(fields.at(6), 'A definir');
-    await tester.tap(find.byKey(const Key('professional-patient-save')));
-    await tester.pumpAndSettle();
-
-    expect(store.patients.first.name, 'Marina Lima');
+    expect(
+      find.text('Use o QR Code para vincular um novo paciente.'),
+      findsOneWidget,
+    );
+    expect(find.byType(TextFormField), findsNothing);
   });
 
   testWidgets('salva nova anotacao na lista', (tester) async {
-    final store = ProfessionalFrontendStore.seeded();
+    final store = await _createStore();
     addTearDown(store.dispose);
     final initialCount = store.notes.length;
 
@@ -104,7 +98,7 @@ void main() {
   });
 
   testWidgets('adiciona meta ao plano de cuidado', (tester) async {
-    final store = ProfessionalFrontendStore.seeded();
+    final store = await _createStore();
     addTearDown(store.dispose);
 
     await pumpScreen(
@@ -128,7 +122,7 @@ void main() {
   });
 
   testWidgets('salva dados do perfil profissional', (tester) async {
-    final store = ProfessionalFrontendStore.seeded();
+    final store = await _createStore();
     addTearDown(store.dispose);
 
     await pumpScreen(tester, ProfessionalSettingsView(store: store));
@@ -138,4 +132,97 @@ void main() {
 
     expect(store.settings.name, 'Júlia Almeida');
   });
+}
+
+Future<ProfessionalFrontendStore> _createStore() async {
+  final store = ProfessionalFrontendStore.connected(_FormBackend());
+  await store.initialize();
+  return store;
+}
+
+class _FormBackend implements ProfessionalWorkspaceBackend {
+  static const patient = ProfessionalPatient(
+    id: 'patient-id',
+    linkId: 'link-id',
+    name: 'Paciente Teste',
+    age: 30,
+    diagnosis: 'Diagnóstico inicial',
+    lastActivity: 'Hoje',
+    status: PatientStatus.active,
+    mood: 'Bem',
+    email: 'paciente@example.com',
+    phone: '(11) 99999-9999',
+    birthDate: '01/01/1996',
+    nextAppointment: 'A definir',
+  );
+
+  @override
+  Future<ProfessionalWorkspaceSnapshot> loadWorkspace() async {
+    return const ProfessionalWorkspaceSnapshot(
+      patients: [patient],
+      appointments: [],
+      notes: [],
+      carePlans: {},
+      records: {},
+      settings: ProfessionalSettingsDraft(
+        name: 'Profissional Teste',
+        email: 'profissional@example.com',
+        phone: '(11) 99999-0000',
+        specialty: 'Psiquiatria',
+        registration: 'CRM 123',
+        biography: 'Biografia de teste',
+        clinic: 'Clínica Teste',
+        clinicAddress: 'Endereço de teste',
+        avatarInitials: 'PT',
+        appointmentNotifications: true,
+        crisisAlerts: true,
+        automaticReports: false,
+      ),
+      appointmentsThisMonth: 0,
+      alerts: 0,
+    );
+  }
+
+  @override
+  Future<ProfessionalPatient> updatePatient(
+    ProfessionalPatient patient,
+  ) async => patient;
+
+  @override
+  Future<ProfessionalAppointment> addAppointment(
+    ProfessionalAppointment appointment,
+  ) async => appointment.copyWith(id: 'appointment-id');
+
+  @override
+  Future<void> removeAppointment(ProfessionalAppointment appointment) async {}
+
+  @override
+  Future<ProfessionalClinicalNote> addNote(
+    ProfessionalClinicalNote note,
+  ) async => note;
+
+  @override
+  Future<ProfessionalClinicalNote> updateNote(
+    ProfessionalClinicalNote note,
+  ) async => note;
+
+  @override
+  Future<void> removeNote(String noteId) async {}
+
+  @override
+  Future<ProfessionalCarePlanDraft> saveCarePlan(
+    ProfessionalPatient patient,
+    ProfessionalCarePlanDraft plan,
+  ) async => plan;
+
+  @override
+  Future<ProfessionalSettingsDraft> updateSettings(
+    ProfessionalSettingsDraft settings,
+  ) async => settings;
+
+  @override
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {}
 }

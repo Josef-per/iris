@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 
 String? _required(String? value) {
   return value == null || value.trim().isEmpty ? 'Campo obrigatório' : null;

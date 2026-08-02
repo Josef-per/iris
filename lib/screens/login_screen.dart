@@ -6,7 +6,6 @@ import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/screens/cadastro_screen.dart';
 import 'package:iris/screens/home_screen.dart';
-import 'package:iris/screens/professional_home_screen.dart';
 import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
@@ -47,9 +46,15 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (!SupabaseConfig.isConfigured) {
-      final destination = _isProfessional
-          ? const ProfessionalHomeScreen(demoMode: true)
-          : const HomeScreen();
+      if (_isProfessional) {
+        setState(() {
+          _errorMessage =
+              'Supabase não carregado. Inicie o app com '
+              './scripts/flutter_run.sh.';
+        });
+        return;
+      }
+      const destination = HomeScreen();
       Navigator.of(
         context,
       ).pushReplacement(MaterialPageRoute(builder: (_) => destination));

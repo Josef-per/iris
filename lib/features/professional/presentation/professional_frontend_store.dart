@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 
 class ProfessionalClinicalNote {
   const ProfessionalClinicalNote({
@@ -203,16 +203,6 @@ abstract interface class ProfessionalWorkspaceBackend {
 }
 
 class ProfessionalFrontendStore extends ChangeNotifier {
-  ProfessionalFrontendStore.seeded()
-    : _backend = null,
-      _patients = [...ProfessionalMockData.patients],
-      _appointments = [...ProfessionalMockData.appointments],
-      _notes = _seedNotes(),
-      _settings = _seedSettings(),
-      _isLoading = false,
-      _appointmentsThisMonth = 42,
-      _alerts = 0;
-
   ProfessionalFrontendStore.connected(ProfessionalWorkspaceBackend backend)
     : _backend = backend,
       _patients = [],
@@ -226,7 +216,7 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   ProfessionalFrontendStore.remote(ProfessionalWorkspaceBackend backend)
     : this.connected(backend);
 
-  final ProfessionalWorkspaceBackend? _backend;
+  final ProfessionalWorkspaceBackend _backend;
   final List<ProfessionalPatient> _patients;
   final List<ProfessionalAppointment> _appointments;
   final List<ProfessionalClinicalNote> _notes;
@@ -241,8 +231,8 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   int _appointmentsThisMonth;
   int _alerts;
 
-  bool get isConnected => _backend != null;
-  bool get isRemote => isConnected;
+  bool get isConnected => true;
+  bool get isRemote => true;
   bool get isLoading => _isLoading;
   bool get isSaving => _pendingMutations > 0;
   Object? get loadError => _loadError;
@@ -255,15 +245,12 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   ProfessionalSettingsDraft get settings => _settings;
 
   Future<void> initialize() async {
-    final backend = _backend;
-    if (backend == null) return;
-
     final generation = ++_loadGeneration;
     _isLoading = true;
     _loadError = null;
     notifyListeners();
     try {
-      final snapshot = await backend.loadWorkspace();
+      final snapshot = await _backend.loadWorkspace();
       if (generation != _loadGeneration) return;
       _patients
         ..clear()
@@ -313,22 +300,15 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   List<ProfessionalRecord> recordsFor(String patientId) {
-    if (!isConnected) return ProfessionalMockData.records;
     return List.unmodifiable(_records[patientId] ?? const []);
   }
 
   Future<void> addPatient(ProfessionalPatient patient) async {
-    if (isConnected) {
-      throw StateError('Use um convite QR para vincular o paciente.');
-    }
-    _patients.insert(0, patient);
-    notifyListeners();
+    throw StateError('Use um convite QR para vincular o paciente.');
   }
 
   Future<void> updatePatient(ProfessionalPatient patient) async {
-    final saved = await _mutate(
-      () => _backend?.updatePatient(patient) ?? Future.value(patient),
-    );
+    final saved = await _mutate(() => _backend.updatePatient(patient));
     final index = _patients.indexWhere((item) => item.id == saved.id);
     if (index == -1) return;
     _patients[index] = saved;
@@ -345,9 +325,7 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   Future<void> addAppointment(ProfessionalAppointment appointment) async {
-    final saved = await _mutate(
-      () => _backend?.addAppointment(appointment) ?? Future.value(appointment),
-    );
+    final saved = await _mutate(() => _backend.addAppointment(appointment));
     _appointments.add(saved);
     if (_isInCurrentMonth(saved.startsAt)) {
       _appointmentsThisMonth++;
@@ -357,9 +335,7 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   Future<void> removeAppointment(ProfessionalAppointment appointment) async {
-    await _mutate(
-      () => _backend?.removeAppointment(appointment) ?? Future.value(),
-    );
+    await _mutate(() => _backend.removeAppointment(appointment));
     final existed = _appointments.any(
       (item) => item.id != null && appointment.id != null
           ? item.id == appointment.id
@@ -379,17 +355,13 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   Future<void> addNote(ProfessionalClinicalNote note) async {
-    final saved = await _mutate(
-      () => _backend?.addNote(note) ?? Future.value(note),
-    );
+    final saved = await _mutate(() => _backend.addNote(note));
     _notes.insert(0, saved);
     notifyListeners();
   }
 
   Future<void> updateNote(ProfessionalClinicalNote note) async {
-    final saved = await _mutate(
-      () => _backend?.updateNote(note) ?? Future.value(note),
-    );
+    final saved = await _mutate(() => _backend.updateNote(note));
     final index = _notes.indexWhere((item) => item.id == saved.id);
     if (index == -1) return;
     _notes[index] = saved;
@@ -397,16 +369,13 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   Future<void> removeNote(String id) async {
-    await _mutate(() => _backend?.removeNote(id) ?? Future.value());
+    await _mutate(() => _backend.removeNote(id));
     _notes.removeWhere((note) => note.id == id);
     notifyListeners();
   }
 
   ProfessionalCarePlanDraft carePlanFor(String patientId) {
-    return _carePlans.putIfAbsent(
-      patientId,
-      isConnected ? _emptyCarePlan : _seedCarePlan,
-    );
+    return _carePlans.putIfAbsent(patientId, _emptyCarePlan);
   }
 
   Future<void> updateCarePlan(
@@ -414,17 +383,13 @@ class ProfessionalFrontendStore extends ChangeNotifier {
     ProfessionalCarePlanDraft draft,
   ) async {
     final patient = patientById(patientId);
-    final saved = await _mutate(
-      () => _backend?.saveCarePlan(patient, draft) ?? Future.value(draft),
-    );
+    final saved = await _mutate(() => _backend.saveCarePlan(patient, draft));
     _carePlans[patientId] = saved;
     notifyListeners();
   }
 
   Future<void> updateSettings(ProfessionalSettingsDraft settings) async {
-    _settings = await _mutate(
-      () => _backend?.updateSettings(settings) ?? Future.value(settings),
-    );
+    _settings = await _mutate(() => _backend.updateSettings(settings));
     notifyListeners();
   }
 
@@ -433,12 +398,10 @@ class ProfessionalFrontendStore extends ChangeNotifier {
     required String newPassword,
   }) {
     return _mutate(
-      () =>
-          _backend?.changePassword(
-            currentPassword: currentPassword,
-            newPassword: newPassword,
-          ) ??
-          Future.value(),
+      () => _backend.changePassword(
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      ),
     );
   }
 
@@ -469,50 +432,6 @@ class ProfessionalFrontendStore extends ChangeNotifier {
     return local.year == now.year && local.month == now.month;
   }
 
-  static List<ProfessionalClinicalNote> _seedNotes() {
-    return [
-      ProfessionalClinicalNote(
-        id: 'note-1',
-        patientId: ProfessionalMockData.patients[0].id,
-        text: 'Melhora na rotina do café da manhã. Revisar o sono.',
-        date: 'Hoje, 11:40',
-        tag: 'Evolução',
-      ),
-      ProfessionalClinicalNote(
-        id: 'note-2',
-        patientId: ProfessionalMockData.patients[2].id,
-        text: 'Reavaliar episódios noturnos e a prevenção de recaída.',
-        date: 'Ontem, 17:10',
-        tag: 'Atenção',
-      ),
-      ProfessionalClinicalNote(
-        id: 'note-3',
-        patientId: ProfessionalMockData.patients[1].id,
-        text: 'Boa adesão ao plano de cuidado no fim de semana.',
-        date: '25 jul, 15:30',
-        tag: 'Evolução',
-      ),
-    ];
-  }
-
-  static ProfessionalSettingsDraft _seedSettings() {
-    return const ProfessionalSettingsDraft(
-      name: 'Júlia Souza',
-      email: 'julia.souza@exemplo.com',
-      phone: '(11) 98765-4300',
-      specialty: 'Psiquiatria · Transtornos alimentares',
-      registration: 'CRM/SP 123456',
-      biography:
-          'Psiquiatra com foco em transtornos alimentares e cuidado integrado.',
-      clinic: 'Clínica Horizonte',
-      clinicAddress: 'Av. Paulista, 1000 · São Paulo, SP',
-      avatarInitials: 'JS',
-      appointmentNotifications: true,
-      crisisAlerts: true,
-      automaticReports: false,
-    );
-  }
-
   static ProfessionalSettingsDraft _emptySettings() {
     return const ProfessionalSettingsDraft(
       name: 'Profissional',
@@ -537,42 +456,6 @@ class ProfessionalFrontendStore extends ChangeNotifier {
       orientation: '',
       medications: [],
       crisisSteps: [],
-      shareWithPatient: true,
-      notifyMissedCheckIns: true,
-    );
-  }
-
-  static ProfessionalCarePlanDraft _seedCarePlan() {
-    return ProfessionalCarePlanDraft(
-      goals: const [
-        ProfessionalGoal(
-          id: 'goal-1',
-          text: 'Realizar 3 refeições principais',
-          completed: true,
-        ),
-        ProfessionalGoal(
-          id: 'goal-2',
-          text: 'Registrar o humor diariamente',
-          completed: true,
-        ),
-        ProfessionalGoal(
-          id: 'goal-3',
-          text: 'Seguir os horários da medicação',
-          completed: true,
-        ),
-        ProfessionalGoal(
-          id: 'goal-4',
-          text: 'Usar respiração guiada em crises',
-        ),
-      ],
-      orientation:
-          'Manter refeições estruturadas e registrar emoções nas refeições.',
-      medications: [...ProfessionalMockData.medications],
-      crisisSteps: const [
-        'Acionar contato de confiança',
-        'Usar respiração guiada',
-        'Buscar urgência em caso de risco',
-      ],
       shareWithPatient: true,
       notifyMissedCheckIns: true,
     );

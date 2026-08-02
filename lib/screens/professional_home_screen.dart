@@ -4,27 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
-import 'package:iris/core/qr/professional_qr_payload.dart';
-import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
 import 'package:iris/features/professional/presentation/professional_care_plan_view.dart';
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
-import 'package:iris/features/professional/presentation/professional_mock_data.dart';
+import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/professional/presentation/professional_notes_view.dart';
 import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
 import 'package:iris/features/professional/presentation/professional_patients_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
 import 'package:iris/features/professional/professional_repository.dart';
-import 'package:iris/screens/login_screen.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfessionalHomeScreen extends StatefulWidget {
-  const ProfessionalHomeScreen({super.key, this.demoMode = false});
-
-  final bool demoMode;
+  const ProfessionalHomeScreen({super.key});
 
   @override
   State<ProfessionalHomeScreen> createState() => _ProfessionalHomeScreenState();
@@ -35,42 +30,28 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   final _authService = AuthService();
   final _professionalRepository = ProfessionalRepository();
   late final ProfessionalFrontendStore _store;
-  final _notifications = <String>[];
 
   ProfessionalDestination _destination = ProfessionalDestination.dashboard;
   ProfessionalPatient? _selectedPatient;
   ProfessionalPatient? _detailPatient;
   late ProfessionalSettingsDraft _lastRenderedSettings;
 
-  bool get _usesRemoteBackend =>
-      !widget.demoMode && SupabaseConfig.isConfigured;
-  bool get _credentialLocked =>
-      _store.isConnected && _store.settings.credentialStatus != 'ativo';
-  int get _notificationCount =>
-      _store.isConnected ? _store.alerts : _notifications.length;
+  bool get _credentialLocked => _store.settings.credentialStatus != 'ativo';
+  int get _notificationCount => _store.alerts;
 
   @override
   void initState() {
     super.initState();
-    _store = _usesRemoteBackend
-        ? ProfessionalFrontendStore.connected(
-            SupabaseProfessionalWorkspaceBackend(),
-          )
-        : ProfessionalFrontendStore.seeded();
+    _store = ProfessionalFrontendStore.connected(
+      SupabaseProfessionalWorkspaceBackend(),
+    );
 
     if (_store.patients.isNotEmpty) {
       _selectedPatient = _store.patients[0];
     }
     _lastRenderedSettings = _store.settings;
     _store.addListener(_syncSelectedPatient);
-    if (!_usesRemoteBackend) {
-      _notifications.addAll([
-        'Consulta com Ana Paula às 14:00',
-        'Carlos está há 24h sem check-in',
-      ]);
-    } else {
-      unawaited(_loadWorkspace());
-    }
+    unawaited(_loadWorkspace());
   }
 
   @override
@@ -144,9 +125,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   void _openCarePlan([ProfessionalPatient? patient]) {
     final targetPatient = patient ?? _selectedPatient;
-    if (_store.isConnected &&
-        targetPatient != null &&
-        targetPatient.status != PatientStatus.active) {
+    if (targetPatient != null && targetPatient.status != PatientStatus.active) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -164,15 +143,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Future<void> _signOut() async {
-    if (_usesRemoteBackend) {
-      await _authService.signOut();
-      return;
-    }
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (_) => false,
-    );
+    await _authService.signOut();
   }
 
   void _showInvitePatient() {
@@ -189,42 +160,24 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
     showDialog<void>(
       context: context,
       builder: (context) => _ProfessionalInviteDialog(
-        createInvite: _usesRemoteBackend
-            ? _professionalRepository.createLinkInvite
-            : () async {
-                const token =
-                    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
-                    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
-                return ProfessionalLinkInvite(
-                  id: 'demo',
-                  token: token,
-                  payload: ProfessionalQrPayload.build(token),
-                  expiresAt: DateTime.now().add(const Duration(minutes: 30)),
-                );
-              },
-        revokeInvite: _usesRemoteBackend
-            ? _professionalRepository.revokeLinkInvite
-            : (_) async {},
+        createInvite: _professionalRepository.createLinkInvite,
+        revokeInvite: _professionalRepository.revokeLinkInvite,
       ),
     );
   }
 
   Future<void> _showNotifications() async {
-    final remoteAlerts = _store.isConnected ? _store.alerts : 0;
+    final remoteAlerts = _store.alerts;
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+        builder: (context, _) => AlertDialog(
           title: const Text('Notificações'),
           content: SizedBox(
             width: 420,
-            child:
-                (_store.isConnected
-                    ? remoteAlerts == 0
-                    : _notifications.isEmpty)
+            child: remoteAlerts == 0
                 ? const Text('Nenhum alerta no momento.')
-                : _store.isConnected
-                ? ListTile(
+                : ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.warning_amber_rounded),
                     title: Text(
@@ -233,28 +186,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
                     subtitle: const Text(
                       'Abra o painel para consultar os registros disponíveis.',
                     ),
-                  )
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final notification in _notifications)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.notifications_none_rounded),
-                          title: Text(notification),
-                        ),
-                    ],
                   ),
           ),
           actions: [
-            if (!_store.isConnected && _notifications.isNotEmpty)
-              TextButton(
-                onPressed: () {
-                  setState(_notifications.clear);
-                  setDialogState(() {});
-                },
-                child: const Text('Marcar como lidas'),
-              ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Fechar'),
@@ -353,8 +287,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Widget get _currentView {
-    if (_store.isConnected &&
-        _store.settings.credentialStatus != 'ativo' &&
+    if (_store.settings.credentialStatus != 'ativo' &&
         _destination != ProfessionalDestination.settings) {
       return _ProfessionalCredentialPending(
         status: _store.settings.credentialStatus,
