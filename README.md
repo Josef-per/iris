@@ -107,14 +107,17 @@ do Flutter podem ser informados normalmente, por exemplo:
 
 Em ambientes sem interface gráfica, como GitHub Codespaces, o inicializador
 seleciona automaticamente o dispositivo `web-server`, publica em `0.0.0.0` e
-usa a porta `8080`. Abra essa porta pelo encaminhamento do ambiente. Para usar
-outra porta:
+usa a porta `8080`. Nesse caso, o modo `release` é usado por padrão para evitar
+o carregamento lento dos centenas de módulos separados do modo debug pelo
+proxy. Abra essa porta pelo encaminhamento do ambiente. Para usar outra porta:
 
 ```bash
 IRIS_WEB_PORT=3000 ./scripts/flutter_run.sh
 ```
 
 Uma escolha explícita de dispositivo continua sendo respeitada com `-d`.
+Para diagnosticar especificamente a versão web, ainda é possível solicitar
+`--debug` de forma explícita.
 
 Em builds automatizados, passe apenas a URL e a chave publicável do Supabase
 diretamente ao Flutter:

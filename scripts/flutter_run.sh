@@ -58,10 +58,14 @@ fi
 
 iris_run_args=()
 iris_device_was_selected=false
+iris_build_mode_was_selected=false
 for iris_argument in "$@"; do
   case "$iris_argument" in
     -d|--device-id|--device-id=*|-d=*)
       iris_device_was_selected=true
+      ;;
+    --debug|--profile|--release)
+      iris_build_mode_was_selected=true
       ;;
   esac
 done
@@ -73,7 +77,10 @@ if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" && \
     --web-hostname=0.0.0.0
     "--web-port=${IRIS_WEB_PORT:-8080}"
   )
-  echo "Ambiente sem interface gráfica; iniciando a versão web na porta ${IRIS_WEB_PORT:-8080}." >&2
+  if [[ "$iris_build_mode_was_selected" == false ]]; then
+    iris_run_args+=(--release)
+  fi
+  echo "Ambiente sem interface gráfica; iniciando a versão web otimizada na porta ${IRIS_WEB_PORT:-8080}." >&2
 fi
 
 exec "$iris_flutter_bin" run \
