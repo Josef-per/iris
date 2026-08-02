@@ -98,6 +98,21 @@ class AppErrorMessages {
     final message = error.message.toLowerCase();
     final code = error.code;
 
+    if (code == 'PGRST202' && message.contains('iris_bootstrap_current_user')) {
+      return 'O backend do Íris ainda não foi instalado neste projeto '
+          'Supabase. Aplique a migration 0006_professional_backend.sql.';
+    }
+
+    if (code == 'PGRST202') {
+      return 'Uma função necessária não foi encontrada no banco. '
+          'Aplique as migrations pendentes do Supabase.';
+    }
+
+    if (code == 'PGRST205') {
+      return 'Uma tabela necessária não foi encontrada no banco. '
+          'Aplique as migrations pendentes do Supabase.';
+    }
+
     if (message.contains('invalid_or_expired_invite') ||
         message.contains('invite_already_used') ||
         message.contains('invite_unavailable')) {

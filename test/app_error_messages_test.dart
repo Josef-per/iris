@@ -29,6 +29,31 @@ void main() {
     expect(message, isNot(contains('PostgrestException')));
   });
 
+  test('orienta aplicar backend quando bootstrap nao existe', () {
+    final message = AppErrorMessages.from(
+      const PostgrestException(
+        message:
+            'Could not find the function public.iris_bootstrap_current_user',
+        code: 'PGRST202',
+      ),
+    );
+
+    expect(message, contains('0006_professional_backend.sql'));
+    expect(message, isNot(contains('PGRST202')));
+  });
+
+  test('orienta aplicar migrations quando tabela nao existe no cache', () {
+    final message = AppErrorMessages.from(
+      const PostgrestException(
+        message: "Could not find the table 'public.consultas'",
+        code: 'PGRST205',
+      ),
+    );
+
+    expect(message, contains('migrations pendentes'));
+    expect(message, isNot(contains('PGRST205')));
+  });
+
   test('traduz falha de trigger ao criar usuario', () {
     final message = AppErrorMessages.from(
       AuthApiException(

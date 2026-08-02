@@ -81,6 +81,15 @@ select public.iris_set_professional_credential_status(
 Essa RPC é restrita ao papel `service_role`; usuários autenticados não podem
 aprovar a própria conta nem alterar seu papel em `usuarios`.
 
+### Erro ao carregar a sessão
+
+Se o aplicativo informar que `iris_bootstrap_current_user` não foi encontrado,
+a conexão com o Supabase está ativa, mas a migration do backend ainda não foi
+aplicada nesse projeto. Execute todo o arquivo
+`supabase/migrations/0006_professional_backend.sql` no SQL Editor do Supabase
+ou use `supabase db push`. A migration solicita ao PostgREST o recarregamento
+do schema ao terminar; depois disso, recarregue o aplicativo e tente novamente.
+
 ## Executar o aplicativo
 
 Instale as dependências:

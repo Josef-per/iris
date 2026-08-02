@@ -1455,3 +1455,7 @@ grant select, insert, update, delete on public.anotacoes_clinicas to authenticat
 grant select on public.planos_cuidado to authenticated;
 grant select on public.metas_cuidado to authenticated;
 grant select on public.medicacoes_plano to authenticated;
+
+-- Garante que as novas tabelas e RPCs fiquem disponíveis imediatamente na
+-- API REST depois da execução pelo SQL Editor ou pela CLI.
+notify pgrst, 'reload schema';
