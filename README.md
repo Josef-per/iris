@@ -105,6 +105,17 @@ do Flutter podem ser informados normalmente, por exemplo:
 ./scripts/flutter_run.sh -d chrome
 ```
 
+Em ambientes sem interface gráfica, como GitHub Codespaces, o inicializador
+seleciona automaticamente o dispositivo `web-server`, publica em `0.0.0.0` e
+usa a porta `8080`. Abra essa porta pelo encaminhamento do ambiente. Para usar
+outra porta:
+
+```bash
+IRIS_WEB_PORT=3000 ./scripts/flutter_run.sh
+```
+
+Uma escolha explícita de dispositivo continua sendo respeitada com `-d`.
+
 Em builds automatizados, passe apenas a URL e a chave publicável do Supabase
 diretamente ao Flutter:
 

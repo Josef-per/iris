@@ -56,7 +56,28 @@ if [[ -z "$iris_flutter_bin" ]]; then
   fi
 fi
 
+iris_run_args=()
+iris_device_was_selected=false
+for iris_argument in "$@"; do
+  case "$iris_argument" in
+    -d|--device-id|--device-id=*|-d=*)
+      iris_device_was_selected=true
+      ;;
+  esac
+done
+
+if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" && \
+      "$iris_device_was_selected" == false ]]; then
+  iris_run_args+=(
+    -d web-server
+    --web-hostname=0.0.0.0
+    "--web-port=${IRIS_WEB_PORT:-8080}"
+  )
+  echo "Ambiente sem interface gráfica; iniciando a versão web na porta ${IRIS_WEB_PORT:-8080}." >&2
+fi
+
 exec "$iris_flutter_bin" run \
   "--dart-define=SUPABASE_URL=$iris_supabase_url" \
   "--dart-define=SUPABASE_PUBLISHABLE_KEY=$iris_supabase_key" \
+  "${iris_run_args[@]}" \
   "$@"
