@@ -42,6 +42,22 @@ void main() {
     );
   });
 
+  test('reconcilia autorizacoes legadas antes do indice unico', () {
+    final reconciliation = migration.indexOf(
+      'with vinculos_autorizados_ordenados as',
+    );
+    final uniqueIndex = migration.indexOf(
+      'create unique index if not exists '
+      'iris_vinculo_autorizado_por_paciente_unique',
+    );
+
+    expect(reconciliation, greaterThanOrEqualTo(0));
+    expect(uniqueIndex, greaterThan(reconciliation));
+    expect(migration, contains('row_number() over'));
+    expect(migration, contains("set autorizacao_status = 'revogado'"));
+    expect(migration, contains('and ordenado.ordem > 1'));
+  });
+
   test('migration anterior nao permite promover papel ou criar vinculo', () {
     expect(lockdown, isNot(contains('create policy iris_usuarios_update_own')));
     expect(
