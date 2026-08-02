@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
-import 'package:iris/screens/acomopanhamento_screen.dart';
+import 'package:iris/screens/config_screen.dart';
 //import 'package:iris/screens/login_screen.dart';
 import 'package:iris/screens/professional_home_screen.dart';
 import 'package:iris/screens/session_gate.dart';
@@ -42,7 +42,7 @@ class IrisApp extends StatelessWidget {
             : IrisSplashScreen(
                 next: SupabaseConfig.isConfigured
                     ? const AuthGate()
-                    : const AcompanhamentoScreen(),
+                    : const ConfigScreen(),
               ),
       ),
     );
@@ -62,7 +62,7 @@ class AuthGate extends StatelessWidget {
         final session = snapshot.data?.session ?? client.auth.currentSession;
 
         if (session == null) {
-          return AcompanhamentoScreen();
+          return ConfigScreen();
         }
 
         return const SessionGate();
