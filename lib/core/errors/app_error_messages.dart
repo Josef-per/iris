@@ -166,6 +166,23 @@ class AppErrorMessages {
       return 'Escolha o status ativo ou inativo.';
     }
 
+    if (message.contains('appointment_must_be_future')) {
+      return 'Informe uma data e um horário futuros para a consulta.';
+    }
+
+    if (message.contains('invalid_local_date')) {
+      return 'A data do aparelho não corresponde ao dia atual. Confira data e fuso horário e tente novamente.';
+    }
+
+    if (message.contains('invalid_time_zone')) {
+      return 'Não foi possível validar o fuso horário do aparelho.';
+    }
+
+    if (message.contains('invalid_mood_score') ||
+        message.contains('invalid_food_score')) {
+      return 'Selecione respostas válidas para concluir o check-in.';
+    }
+
     if (message.contains('invalid_credential_status')) {
       return 'Status de credenciamento inválido.';
     }

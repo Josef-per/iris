@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
+import 'package:iris/features/emotional_diary/patient_symptoms.dart';
 import 'package:iris/widgets/app_align_filled_button.dart';
 import 'package:iris/widgets/app_check_in_diario_card.dart';
 import 'package:iris/widgets/app_headers.dart';
@@ -9,7 +10,9 @@ import 'package:iris/widgets/app_symptoms_card.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class CheckInDiarioBottomSheet extends StatefulWidget {
-  const CheckInDiarioBottomSheet({super.key});
+  const CheckInDiarioBottomSheet({super.key, this.repository});
+
+  final EmotionalDiaryDataSource? repository;
 
   @override
   State<CheckInDiarioBottomSheet> createState() =>
@@ -17,15 +20,16 @@ class CheckInDiarioBottomSheet extends StatefulWidget {
 }
 
 class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
-  final _repository = EmotionalDiaryRepository();
+  late final EmotionalDiaryDataSource _repository;
 
   int? selectedMood;
   int? selectedFood;
-  final List<int> mentalSymptoms = [];
-  final List<int> physicalSymptoms = [];
+  final Set<String> mentalSymptoms = {};
+  final Set<String> physicalSymptoms = {};
 
   bool _isLoading = false;
   bool _isLoadingTodayRecord = true;
+  String? _loadErrorMessage;
   String? _errorMessage;
 
   static const _moodLabels = [
@@ -39,10 +43,17 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? EmotionalDiaryRepository();
     _loadTodayRecord();
   }
 
   Future<void> _loadTodayRecord() async {
+    setState(() {
+      _isLoadingTodayRecord = true;
+      _loadErrorMessage = null;
+      _errorMessage = null;
+    });
+
     try {
       final record = await _repository.getTodayRecord();
 
@@ -55,10 +66,20 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
         selectedFood = _scoreToSelectorIndex(record?['avaliacao_alimentacao']);
         mentalSymptoms
           ..clear()
-          ..addAll(_parseSymptomIndexes(record?['sintomas_emocionais_hoje']));
+          ..addAll(
+            PatientSymptoms.decode(
+              record?['sintomas_emocionais_hoje'],
+              PatientSymptoms.emotional,
+            ),
+          );
         physicalSymptoms
           ..clear()
-          ..addAll(_parseSymptomIndexes(record?['sintomas_fisicos_hoje']));
+          ..addAll(
+            PatientSymptoms.decode(
+              record?['sintomas_fisicos_hoje'],
+              PatientSymptoms.physical,
+            ),
+          );
         _isLoadingTodayRecord = false;
       });
     } catch (error) {
@@ -67,7 +88,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
       }
 
       setState(() {
-        _errorMessage = AppErrorMessages.from(error);
+        _loadErrorMessage = AppErrorMessages.from(error);
         _isLoadingTodayRecord = false;
       });
     }
@@ -78,7 +99,18 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
       return;
     }
 
+    if (_loadErrorMessage != null) {
+      return;
+    }
+
     FocusScope.of(context).unfocus();
+
+    if (selectedMood == null || selectedFood == null) {
+      setState(() {
+        _errorMessage = 'Selecione como você se sentiu e avalie a alimentação.';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -87,16 +119,16 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
 
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    final moodIndex = selectedMood ?? 2;
-    final foodIndex = selectedFood ?? 2;
+    final moodIndex = selectedMood!;
+    final foodIndex = selectedFood!;
 
     try {
       await _repository.createCheckIn(
         humor: _moodLabels[moodIndex],
         comoSentiu: _selectorIndexToScore(moodIndex),
         avaliacaoAlimentacao: _selectorIndexToScore(foodIndex),
-        sintomasEmocionaisHoje: mentalSymptoms,
-        sintomasFisicosHoje: physicalSymptoms,
+        sintomasEmocionaisHoje: mentalSymptoms.toList(growable: false),
+        sintomasFisicosHoje: physicalSymptoms.toList(growable: false),
       );
 
       if (!mounted) {
@@ -140,27 +172,16 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     return (5 - parsedScore).clamp(0, 4).toInt();
   }
 
-  List<int> _parseSymptomIndexes(Object? value) {
-    if (value is List) {
-      return value
-          .map((item) => item is int ? item : int.tryParse(item.toString()))
-          .whereType<int>()
-          .toList();
-    }
-
-    return [];
-  }
-
-  void _toggleSymptom(List<int> symptoms, int index) {
+  void _toggleSymptom(Set<String> symptoms, String code) {
     if (_isLoading || _isLoadingTodayRecord) {
       return;
     }
 
     setState(() {
-      if (symptoms.contains(index)) {
-        symptoms.remove(index);
+      if (symptoms.contains(code)) {
+        symptoms.remove(code);
       } else {
-        symptoms.add(index);
+        symptoms.add(code);
       }
     });
   }
@@ -173,6 +194,11 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
           padding: const EdgeInsets.all(20),
           child: _isLoadingTodayRecord
               ? const Center(child: CircularProgressIndicator())
+              : _loadErrorMessage != null
+              ? _CheckInLoadError(
+                  message: _loadErrorMessage!,
+                  onRetry: _loadTodayRecord,
+                )
               : Column(
                   mainAxisAlignment: MainAxisAlignment.start,
                   children: [
@@ -272,34 +298,32 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                     const SizedBox(height: 24),
                     AppSymptomsCard(
                       title: 'Quais sintomas você apresentou hoje?',
-                      symptoms: const [
-                        'Insegurança',
-                        'Culpa',
-                        'Vômito autoinduzido',
-                        'Medo',
-                        'Compulsão',
-                        'Ansiedade',
-                      ],
-                      selected: mentalSymptoms,
-                      onTap: (index) => _toggleSymptom(mentalSymptoms, index),
+                      symptoms: PatientSymptoms.emotional
+                          .map((symptom) => symptom.label)
+                          .toList(growable: false),
+                      selected: PatientSymptoms.selectedIndexes(
+                        mentalSymptoms,
+                        PatientSymptoms.emotional,
+                      ),
+                      onTap: (index) => _toggleSymptom(
+                        mentalSymptoms,
+                        PatientSymptoms.emotional[index].code,
+                      ),
                     ),
                     const SizedBox(height: 24),
                     AppSymptomsCard(
                       title: 'Quais sintomas físicos você apresentou hoje?',
-                      symptoms: const [
-                        'Cansaço excessivo',
-                        'Alteração na pressão',
-                        'Problemas digestivos',
-                        'Queda de cabelo',
-                        'Dificuldade de concentração',
-                        'Desmaio',
-                        'Fraqueza',
-                        'Tontura',
-                        'Náuseas',
-                        'Dor de cabeça',
-                      ],
-                      selected: physicalSymptoms,
-                      onTap: (index) => _toggleSymptom(physicalSymptoms, index),
+                      symptoms: PatientSymptoms.physical
+                          .map((symptom) => symptom.label)
+                          .toList(growable: false),
+                      selected: PatientSymptoms.selectedIndexes(
+                        physicalSymptoms,
+                        PatientSymptoms.physical,
+                      ),
+                      onTap: (index) => _toggleSymptom(
+                        physicalSymptoms,
+                        PatientSymptoms.physical[index].code,
+                      ),
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 16),
@@ -322,6 +346,39 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
         ),
       ),
+    );
+  }
+}
+
+class _CheckInLoadError extends StatelessWidget {
+  const _CheckInLoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const AppHeaders(
+          textTitle: 'Check-in diário',
+          textSubTitle: 'Não foi possível carregar o registro de hoje.',
+        ),
+        const SizedBox(height: 24),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Color(0xFFFFD6D6)),
+        ),
+        const SizedBox(height: 16),
+        FilledButton.icon(
+          key: const Key('check-in-load-retry'),
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh_rounded),
+          label: const Text('Tentar novamente'),
+        ),
+      ],
     );
   }
 }

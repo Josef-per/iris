@@ -90,6 +90,54 @@ void main() {
       expect(store.appointments.single.startsAt, startsAt);
       expect(store.appointments.single.patient.mood, 'Bem');
     });
+
+    test('recalcula a proxima consulta apos criar e remover', () async {
+      final patient = _patient();
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [patient]),
+      );
+      final store = ProfessionalFrontendStore.connected(backend);
+      await store.initialize();
+      final appointment = ProfessionalAppointment(
+        startsAt: DateTime.now().add(const Duration(days: 2)),
+        time: '14:30',
+        patient: patient,
+        type: 'Online',
+      );
+
+      await store.addAppointment(appointment);
+      expect(store.patients.single.nextAppointment, isNot('A definir'));
+
+      await store.removeAppointment(store.appointments.single);
+      expect(store.patients.single.nextAppointment, 'Sem consulta');
+    });
+
+    test(
+      'reconcilia configuracoes quando o auth falha apos o perfil',
+      () async {
+        final persisted = _snapshot().settings.copyWith(
+          name: 'Nome persistido',
+          email: 'email-atual@example.com',
+        );
+        final backend = _FakeProfessionalBackend()
+          ..settingsError = ProfessionalSettingsPartialUpdateException(
+            persistedSettings: persisted,
+            message: 'Confirme o novo e-mail.',
+          );
+        final store = ProfessionalFrontendStore.connected(backend);
+        await store.initialize();
+
+        await expectLater(
+          store.updateSettings(
+            store.settings.copyWith(email: 'novo@example.com'),
+          ),
+          throwsA(isA<ProfessionalSettingsPartialUpdateException>()),
+        );
+
+        expect(store.settings.name, 'Nome persistido');
+        expect(store.settings.email, 'email-atual@example.com');
+      },
+    );
   });
 }
 
@@ -146,6 +194,7 @@ class _FakeProfessionalBackend implements ProfessionalWorkspaceBackend {
   ProfessionalWorkspaceSnapshot snapshot;
   Object? loadError;
   Object? updateError;
+  Object? settingsError;
   int loadCalls = 0;
   ProfessionalPatient? updatedPatient;
 
@@ -193,7 +242,10 @@ class _FakeProfessionalBackend implements ProfessionalWorkspaceBackend {
   @override
   Future<ProfessionalSettingsDraft> updateSettings(
     ProfessionalSettingsDraft settings,
-  ) async => settings;
+  ) async {
+    if (settingsError case final error?) throw error;
+    return settings;
+  }
 
   @override
   Future<void> changePassword({

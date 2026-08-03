@@ -11,11 +11,15 @@ class ProfessionalDashboardView extends StatelessWidget {
     required this.store,
     required this.onOpenPatients,
     required this.onOpenPatient,
+    this.onOpenAlerts,
+    this.appointmentInitialDate,
   });
 
   final ProfessionalFrontendStore store;
   final VoidCallback onOpenPatients;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
+  final VoidCallback? onOpenAlerts;
+  final DateTime? appointmentInitialDate;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +43,11 @@ class ProfessionalDashboardView extends StatelessWidget {
                   FilledButton.icon(
                     key: const Key('professional-add-appointment'),
                     onPressed: _canManage(store)
-                        ? () => showProfessionalAppointmentForm(context, store)
+                        ? () => showProfessionalAppointmentForm(
+                            context,
+                            store,
+                            initialDate: appointmentInitialDate,
+                          )
                         : null,
                     icon: const Icon(Icons.add_rounded),
                     label: const Text('Nova consulta'),
@@ -48,7 +56,7 @@ class ProfessionalDashboardView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-            _MetricsGrid(store: store),
+            _MetricsGrid(store: store, onOpenAlerts: onOpenAlerts),
             const SizedBox(height: 30),
             LayoutBuilder(
               builder: (context, constraints) {
@@ -86,9 +94,10 @@ class ProfessionalDashboardView extends StatelessWidget {
 }
 
 class _MetricsGrid extends StatelessWidget {
-  const _MetricsGrid({required this.store});
+  const _MetricsGrid({required this.store, required this.onOpenAlerts});
 
   final ProfessionalFrontendStore store;
+  final VoidCallback? onOpenAlerts;
 
   @override
   Widget build(BuildContext context) {
@@ -141,6 +150,7 @@ class _MetricsGrid extends StatelessWidget {
               value: '${store.alerts}',
               supporting: 'Ver todos',
               color: AppColors.danger,
+              onTap: onOpenAlerts,
             ),
             _MetricCard(
               width: width,
@@ -165,6 +175,7 @@ class _MetricCard extends StatelessWidget {
     required this.value,
     required this.supporting,
     required this.color,
+    this.onTap,
   });
 
   final double width;
@@ -173,6 +184,7 @@ class _MetricCard extends StatelessWidget {
   final String value;
   final String supporting;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -181,44 +193,46 @@ class _MetricCard extends StatelessWidget {
       child: ProfessionalPanel(
         borderColor: AppColors.purple,
         padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: .16),
-                shape: BoxShape.circle,
+        child: InkWell(
+          onTap: onTap,
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .16),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: color, size: 27),
               ),
-              child: Icon(icon, color: color, size: 27),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w500,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: Theme.of(context).textTheme.bodyMedium),
+                    const SizedBox(height: 2),
+                    Text(
+                      value,
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(fontWeight: FontWeight.w500),
                     ),
-                  ),
-                  Text(
-                    supporting,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                    Text(
+                      supporting,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

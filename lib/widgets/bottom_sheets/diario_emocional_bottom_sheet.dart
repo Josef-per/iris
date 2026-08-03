@@ -5,7 +5,9 @@ import 'package:iris/widgets/app_filled_button.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class DiarioEmocionalBottomSheet extends StatefulWidget {
-  const DiarioEmocionalBottomSheet({super.key});
+  const DiarioEmocionalBottomSheet({super.key, this.repository});
+
+  final EmotionalDiaryDataSource? repository;
 
   @override
   State<DiarioEmocionalBottomSheet> createState() =>
@@ -16,15 +18,17 @@ class _DiarioEmocionalBottomSheetState
     extends State<DiarioEmocionalBottomSheet> {
   final _formKey = GlobalKey<FormState>();
   final _contentController = TextEditingController();
-  final _repository = EmotionalDiaryRepository();
+  late final EmotionalDiaryDataSource _repository;
 
   bool _isLoading = false;
   bool _isLoadingTodayRecord = true;
+  String? _loadErrorMessage;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? EmotionalDiaryRepository();
     _loadTodayRecord();
   }
 
@@ -35,6 +39,11 @@ class _DiarioEmocionalBottomSheetState
   }
 
   Future<void> _loadTodayRecord() async {
+    setState(() {
+      _isLoadingTodayRecord = true;
+      _loadErrorMessage = null;
+    });
+
     try {
       final record = await _repository.getTodayRecord();
 
@@ -53,7 +62,7 @@ class _DiarioEmocionalBottomSheetState
       }
 
       setState(() {
-        _errorMessage = AppErrorMessages.from(error);
+        _loadErrorMessage = AppErrorMessages.from(error);
       });
     } finally {
       if (mounted) {
@@ -65,6 +74,10 @@ class _DiarioEmocionalBottomSheetState
   }
 
   Future<void> _submit() async {
+    if (_loadErrorMessage != null) {
+      return;
+    }
+
     FocusScope.of(context).unfocus();
 
     if (!_formKey.currentState!.validate()) {
@@ -184,6 +197,26 @@ class _DiarioEmocionalBottomSheetState
                         const SizedBox(height: 10),
                         if (_isLoadingTodayRecord)
                           const Center(child: CircularProgressIndicator())
+                        else if (_loadErrorMessage != null)
+                          Column(
+                            children: [
+                              Text(
+                                _loadErrorMessage!,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFF7A2330),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              OutlinedButton.icon(
+                                key: const Key('emotional-diary-load-retry'),
+                                onPressed: _loadTodayRecord,
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Tentar novamente'),
+                              ),
+                            ],
+                          )
                         else
                           TextFormField(
                             controller: _contentController,
@@ -228,7 +261,12 @@ class _DiarioEmocionalBottomSheetState
                 text: _isLoading ? 'Salvando...' : 'Confirmar',
                 backgroundColor: const Color(0xFF7D6AC6),
                 textColor: const Color(0xFFFAF9F6),
-                onPressed: _isLoading || _isLoadingTodayRecord ? null : _submit,
+                onPressed:
+                    _isLoading ||
+                        _isLoadingTodayRecord ||
+                        _loadErrorMessage != null
+                    ? null
+                    : _submit,
               ),
             ),
           ],

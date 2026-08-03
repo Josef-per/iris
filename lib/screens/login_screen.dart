@@ -5,14 +5,20 @@ import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/screens/cadastro_screen.dart';
-import 'package:iris/screens/home_screen.dart';
 import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key, this.initialProfessional = false});
+  const LoginScreen({
+    super.key,
+    this.initialProfessional = false,
+    this.authService,
+    this.initialMessage,
+  });
 
   final bool initialProfessional;
+  final AuthService? authService;
+  final String? initialMessage;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -22,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authService = AuthService();
+  late final AuthService _authService;
   bool _isLoading = false;
   bool _obscurePassword = true;
   late bool _isProfessional;
@@ -31,6 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     _isProfessional = widget.initialProfessional;
   }
 
@@ -45,19 +52,12 @@ class _LoginScreenState extends State<LoginScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    if (!SupabaseConfig.isConfigured) {
-      if (_isProfessional) {
-        setState(() {
-          _errorMessage =
-              'Supabase não carregado. Inicie o app com '
-              './scripts/flutter_run.sh.';
-        });
-        return;
-      }
-      const destination = HomeScreen();
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+    if (!SupabaseConfig.isConfigured && widget.authService == null) {
+      setState(() {
+        _errorMessage =
+            'Supabase não carregado. Inicie o app com '
+            './scripts/flutter_run.sh.';
+      });
       return;
     }
 
@@ -80,10 +80,63 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  void _openCadastro() {
-    Navigator.of(context).pushReplacement(
+  Future<void> _openCadastro() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CadastroScreen(initialProfessional: _isProfessional),
+        builder: (_) => CadastroScreen(
+          initialProfessional: _isProfessional,
+          // Em testes, ou quando o AuthGate fornece o servico, a mesma
+          // instancia preserva a validacao de perfil. Sem backend configurado,
+          // nao transforme o servico interno em uma falsa injecao funcional.
+          authService: widget.authService == null ? null : _authService,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _requestPasswordReset() async {
+    final sent = await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (_) => _EmailActionDialog(
+        title: 'Recuperar senha',
+        description:
+            'Informe seu e-mail. Se houver uma conta, enviaremos um link seguro para criar uma nova senha.',
+        actionLabel: 'Enviar link',
+        initialEmail: _emailController.text,
+        onSubmit: (email) => _authService.requestPasswordReset(email: email),
+      ),
+    );
+    if (!mounted || sent != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Se houver uma conta para esse e-mail, o link de recuperação será enviado.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _resendConfirmation() async {
+    final sent = await showDialog<bool>(
+      context: context,
+      useRootNavigator: false,
+      builder: (_) => _EmailActionDialog(
+        title: 'Reenviar confirmação',
+        description:
+            'Informe o e-mail usado no cadastro para receber um novo link de confirmação.',
+        actionLabel: 'Reenviar e-mail',
+        initialEmail: _emailController.text,
+        onSubmit: (email) =>
+            _authService.resendSignUpConfirmation(email: email),
+      ),
+    );
+    if (!mounted || sent != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Se o cadastro estiver pendente, um novo e-mail de confirmação será enviado.',
+        ),
       ),
     );
   }
@@ -159,6 +212,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? 'Informe sua senha.'
                     : null,
               ),
+              if (SupabaseConfig.isConfigured || widget.authService != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: _isLoading ? null : _requestPasswordReset,
+                        child: const Text('Esqueci minha senha'),
+                      ),
+                      TextButton(
+                        onPressed: _isLoading ? null : _resendConfirmation,
+                        child: const Text('Reenviar confirmação'),
+                      ),
+                    ],
+                  ),
+                ),
+              if (widget.initialMessage != null) ...[
+                const SizedBox(height: 8),
+                _InfoBanner(message: widget.initialMessage!),
+              ],
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 _ErrorBanner(message: _errorMessage!),
@@ -181,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 10),
                 const Center(
                   child: Text(
-                    'Modo de demonstração: os dados exibidos são fictícios.',
+                    'Backend não configurado: a autenticação está desativada.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: AppColors.muted, fontSize: 12),
                   ),
@@ -228,6 +302,133 @@ class _ErrorBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Text(message, style: const TextStyle(color: AppColors.danger)),
+    );
+  }
+}
+
+class _InfoBanner extends StatelessWidget {
+  const _InfoBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.purple.withValues(alpha: .08),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Text(message, style: const TextStyle(color: AppColors.ink)),
+    );
+  }
+}
+
+class _EmailActionDialog extends StatefulWidget {
+  const _EmailActionDialog({
+    required this.title,
+    required this.description,
+    required this.actionLabel,
+    required this.initialEmail,
+    required this.onSubmit,
+  });
+
+  final String title;
+  final String description;
+  final String actionLabel;
+  final String initialEmail;
+  final Future<void> Function(String email) onSubmit;
+
+  @override
+  State<_EmailActionDialog> createState() => _EmailActionDialogState();
+}
+
+class _EmailActionDialogState extends State<_EmailActionDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _emailController;
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail.trim());
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      await widget.onSubmit(_emailController.text);
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (mounted) {
+        setState(() => _errorMessage = AppErrorMessages.from(error));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.description),
+            const SizedBox(height: 18),
+            TextFormField(
+              controller: _emailController,
+              autofocus: true,
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => _submit(),
+              decoration: const InputDecoration(
+                labelText: 'E-mail',
+                prefixIcon: Icon(Icons.mail_outline_rounded),
+              ),
+              validator: (value) {
+                final email = value?.trim() ?? '';
+                if (email.isEmpty) return 'Informe seu e-mail.';
+                if (!email.contains('@')) return 'Informe um e-mail válido.';
+                return null;
+              },
+            ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _errorMessage!,
+                style: const TextStyle(color: AppColors.danger),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: _isLoading ? null : _submit,
+          child: Text(_isLoading ? 'Enviando...' : widget.actionLabel),
+        ),
+      ],
     );
   }
 }

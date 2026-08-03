@@ -14,7 +14,7 @@ class AcompanhamentoScreen extends StatefulWidget {
 }
 
 class _AcompanhamentoScreenState extends State<AcompanhamentoScreen> {
-  var _selectedDate = DateTime(2026, DateTime.september, 9);
+  var _selectedDate = DateTime.now();
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +52,7 @@ class _AcompanhamentoScreenState extends State<AcompanhamentoScreen> {
             acompanhamentoContents: [
               AcompanhamentoCalendarSection(
                 selectedDate: _selectedDate,
-                onDateSelected: (date) =>
-                    setState(() => _selectedDate = date),
+                onDateSelected: (date) => setState(() => _selectedDate = date),
               ),
               AppAcompanhamentoGraficos(selectedDate: _selectedDate),
               const AcompanhamentoLinhaTempoSection(),

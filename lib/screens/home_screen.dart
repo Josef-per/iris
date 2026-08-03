@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
-import 'package:iris/screens/lembretes_screen.dart';
+import 'package:iris/screens/patient_care_plan_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/registro_alimentar_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.todayDataSource});
+
+  final PatientTodayDataSource? todayDataSource;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -20,21 +24,49 @@ class _HomeScreenState extends State<HomeScreen> {
   final _authService = AuthService();
   final _profileRepository = ProfileRepository();
   late final Future<Profile?> _profileFuture;
+  late final PatientTodayDataSource _todayDataSource;
+  late Future<PatientTodaySummary> _todaySummaryFuture;
 
   @override
   void initState() {
     super.initState();
     _profileFuture = _profileRepository.getCurrentUserProfile();
+    _todayDataSource = widget.todayDataSource ?? PatientTodayRepository();
+    _todaySummaryFuture = _todayDataSource.loadToday();
   }
 
-  void _openBottomSheet(Widget child) {
-    showModalBottomSheet(
+  Future<void> _openBottomSheet(Widget child) async {
+    final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (_) => child,
     );
+
+    if (saved == true && mounted) {
+      _refreshTodaySummary();
+    }
+  }
+
+  void _refreshTodaySummary() {
+    setState(() {
+      _todaySummaryFuture = _todayDataSource.loadToday();
+    });
+  }
+
+  Future<void> _signOut(BuildContext sheetContext) async {
+    Navigator.pop(sheetContext);
+    try {
+      await _authService.signOut();
+    } catch (error) {
+      // O Supabase remove a sessao local antes de tentar invalidar o token no
+      // servidor. Se a tela ainda existir, a falha ocorreu antes da transicao.
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
   }
 
   void _openMenu() {
@@ -48,25 +80,30 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: const Icon(Icons.notifications_none_rounded),
-                title: const Text('Lembretes'),
+                leading: const Icon(Icons.assignment_outlined),
+                title: const Text('Plano de cuidado'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const LembretesScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const PatientCarePlanScreen(),
+                    ),
                   );
                 },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_none_rounded),
+                title: const Text('Lembretes'),
+                subtitle: const Text('Em breve'),
+                enabled: false,
               ),
               ListTile(
                 leading: const Icon(Icons.logout_rounded),
                 title: const Text('Sair da conta'),
                 textColor: AppColors.danger,
                 iconColor: AppColors.danger,
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _authService.signOut();
-                },
+                onTap: () => _signOut(sheetContext),
               ),
             ],
           ),
@@ -147,32 +184,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     Center(
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 380),
-                        child: const Row(
-                          children: [
-                            Expanded(
-                              child: _StatusCard(
-                                icon: Icons.restaurant_rounded,
-                                value: '3/4',
-                                label: 'Refeições',
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: _StatusCard(
-                                icon: Icons.favorite_outline_rounded,
-                                value: 'Bom',
-                                label: 'Humor',
-                              ),
-                            ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: _StatusCard(
-                                icon: Icons.medication_outlined,
-                                value: '1/2',
-                                label: 'Medicação',
-                              ),
-                            ),
-                          ],
+                        child: FutureBuilder<PatientTodaySummary>(
+                          future: _todaySummaryFuture,
+                          builder: (context, snapshot) => _TodayStatusCards(
+                            summary: snapshot.data,
+                            isLoading:
+                                snapshot.connectionState ==
+                                ConnectionState.waiting,
+                            error: snapshot.error,
+                            onRetry: _refreshTodaySummary,
+                          ),
                         ),
                       ),
                     ),
@@ -294,6 +315,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _StatusCard extends StatelessWidget {
   const _StatusCard({
+    super.key,
     required this.icon,
     required this.value,
     required this.label,
@@ -305,7 +327,7 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 112,
+      height: 116,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.white.withValues(alpha: .14),
@@ -339,6 +361,78 @@ class _StatusCard extends StatelessWidget {
   }
 }
 
+class _TodayStatusCards extends StatelessWidget {
+  const _TodayStatusCards({
+    required this.summary,
+    required this.isLoading,
+    required this.error,
+    required this.onRetry,
+  });
+
+  final PatientTodaySummary? summary;
+  final bool isLoading;
+  final Object? error;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final values = isLoading
+        ? const ['…', '…', '…']
+        : error != null
+        ? const ['—', '—', '—']
+        : [
+            summary?.mealCount.toString() ?? '0',
+            summary?.moodLabel ?? 'Sem registro',
+            summary?.checkInLabel ?? 'Pendente',
+          ];
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: _StatusCard(
+                key: const Key('patient-today-meals'),
+                icon: Icons.restaurant_rounded,
+                value: values[0],
+                label: 'Refeições hoje',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatusCard(
+                key: const Key('patient-today-mood'),
+                icon: Icons.favorite_outline_rounded,
+                value: values[1],
+                label: 'Humor hoje',
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _StatusCard(
+                key: const Key('patient-today-check-in'),
+                icon: Icons.fact_check_outlined,
+                value: values[2],
+                label: 'Check-in',
+              ),
+            ),
+          ],
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 8),
+          TextButton.icon(
+            key: const Key('patient-today-retry'),
+            onPressed: onRetry,
+            style: TextButton.styleFrom(foregroundColor: AppColors.white),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Não foi possível carregar. Tentar novamente'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.width,
@@ -359,7 +453,7 @@ class _ActionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: width,
-      height: width < 240 ? 220 : 190,
+      height: width < 240 ? 220 : 210,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -387,7 +481,7 @@ class _ActionCard extends StatelessWidget {
                   ),
                   child: Icon(icon, color: AppColors.white),
                 ),
-                const SizedBox(height: 28),
+                const Spacer(),
                 Text(
                   title,
                   style: const TextStyle(

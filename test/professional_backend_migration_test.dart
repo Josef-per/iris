@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late String migration;
   late String qrCompatibilityMigration;
+  late String clinicalIntegrityMigration;
   late String lockdown;
 
   setUpAll(() {
@@ -13,6 +14,9 @@ void main() {
     ).readAsStringSync();
     qrCompatibilityMigration = File(
       'supabase/migrations/0007_professional_invite_legacy_text_compat.sql',
+    ).readAsStringSync();
+    clinicalIntegrityMigration = File(
+      'supabase/migrations/0008_clinical_data_integrity.sql',
     ).readAsStringSync();
     lockdown = File(
       'supabase/migrations/0005_patient_professional_link_rls.sql',
@@ -115,6 +119,34 @@ void main() {
         reason: 'RLS ausente em $table',
       );
     }
+  });
+
+  test('registro emocional diario usa chave unica e upsert atomico', () {
+    expect(
+      clinicalIntegrityMigration,
+      contains('iris_emocionais_paciente_dia_unique'),
+    );
+    expect(
+      clinicalIntegrityMigration,
+      contains('iris_upsert_daily_emotional_record'),
+    );
+    expect(
+      clinicalIntegrityMigration,
+      contains('on conflict (paciente_id, data_local) do update'),
+    );
+  });
+
+  test('sintomas, escalas e agenda possuem contratos no banco', () {
+    expect(clinicalIntegrityMigration, contains("when 5 then 'desmaio'"));
+    expect(
+      clinicalIntegrityMigration,
+      contains('nivel_fome is null or nivel_fome between 1 and 10'),
+    );
+    expect(
+      clinicalIntegrityMigration,
+      contains("modalidade in ('online', 'presencial')"),
+    );
+    expect(clinicalIntegrityMigration, contains('APPOINTMENT_MUST_BE_FUTURE'));
   });
 }
 

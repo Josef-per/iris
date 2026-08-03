@@ -25,12 +25,6 @@ class AcompanhamentoCalendarSection extends StatelessWidget {
     );
   }
 
-  String _formatSelectedDate() {
-    final day = selectedDate.day.toString().padLeft(2, '0');
-    final month = selectedDate.month.toString().padLeft(2, '0');
-    return '$day/$month/${selectedDate.year}';
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -57,7 +51,7 @@ class AcompanhamentoCalendarSection extends StatelessWidget {
           const Divider(height: 1, color: Color(0xFF7D6AC6)),
           const SizedBox(height: 12),
           Text(
-            'Registros de ${_formatSelectedDate()}',
+            'Adicionar um registro de hoje',
             style: const TextStyle(
               color: Color(0xFF28174E),
               fontSize: 16,
@@ -73,18 +67,14 @@ class AcompanhamentoCalendarSection extends StatelessWidget {
           const SizedBox(height: 20),
           AppAcompanhamentoRegistroCard(
             title: 'Diário emocional',
-            onTap: () => _openBottomSheet(
-              context,
-              const DiarioEmocionalBottomSheet(),
-            ),
+            onTap: () =>
+                _openBottomSheet(context, const DiarioEmocionalBottomSheet()),
           ),
           const SizedBox(height: 20),
           AppAcompanhamentoRegistroCard(
             title: 'Refeição',
-            onTap: () => _openBottomSheet(
-              context,
-              const RegistroAlimentarBottomSheet(),
-            ),
+            onTap: () =>
+                _openBottomSheet(context, const RegistroAlimentarBottomSheet()),
           ),
         ],
       ),

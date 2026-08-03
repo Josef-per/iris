@@ -17,6 +17,16 @@ class EmotionalDiaryEntry {
         ? patient['user_id']
         : null;
 
+    final rawCreatedAt =
+        map['data_registro'] ??
+        map['created_at'] ??
+        map['criado_em'] ??
+        map['data_criacao'];
+    final createdAt = DateTime.tryParse(rawCreatedAt?.toString() ?? '');
+    if (createdAt == null) {
+      throw const FormatException('Registro emocional sem data válida.');
+    }
+
     return EmotionalDiaryEntry(
       id: map['id'] as String,
       userId:
@@ -36,14 +46,7 @@ class EmotionalDiaryEntry {
                   map['content'] ??
                   '')
               as String,
-      createdAt: DateTime.parse(
-        (map['data_registro'] ??
-                map['created_at'] ??
-                map['criado_em'] ??
-                map['data_criacao'] ??
-                DateTime.now().toIso8601String())
-            .toString(),
-      ),
+      createdAt: createdAt,
     );
   }
 }

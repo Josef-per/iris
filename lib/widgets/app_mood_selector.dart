@@ -18,36 +18,40 @@ class AppMoodSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                height: 45,
-                width: 45,
-                child: Align(
-                  alignment: Alignment.center,
-                  child: Image.asset(
-                    selected ? selectedImage : image,
-                    fit: BoxFit.contain,
+    return SizedBox(
+      width: 56,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  height: 45,
+                  width: 45,
+                  child: Align(
+                    alignment: Alignment.center,
+                    child: Image.asset(
+                      selected ? selectedImage : image,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 8),
-
-              Text(
-                text,
-                style: TextStyle(color: const Color(0xFF28174E), fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                const SizedBox(height: 8),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Color(0xFF28174E),
+                    fontSize: 13,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),

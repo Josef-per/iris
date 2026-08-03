@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
+import 'package:iris/features/emotional_diary/patient_symptoms.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/users/user_repository.dart';
@@ -24,6 +25,7 @@ class SupabaseProfessionalWorkspaceBackend
 
   final Map<String, String> _linkIdsByPatient = {};
   final Map<String, ProfessionalPatient> _patientsById = {};
+  final Set<String> _activePatientIds = {};
   String? _professionalId;
 
   SupabaseClient get _client =>
@@ -77,6 +79,7 @@ class SupabaseProfessionalWorkspaceBackend
     _professionalId = professionalId;
     _linkIdsByPatient.clear();
     _patientsById.clear();
+    _activePatientIds.clear();
 
     if (settings.credentialStatus != 'ativo') {
       return ProfessionalWorkspaceSnapshot(
@@ -91,8 +94,8 @@ class SupabaseProfessionalWorkspaceBackend
       );
     }
 
-    final linkRows = _asRows(
-      await _client
+    final linkRows = await _paginateRows(
+      (from, to) async => _client
           .from(DatabaseTables.pacienteProfissional)
           .select(
             'id, paciente_id, status, diagnostico, humor_atual, '
@@ -100,7 +103,9 @@ class SupabaseProfessionalWorkspaceBackend
           )
           .eq('profissional_id', professionalId)
           .eq('autorizacao_status', 'ativo')
-          .order('criado_em', ascending: false),
+          .order('criado_em', ascending: false)
+          .order('id')
+          .range(from, to),
     );
 
     if (linkRows.isEmpty) {
@@ -120,7 +125,14 @@ class SupabaseProfessionalWorkspaceBackend
         .map((row) => _string(row['paciente_id']))
         .where((id) => id.isNotEmpty)
         .toList(growable: false);
-    final linkIds = linkRows
+    final activeLinkRows = linkRows
+        .where((row) => _string(row['status']) != 'inativo')
+        .toList(growable: false);
+    final activePatientIds = activeLinkRows
+        .map((row) => _string(row['paciente_id']))
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+    final activeLinkIds = activeLinkRows
         .map((row) => _string(row['id']))
         .where((id) => id.isNotEmpty)
         .toList(growable: false);
@@ -129,61 +141,13 @@ class SupabaseProfessionalWorkspaceBackend
     final nextMonth = DateTime(now.year, now.month + 1);
 
     final workspaceData = await Future.wait<Object?>([
-      _client
-          .from(DatabaseTables.pacientes)
-          .select('id, user_id')
-          .inFilter('id', patientIds),
-      _client
-          .from(DatabaseTables.consultas)
-          .select(
-            'id, vinculo_id, inicio_em, modalidade, status, titulo, '
-            'local_ou_link',
-          )
-          .inFilter('vinculo_id', linkIds)
-          .gte('inicio_em', now.toUtc().toIso8601String())
-          .neq('status', 'cancelada')
-          .order('inicio_em')
-          .limit(200),
-      _client
-          .from(DatabaseTables.consultas)
-          .select('id')
-          .inFilter('vinculo_id', linkIds)
-          .gte('inicio_em', monthStart.toUtc().toIso8601String())
-          .lt('inicio_em', nextMonth.toUtc().toIso8601String())
-          .neq('status', 'cancelada'),
-      _client
-          .from(DatabaseTables.anotacoesClinicas)
-          .select(
-            'id, vinculo_id, profissional_id, conteudo, marcador, criado_em',
-          )
-          .inFilter('vinculo_id', linkIds)
-          .order('criado_em', ascending: false)
-          .limit(500),
-      _client
-          .from(DatabaseTables.planosCuidado)
-          .select(
-            'id, vinculo_id, orientacoes, passos_crise, '
-            'compartilhar_paciente, alertar_checkins_ausentes',
-          )
-          .inFilter('vinculo_id', linkIds),
-      _client
-          .from(DatabaseTables.registrosEmocionais)
-          .select(
-            'id, paciente_id, data_registro, diario_emocional, humor, '
-            'como_sentiu, avaliacao_alimentacao',
-          )
-          .inFilter('paciente_id', patientIds)
-          .order('data_registro', ascending: false)
-          .limit(1000),
-      _client
-          .from(DatabaseTables.registrosAlimentares)
-          .select(
-            'id, paciente_id, horario_refeicao, descricao_refeicao, '
-            'nivel_fome, sentimento_depois, observacoes',
-          )
-          .inFilter('paciente_id', patientIds)
-          .order('horario_refeicao', ascending: false)
-          .limit(1000),
+      _patientRows(patientIds),
+      _appointmentRows(activeLinkIds, from: now),
+      _appointmentRows(activeLinkIds, from: monthStart, until: nextMonth),
+      _noteRows(activeLinkIds),
+      _planRows(activeLinkIds),
+      _emotionalRows(activePatientIds),
+      _foodRows(activePatientIds),
     ]);
 
     final patientRows = _asRows(workspaceData[0]);
@@ -204,38 +168,10 @@ class SupabaseProfessionalWorkspaceBackend
         .toList(growable: false);
 
     final relatedData = await Future.wait<Object?>([
-      if (userIds.isEmpty)
-        Future<Object?>.value(const <Map<String, dynamic>>[])
-      else
-        _client
-            .from(DatabaseTables.perfis)
-            .select(
-              'user_id, nome_completo, nome_social, telefone, data_nascimento',
-            )
-            .inFilter('user_id', userIds),
-      if (userIds.isEmpty)
-        Future<Object?>.value(const <Map<String, dynamic>>[])
-      else
-        _client
-            .from(DatabaseTables.usuarios)
-            .select('id, email')
-            .inFilter('id', userIds),
-      if (planIds.isEmpty)
-        Future<Object?>.value(const <Map<String, dynamic>>[])
-      else
-        _client
-            .from(DatabaseTables.metasCuidado)
-            .select('id, plano_id, descricao, concluida, ordem')
-            .inFilter('plano_id', planIds)
-            .order('ordem'),
-      if (planIds.isEmpty)
-        Future<Object?>.value(const <Map<String, dynamic>>[])
-      else
-        _client
-            .from(DatabaseTables.medicacoesPlano)
-            .select('id, plano_id, nome, dose, frequencia, adesao, ordem')
-            .inFilter('plano_id', planIds)
-            .order('ordem'),
+      _profileRows(userIds),
+      _userRows(userIds),
+      _goalRows(planIds),
+      _medicationRows(planIds),
     ]);
 
     final profilesByUser = {
@@ -268,7 +204,7 @@ class SupabaseProfessionalWorkspaceBackend
     };
     final lastRecordByPatient = <String, DateTime>{};
     final latestMoodByPatient = <String, String>{};
-    var alerts = 0;
+    final clinicalAlerts = <ProfessionalClinicalAlert>[];
     final alertCutoff = now.subtract(const Duration(hours: 24));
 
     for (final row in emotionalRows) {
@@ -287,15 +223,42 @@ class SupabaseProfessionalWorkspaceBackend
       }
       final moodScore = _integer(row['como_sentiu']);
       final foodScore = _integer(row['avaliacao_alimentacao']);
-      if (recordedAt.isAfter(alertCutoff) &&
-          ((moodScore != null && moodScore <= 2) ||
-              (foodScore != null && foodScore <= 2))) {
-        alerts++;
+      final mentalSymptoms = _symptoms(
+        row['sintomas_emocionais_hoje'],
+        PatientSymptoms.emotional,
+      );
+      final physicalSymptoms = _symptoms(
+        row['sintomas_fisicos_hoje'],
+        PatientSymptoms.physical,
+      );
+      final alertReasons = <String>[
+        if (moodScore != null && moodScore <= 2) 'Bem-estar $moodScore/5',
+        if (foodScore != null && foodScore <= 2) 'Alimentação $foodScore/5',
+        for (final symptom in [...mentalSymptoms, ...physicalSymptoms])
+          if (_criticalSymptomCodes.contains(symptom.code)) symptom.label,
+      ];
+      if (settings.crisisAlerts &&
+          recordedAt.isAfter(alertCutoff) &&
+          alertReasons.isNotEmpty) {
+        clinicalAlerts.add(
+          ProfessionalClinicalAlert(
+            id: _string(row['id']),
+            patientId: patientId,
+            occurredAt: recordedAt,
+            reasons: alertReasons,
+          ),
+        );
       }
 
       final diary = _string(row['diario_emocional']).trim();
       final descriptionParts = <String>[
         if (mood.isNotEmpty) 'Humor: $mood',
+        if (moodScore != null) 'Bem-estar: $moodScore/5',
+        if (foodScore != null) 'Alimentação: $foodScore/5',
+        if (mentalSymptoms.isNotEmpty)
+          'Emocionais: ${mentalSymptoms.map((item) => item.label).join(', ')}',
+        if (physicalSymptoms.isNotEmpty)
+          'Físicos: ${physicalSymptoms.map((item) => item.label).join(', ')}',
         if (diary.isNotEmpty) diary,
       ];
       datedRecords
@@ -333,10 +296,12 @@ class SupabaseProfessionalWorkspaceBackend
       final meal = _string(row['descricao_refeicao']).trim();
       final hunger = _integer(row['nivel_fome']);
       final feeling = _string(row['sentimento_depois']).trim();
+      final observations = _string(row['observacoes']).trim();
       final descriptionParts = <String>[
         if (meal.isNotEmpty) meal,
-        if (hunger != null) 'Fome: $hunger/5',
+        if (hunger != null) 'Fome: $hunger/10',
         if (feeling.isNotEmpty) feeling,
+        if (observations.isNotEmpty) 'Observações: $observations',
       ];
       datedRecords
           .putIfAbsent(patientId, () => [])
@@ -412,6 +377,9 @@ class SupabaseProfessionalWorkspaceBackend
       patients.add(patient);
       _patientsById[patientId] = patient;
       _linkIdsByPatient[patientId] = _string(linkRow['id']);
+      if (patient.status == PatientStatus.active) {
+        _activePatientIds.add(patientId);
+      }
     }
 
     final appointments = <ProfessionalAppointment>[];
@@ -488,7 +456,7 @@ class SupabaseProfessionalWorkspaceBackend
     for (final patient in patients) {
       final items = datedRecords[patient.id] ?? [];
       items.sort((left, right) => right.date.compareTo(left.date));
-      records[patient.id] = [for (final item in items.take(20)) item.record];
+      records[patient.id] = [for (final item in items) item.record];
     }
 
     return ProfessionalWorkspaceSnapshot(
@@ -499,7 +467,8 @@ class SupabaseProfessionalWorkspaceBackend
       records: records,
       settings: settings,
       appointmentsThisMonth: appointmentsThisMonth,
-      alerts: alerts,
+      alerts: clinicalAlerts.length,
+      clinicalAlerts: clinicalAlerts,
     );
   }
 
@@ -526,6 +495,11 @@ class SupabaseProfessionalWorkspaceBackend
       },
     );
     _patientsById[patient.id] = patient;
+    if (patient.status == PatientStatus.active) {
+      _activePatientIds.add(patient.id);
+    } else {
+      _activePatientIds.remove(patient.id);
+    }
     return patient;
   }
 
@@ -533,9 +507,14 @@ class SupabaseProfessionalWorkspaceBackend
   Future<ProfessionalAppointment> addAppointment(
     ProfessionalAppointment appointment,
   ) async {
-    final linkId = await _requireLinkId(appointment.patient.id);
+    final linkId = await _requireActiveLinkId(appointment.patient.id);
     final startsAt =
         appointment.startsAt ?? _parseAppointmentInput(appointment.time);
+    if (!startsAt.toLocal().isAfter(DateTime.now())) {
+      throw const ProfessionalWorkspaceException(
+        'O horário da consulta já passou. Informe uma data futura.',
+      );
+    }
     final row = _asRequiredRow(
       await _client
           .from(DatabaseTables.consultas)
@@ -573,7 +552,7 @@ class SupabaseProfessionalWorkspaceBackend
     ProfessionalClinicalNote note,
   ) async {
     final professionalId = await _requireProfessionalId();
-    final linkId = await _requireLinkId(note.patientId);
+    final linkId = await _requireActiveLinkId(note.patientId);
     final row = _asRequiredRow(
       await _client
           .from(DatabaseTables.anotacoesClinicas)
@@ -593,6 +572,7 @@ class SupabaseProfessionalWorkspaceBackend
   Future<ProfessionalClinicalNote> updateNote(
     ProfessionalClinicalNote note,
   ) async {
+    await _requireActiveLinkId(note.patientId);
     final row = _asRequiredRow(
       await _client
           .from(DatabaseTables.anotacoesClinicas)
@@ -617,7 +597,7 @@ class SupabaseProfessionalWorkspaceBackend
     ProfessionalPatient patient,
     ProfessionalCarePlanDraft plan,
   ) async {
-    final linkId = await _requireLinkId(patient.id);
+    final linkId = await _requireActiveLinkId(patient.id);
     await _client.rpc(
       'iris_save_care_plan',
       params: {
@@ -677,20 +657,67 @@ class SupabaseProfessionalWorkspaceBackend
       },
     );
 
-    await _client.auth.updateUser(
-      UserAttributes(
-        email: normalizedEmail != currentEmail ? normalizedEmail : null,
-        data: {...?authUser.userMetadata, 'display_name': settings.name.trim()},
-      ),
-    );
-
     final persistedCredentialStatus = _string(credentialStatus).trim();
-    return settings.copyWith(
-      email: normalizedEmail,
+    final persistedProfileSettings = settings.copyWith(
+      email: currentEmail,
       credentialStatus: persistedCredentialStatus.isEmpty
           ? settings.credentialStatus
           : persistedCredentialStatus,
     );
+    late final String effectiveEmail;
+    try {
+      final response = await _client.auth.updateUser(
+        UserAttributes(
+          email: normalizedEmail != currentEmail ? normalizedEmail : null,
+          data: {
+            ...?authUser.userMetadata,
+            'display_name': settings.name.trim(),
+          },
+        ),
+      );
+      // When e-mail confirmation is required Supabase keeps the current login
+      // e-mail until the confirmation link is used. Reflect that actual state.
+      effectiveEmail = _firstNonEmpty([
+        response.user?.email ?? '',
+        _client.auth.currentUser?.email ?? '',
+        currentEmail,
+      ]).toLowerCase();
+    } on AuthException catch (error) {
+      if (_isAuthSessionFailure(error)) rethrow;
+      throw ProfessionalSettingsPartialUpdateException(
+        persistedSettings: persistedProfileSettings.copyWith(
+          email: (_client.auth.currentUser?.email ?? currentEmail)
+              .trim()
+              .toLowerCase(),
+        ),
+        message:
+            'Os dados profissionais foram salvos, mas o e-mail de acesso não '
+            'foi alterado. Verifique o e-mail informado e tente novamente.',
+      );
+    } catch (_) {
+      throw ProfessionalSettingsPartialUpdateException(
+        persistedSettings: persistedProfileSettings.copyWith(
+          email: (_client.auth.currentUser?.email ?? currentEmail)
+              .trim()
+              .toLowerCase(),
+        ),
+        message:
+            'Os dados profissionais foram salvos, mas o e-mail de acesso não '
+            'foi alterado. Verifique o e-mail informado e tente novamente.',
+      );
+    }
+    final persistedSettings = persistedProfileSettings.copyWith(
+      email: effectiveEmail,
+    );
+    if (normalizedEmail != currentEmail && effectiveEmail != normalizedEmail) {
+      throw ProfessionalSettingsPartialUpdateException(
+        persistedSettings: persistedSettings,
+        message:
+            'Os dados profissionais foram salvos. Confirme a alteração no '
+            'novo e-mail para concluir a troca do acesso.',
+      );
+    }
+    return persistedSettings;
   }
 
   @override
@@ -709,6 +736,180 @@ class SupabaseProfessionalWorkspaceBackend
       password: currentPassword,
     );
     await _client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  Future<List<Map<String, dynamic>>> _patientRows(List<String> ids) {
+    return _chunkedRows(
+      ids,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.pacientes)
+          .select('id, user_id')
+          .inFilter('id', chunk)
+          .order('id')
+          .range(from, to),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _appointmentRows(
+    List<String> linkIds, {
+    required DateTime from,
+    DateTime? until,
+  }) async {
+    final rows = await _chunkedRows(linkIds, (chunk, pageFrom, pageTo) async {
+      var query = _client
+          .from(DatabaseTables.consultas)
+          .select(
+            'id, vinculo_id, inicio_em, modalidade, status, titulo, '
+            'local_ou_link',
+          )
+          .inFilter('vinculo_id', chunk)
+          .gte('inicio_em', from.toUtc().toIso8601String())
+          .neq('status', 'cancelada');
+      if (until != null) {
+        query = query.lt('inicio_em', until.toUtc().toIso8601String());
+      }
+      return query.order('inicio_em').order('id').range(pageFrom, pageTo);
+    });
+    rows.sort((left, right) => _compareDateField(left, right, 'inicio_em'));
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> _noteRows(List<String> linkIds) async {
+    final rows = await _chunkedRows(
+      linkIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.anotacoesClinicas)
+          .select(
+            'id, vinculo_id, profissional_id, conteudo, marcador, criado_em',
+          )
+          .inFilter('vinculo_id', chunk)
+          .order('criado_em', ascending: false)
+          .order('id')
+          .range(from, to),
+    );
+    rows.sort(
+      (left, right) =>
+          _compareDateField(left, right, 'criado_em', descending: true),
+    );
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> _planRows(List<String> linkIds) {
+    return _chunkedRows(
+      linkIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.planosCuidado)
+          .select(
+            'id, vinculo_id, orientacoes, passos_crise, '
+            'compartilhar_paciente, alertar_checkins_ausentes',
+          )
+          .inFilter('vinculo_id', chunk)
+          .order('id')
+          .range(from, to),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _emotionalRows(
+    List<String> patientIds,
+  ) async {
+    final rows = await _chunkedRows(
+      patientIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.registrosEmocionais)
+          .select(
+            'id, paciente_id, data_registro, diario_emocional, humor, '
+            'como_sentiu, avaliacao_alimentacao, '
+            'sintomas_emocionais_hoje, sintomas_fisicos_hoje',
+          )
+          .inFilter('paciente_id', chunk)
+          .order('data_registro', ascending: false)
+          .order('id')
+          .range(from, to),
+    );
+    rows.sort(
+      (left, right) =>
+          _compareDateField(left, right, 'data_registro', descending: true),
+    );
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> _foodRows(List<String> patientIds) async {
+    final rows = await _chunkedRows(
+      patientIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.registrosAlimentares)
+          .select(
+            'id, paciente_id, horario_refeicao, descricao_refeicao, '
+            'nivel_fome, sentimento_depois, observacoes',
+          )
+          .inFilter('paciente_id', chunk)
+          .order('horario_refeicao', ascending: false)
+          .order('id')
+          .range(from, to),
+    );
+    rows.sort(
+      (left, right) =>
+          _compareDateField(left, right, 'horario_refeicao', descending: true),
+    );
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> _profileRows(List<String> userIds) {
+    return _chunkedRows(
+      userIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.perfis)
+          .select(
+            'user_id, nome_completo, nome_social, telefone, data_nascimento',
+          )
+          .inFilter('user_id', chunk)
+          .order('user_id')
+          .range(from, to),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _userRows(List<String> userIds) {
+    return _chunkedRows(
+      userIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.usuarios)
+          .select('id, email')
+          .inFilter('id', chunk)
+          .order('id')
+          .range(from, to),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _goalRows(List<String> planIds) async {
+    final rows = await _chunkedRows(
+      planIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.metasCuidado)
+          .select('id, plano_id, descricao, concluida, ordem')
+          .inFilter('plano_id', chunk)
+          .order('ordem')
+          .order('id')
+          .range(from, to),
+    );
+    rows.sort(_compareOrderedRows);
+    return rows;
+  }
+
+  Future<List<Map<String, dynamic>>> _medicationRows(
+    List<String> planIds,
+  ) async {
+    final rows = await _chunkedRows(
+      planIds,
+      (chunk, from, to) async => _client
+          .from(DatabaseTables.medicacoesPlano)
+          .select('id, plano_id, nome, dose, frequencia, adesao, ordem')
+          .inFilter('plano_id', chunk)
+          .order('ordem')
+          .order('id')
+          .range(from, to),
+    );
+    rows.sort(_compareOrderedRows);
+    return rows;
   }
 
   Future<String> _requireProfessionalId() async {
@@ -735,6 +936,35 @@ class SupabaseProfessionalWorkspaceBackend
       );
     }
     _linkIdsByPatient[patientId] = id;
+    return id;
+  }
+
+  Future<String> _requireActiveLinkId(String patientId) async {
+    final cached = _linkIdsByPatient[patientId];
+    if (cached != null &&
+        cached.isNotEmpty &&
+        _activePatientIds.contains(patientId)) {
+      return cached;
+    }
+
+    final professionalId = await _requireProfessionalId();
+    final row = await _client
+        .from(DatabaseTables.pacienteProfissional)
+        .select('id')
+        .eq('paciente_id', patientId)
+        .eq('profissional_id', professionalId)
+        .eq('autorizacao_status', 'ativo')
+        .eq('status', 'ativo')
+        .limit(1)
+        .maybeSingle();
+    final id = _string(row?['id']);
+    if (id.isEmpty) {
+      throw const ProfessionalWorkspaceException(
+        'Ative o acompanhamento antes de alterar dados clínicos.',
+      );
+    }
+    _linkIdsByPatient[patientId] = id;
+    _activePatientIds.add(patientId);
     return id;
   }
 
@@ -830,6 +1060,112 @@ const ProfessionalCarePlanDraft _emptyCarePlan = ProfessionalCarePlanDraft(
   shareWithPatient: true,
   notifyMissedCheckIns: true,
 );
+
+const _pageSize = 500;
+const _filterChunkSize = 100;
+const _criticalSymptomCodes = {'vomito_autoinduzido', 'compulsao', 'desmaio'};
+
+typedef _PageLoader = Future<Object?> Function(int from, int to);
+typedef _ChunkPageLoader =
+    Future<Object?> Function(List<String> ids, int from, int to);
+
+Future<List<Map<String, dynamic>>> _paginateRows(_PageLoader loadPage) async {
+  final rows = <Map<String, dynamic>>[];
+  var from = 0;
+  while (true) {
+    final page = _asRows(await loadPage(from, from + _pageSize - 1));
+    if (page.isEmpty) break;
+    rows.addAll(page);
+    // Advance by what the server actually returned. This also remains correct
+    // when a Supabase project configures a max-row cap below [_pageSize].
+    from += page.length;
+  }
+  return rows;
+}
+
+Future<List<Map<String, dynamic>>> _chunkedRows(
+  List<String> ids,
+  _ChunkPageLoader loadPage,
+) async {
+  if (ids.isEmpty) return const [];
+  final rows = <Map<String, dynamic>>[];
+  final uniqueIds = ids.toSet().toList(growable: false);
+  for (var start = 0; start < uniqueIds.length; start += _filterChunkSize) {
+    final end = (start + _filterChunkSize).clamp(0, uniqueIds.length);
+    final chunk = uniqueIds.sublist(start, end);
+    rows.addAll(await _paginateRows((from, to) => loadPage(chunk, from, to)));
+  }
+  return rows;
+}
+
+int _compareDateField(
+  Map<String, dynamic> left,
+  Map<String, dynamic> right,
+  String field, {
+  bool descending = false,
+}) {
+  final leftDate = _date(left[field]);
+  final rightDate = _date(right[field]);
+  final comparison = switch ((leftDate, rightDate)) {
+    (null, null) => _string(left['id']).compareTo(_string(right['id'])),
+    (null, _) => 1,
+    (_, null) => -1,
+    (final a?, final b?) => a.compareTo(b),
+  };
+  return descending ? -comparison : comparison;
+}
+
+int _compareOrderedRows(Map<String, dynamic> left, Map<String, dynamic> right) {
+  final planComparison = _string(
+    left['plano_id'],
+  ).compareTo(_string(right['plano_id']));
+  if (planComparison != 0) return planComparison;
+  final orderComparison = (_integer(left['ordem']) ?? 0).compareTo(
+    _integer(right['ordem']) ?? 0,
+  );
+  if (orderComparison != 0) return orderComparison;
+  return _string(left['id']).compareTo(_string(right['id']));
+}
+
+class _DisplayedSymptom {
+  const _DisplayedSymptom(this.code, this.label);
+
+  final String code;
+  final String label;
+}
+
+List<_DisplayedSymptom> _symptoms(
+  Object? value,
+  List<PatientSymptom> definitions,
+) {
+  final codes = PatientSymptoms.decode(value, definitions);
+  final definitionsByCode = {
+    for (final definition in definitions) definition.code: definition,
+  };
+  return [
+    for (final code in codes)
+      _DisplayedSymptom(
+        code,
+        definitionsByCode[code]?.label ?? _humanizeCode(code),
+      ),
+  ];
+}
+
+String _humanizeCode(String code) {
+  if (code.isEmpty) return 'Sintoma não identificado';
+  final words = code.replaceAll('_', ' ');
+  return '${words[0].toUpperCase()}${words.substring(1)}';
+}
+
+bool _isAuthSessionFailure(AuthException error) {
+  final message = error.message.toLowerCase();
+  return error is AuthSessionMissingException ||
+      error.statusCode == '401' ||
+      error.statusCode == '403' ||
+      error.code == 'refresh_token_not_found' ||
+      message.contains('jwt') ||
+      message.contains('session missing');
+}
 
 List<Map<String, dynamic>> _asRows(Object? value) {
   if (value is! List) return const [];

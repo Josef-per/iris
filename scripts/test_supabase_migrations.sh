@@ -18,13 +18,20 @@ docker run \
   -d \
   postgres:15-alpine >/dev/null
 
-for _ in 1 2 3 4 5 6 7 8 9 10; do
+database_ready=false
+for _ in $(seq 1 30); do
   if docker exec "$container_name" \
-    pg_isready -U postgres -d iris_test >/dev/null; then
+    psql -U postgres -d iris_test -c 'select 1' >/dev/null 2>&1; then
+    database_ready=true
     break
   fi
   sleep 1
 done
+
+if [[ "$database_ready" != true ]]; then
+  echo "PostgreSQL de teste não ficou pronto a tempo." >&2
+  exit 1
+fi
 
 run_sql() {
   docker exec "$container_name" \
@@ -37,7 +44,13 @@ run_sql /workspace/supabase/migrations/0005_patient_professional_link_rls.sql
 run_sql /workspace/supabase/tests/professional_backend_legacy_duplicates.sql
 run_sql /workspace/supabase/migrations/0006_professional_backend.sql
 run_sql /workspace/supabase/migrations/0007_professional_invite_legacy_text_compat.sql
+run_sql /workspace/supabase/tests/clinical_data_integrity_legacy_duplicates.sql
+run_sql /workspace/supabase/migrations/0008_clinical_data_integrity.sql
+# A migration de integridade tambem deve convergir com seguranca em bancos
+# onde parte das alteracoes ja tenha sido aplicada manualmente.
+run_sql /workspace/supabase/migrations/0008_clinical_data_integrity.sql
 run_sql /workspace/supabase/tests/professional_backend_smoke.sql
 run_sql /workspace/supabase/tests/professional_backend_flow.sql
+run_sql /workspace/supabase/tests/clinical_data_integrity.sql
 
 echo "Migrations e fluxo profissional validados."

@@ -4,16 +4,18 @@ import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
-import 'package:iris/screens/home_screen.dart';
-import 'package:iris/screens/login_screen.dart';
-import 'package:iris/screens/session_gate.dart';
 import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
 class CadastroScreen extends StatefulWidget {
-  const CadastroScreen({super.key, this.initialProfessional = false});
+  const CadastroScreen({
+    super.key,
+    this.initialProfessional = false,
+    this.authService,
+  });
 
   final bool initialProfessional;
+  final AuthService? authService;
 
   @override
   State<CadastroScreen> createState() => _CadastroScreenState();
@@ -27,7 +29,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _displayName = TextEditingController();
   final _specialty = TextEditingController(text: 'Psiquiatria');
   final _professionalRegistration = TextEditingController();
-  final _authService = AuthService();
+  late final AuthService _authService;
   bool _isLoading = false;
   bool _obscure = true;
   late bool _isProfessional;
@@ -36,6 +38,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     _isProfessional = widget.initialProfessional;
   }
 
@@ -54,19 +57,12 @@ class _CadastroScreenState extends State<CadastroScreen> {
     FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
-    if (!SupabaseConfig.isConfigured) {
-      if (_isProfessional) {
-        setState(() {
-          _errorMessage =
-              'Supabase não carregado. Inicie o app com '
-              './scripts/flutter_run.sh.';
-        });
-        return;
-      }
-      const destination = HomeScreen();
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => destination));
+    if (!SupabaseConfig.isConfigured && widget.authService == null) {
+      setState(() {
+        _errorMessage =
+            'Supabase não carregado. Inicie o app com '
+            './scripts/flutter_run.sh.';
+      });
       return;
     }
 
@@ -90,13 +86,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Confirme seu e-mail para entrar.')),
         );
-        _openLogin(clearStack: true);
-      } else {
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const SessionGate()),
-          (_) => false,
-        );
       }
+      Navigator.of(context).pop();
     } catch (error) {
       if (mounted) setState(() => _errorMessage = AppErrorMessages.from(error));
     } finally {
@@ -104,15 +95,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
     }
   }
 
-  void _openLogin({bool clearStack = false}) {
-    final route = MaterialPageRoute(
-      builder: (_) => LoginScreen(initialProfessional: _isProfessional),
-    );
-    if (clearStack) {
-      Navigator.of(context).pushAndRemoveUntil(route, (_) => false);
-    } else {
-      Navigator.of(context).pushReplacement(route);
-    }
+  void _openLogin() {
+    Navigator.of(context).maybePop();
   }
 
   @override
@@ -269,7 +253,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  'Modo de demonstração: nenhum dado será enviado.',
+                  'Backend não configurado: o cadastro está desativado.',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: AppColors.muted, fontSize: 12),
                 ),
