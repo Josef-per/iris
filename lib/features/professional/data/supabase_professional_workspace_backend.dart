@@ -40,7 +40,7 @@ class SupabaseProfessionalWorkspaceBackend
       );
     }
 
-    final professionalId = await _users.getOrCreateCurrentProfessionalId();
+    final professionalId = await _resolveProfessionalId();
     final ownData = await Future.wait<Object?>([
       _client
           .from(DatabaseTables.profissionais)
@@ -104,8 +104,9 @@ class SupabaseProfessionalWorkspaceBackend
           .eq('profissional_id', professionalId)
           .eq('autorizacao_status', 'ativo')
           .order('criado_em', ascending: false)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: false)
+          .range(from, to)
+          .count(CountOption.exact),
     );
 
     if (linkRows.isEmpty) {
@@ -142,8 +143,7 @@ class SupabaseProfessionalWorkspaceBackend
 
     final workspaceData = await Future.wait<Object?>([
       _patientRows(patientIds),
-      _appointmentRows(activeLinkIds, from: now),
-      _appointmentRows(activeLinkIds, from: monthStart, until: nextMonth),
+      _appointmentRows(activeLinkIds, from: monthStart),
       _noteRows(activeLinkIds),
       _planRows(activeLinkIds),
       _emotionalRows(activePatientIds),
@@ -151,12 +151,21 @@ class SupabaseProfessionalWorkspaceBackend
     ]);
 
     final patientRows = _asRows(workspaceData[0]);
-    final appointmentRows = _asRows(workspaceData[1]);
-    final appointmentsThisMonth = _asRows(workspaceData[2]).length;
-    final noteRows = _asRows(workspaceData[3]);
-    final planRows = _asRows(workspaceData[4]);
-    final emotionalRows = _asRows(workspaceData[5]);
-    final foodRows = _asRows(workspaceData[6]);
+    final allAppointmentRows = _asRows(workspaceData[1]);
+    final appointmentRows = allAppointmentRows
+        .where((row) {
+          final startsAt = _date(row['inicio_em']);
+          return startsAt != null && !startsAt.isBefore(now);
+        })
+        .toList(growable: false);
+    final appointmentsThisMonth = allAppointmentRows.where((row) {
+      final startsAt = _date(row['inicio_em']);
+      return startsAt != null && startsAt.isBefore(nextMonth);
+    }).length;
+    final noteRows = _asRows(workspaceData[2]);
+    final planRows = _asRows(workspaceData[3]);
+    final emotionalRows = _asRows(workspaceData[4]);
+    final foodRows = _asRows(workspaceData[5]);
 
     final userIds = patientRows
         .map((row) => _string(row['user_id']))
@@ -745,8 +754,9 @@ class SupabaseProfessionalWorkspaceBackend
           .from(DatabaseTables.pacientes)
           .select('id, user_id')
           .inFilter('id', chunk)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: true)
+          .range(from, to)
+          .count(CountOption.exact),
     );
   }
 
@@ -768,7 +778,11 @@ class SupabaseProfessionalWorkspaceBackend
       if (until != null) {
         query = query.lt('inicio_em', until.toUtc().toIso8601String());
       }
-      return query.order('inicio_em').order('id').range(pageFrom, pageTo);
+      return query
+          .order('inicio_em', ascending: true)
+          .order('id', ascending: true)
+          .range(pageFrom, pageTo)
+          .count(CountOption.exact);
     });
     rows.sort((left, right) => _compareDateField(left, right, 'inicio_em'));
     return rows;
@@ -784,8 +798,9 @@ class SupabaseProfessionalWorkspaceBackend
           )
           .inFilter('vinculo_id', chunk)
           .order('criado_em', ascending: false)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: false)
+          .range(from, to)
+          .count(CountOption.exact),
     );
     rows.sort(
       (left, right) =>
@@ -804,8 +819,9 @@ class SupabaseProfessionalWorkspaceBackend
             'compartilhar_paciente, alertar_checkins_ausentes',
           )
           .inFilter('vinculo_id', chunk)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: true)
+          .range(from, to)
+          .count(CountOption.exact),
     );
   }
 
@@ -823,8 +839,9 @@ class SupabaseProfessionalWorkspaceBackend
           )
           .inFilter('paciente_id', chunk)
           .order('data_registro', ascending: false)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: false)
+          .range(from, to)
+          .count(CountOption.exact),
     );
     rows.sort(
       (left, right) =>
@@ -844,8 +861,9 @@ class SupabaseProfessionalWorkspaceBackend
           )
           .inFilter('paciente_id', chunk)
           .order('horario_refeicao', ascending: false)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: false)
+          .range(from, to)
+          .count(CountOption.exact),
     );
     rows.sort(
       (left, right) =>
@@ -863,8 +881,9 @@ class SupabaseProfessionalWorkspaceBackend
             'user_id, nome_completo, nome_social, telefone, data_nascimento',
           )
           .inFilter('user_id', chunk)
-          .order('user_id')
-          .range(from, to),
+          .order('user_id', ascending: true)
+          .range(from, to)
+          .count(CountOption.exact),
     );
   }
 
@@ -875,8 +894,9 @@ class SupabaseProfessionalWorkspaceBackend
           .from(DatabaseTables.usuarios)
           .select('id, email')
           .inFilter('id', chunk)
-          .order('id')
-          .range(from, to),
+          .order('id', ascending: true)
+          .range(from, to)
+          .count(CountOption.exact),
     );
   }
 
@@ -887,9 +907,10 @@ class SupabaseProfessionalWorkspaceBackend
           .from(DatabaseTables.metasCuidado)
           .select('id, plano_id, descricao, concluida, ordem')
           .inFilter('plano_id', chunk)
-          .order('ordem')
-          .order('id')
-          .range(from, to),
+          .order('ordem', ascending: true)
+          .order('id', ascending: true)
+          .range(from, to)
+          .count(CountOption.exact),
     );
     rows.sort(_compareOrderedRows);
     return rows;
@@ -904,16 +925,22 @@ class SupabaseProfessionalWorkspaceBackend
           .from(DatabaseTables.medicacoesPlano)
           .select('id, plano_id, nome, dose, frequencia, adesao, ordem')
           .inFilter('plano_id', chunk)
-          .order('ordem')
-          .order('id')
-          .range(from, to),
+          .order('ordem', ascending: true)
+          .order('id', ascending: true)
+          .range(from, to)
+          .count(CountOption.exact),
     );
     rows.sort(_compareOrderedRows);
     return rows;
   }
 
   Future<String> _requireProfessionalId() async {
-    return _professionalId ??= await _users.getOrCreateCurrentProfessionalId();
+    return _professionalId ??= await _resolveProfessionalId();
+  }
+
+  Future<String> _resolveProfessionalId() async {
+    return await _users.findCurrentProfessionalId() ??
+        _users.getOrCreateCurrentProfessionalId();
   }
 
   Future<String> _requireLinkId(String patientId) async {
@@ -1065,17 +1092,27 @@ const _pageSize = 500;
 const _filterChunkSize = 100;
 const _criticalSymptomCodes = {'vomito_autoinduzido', 'compulsao', 'desmaio'};
 
-typedef _PageLoader = Future<Object?> Function(int from, int to);
+typedef _PageLoader =
+    Future<PostgrestResponse<List<Map<String, dynamic>>>> Function(
+      int from,
+      int to,
+    );
 typedef _ChunkPageLoader =
-    Future<Object?> Function(List<String> ids, int from, int to);
+    Future<PostgrestResponse<List<Map<String, dynamic>>>> Function(
+      List<String> ids,
+      int from,
+      int to,
+    );
 
 Future<List<Map<String, dynamic>>> _paginateRows(_PageLoader loadPage) async {
   final rows = <Map<String, dynamic>>[];
   var from = 0;
   while (true) {
-    final page = _asRows(await loadPage(from, from + _pageSize - 1));
+    final response = await loadPage(from, from + _pageSize - 1);
+    final page = _asRows(response.data);
     if (page.isEmpty) break;
     rows.addAll(page);
+    if (rows.length >= response.count) break;
     // Advance by what the server actually returned. This also remains correct
     // when a Supabase project configures a max-row cap below [_pageSize].
     from += page.length;
