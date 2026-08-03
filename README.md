@@ -129,6 +129,12 @@ administrativas. Para desenvolvimento, use o inicializador seguro do projeto:
 ./scripts/flutter_run.sh
 ```
 
+No Windows, execute a versão PowerShell:
+
+```powershell
+.\scripts\flutter_run.ps1
+```
+
 Ele lê somente `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou a chave
 `SUPABASE_ANON_KEY` legada) do `.env`. Qualquer chave secreta presente no
 arquivo é ignorada e nunca é encaminhada ao aplicativo. Argumentos adicionais
@@ -136,6 +142,12 @@ do Flutter podem ser informados normalmente, por exemplo:
 
 ```bash
 ./scripts/flutter_run.sh -d chrome
+```
+
+No PowerShell, os mesmos argumentos podem ser informados após o nome do script:
+
+```powershell
+.\scripts\flutter_run.ps1 -d chrome
 ```
 
 Em ambientes sem interface gráfica, como GitHub Codespaces, o inicializador
