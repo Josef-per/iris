@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 
 class AppAcompanhamentoGraficos extends StatelessWidget {
-  const AppAcompanhamentoGraficos({
-    super.key,
-    required this.selectedDate,
-  });
+  const AppAcompanhamentoGraficos({super.key, required this.selectedDate});
 
   final DateTime selectedDate;
 
@@ -23,14 +20,14 @@ class AppAcompanhamentoGraficos extends StatelessWidget {
         _AcompanhamentoGraficoCard(
           title: 'Gráfico de Humor',
           levelLabels: const ['MB', 'B', 'N', 'M', 'MM'],
-          values: _simulatedValues(weekStart, multiplier: 3, offset: 1),
+          values: const [],
           weekDays: weekDays,
         ),
         const SizedBox(height: 20),
         _AcompanhamentoGraficoCard(
           title: 'Gráfico de Alimentação',
           levelLabels: const ['MB', 'B', 'N', 'R', 'MR'],
-          values: _simulatedValues(weekStart, multiplier: 5, offset: 3),
+          values: const [],
           weekDays: weekDays,
           withAreaFill: true,
         ),
@@ -83,15 +80,23 @@ class _AcompanhamentoGraficoCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Expanded(
-            child: CustomPaint(
-              painter: _AcompanhamentoLineChartPainter(
-                levelLabels: levelLabels,
-                values: values,
-                weekDays: weekDays,
-                withAreaFill: withAreaFill,
-              ),
-              child: const SizedBox.expand(),
-            ),
+            child: values.isEmpty
+                ? const Center(
+                    child: Text(
+                      'Sem dados registrados nesta semana.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.muted),
+                    ),
+                  )
+                : CustomPaint(
+                    painter: _AcompanhamentoLineChartPainter(
+                      levelLabels: levelLabels,
+                      values: values,
+                      weekDays: weekDays,
+                      withAreaFill: withAreaFill,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
           ),
         ],
       ),
@@ -236,22 +241,7 @@ class _AcompanhamentoLineChartPainter extends CustomPainter {
 
 DateTime _startOfWeek(DateTime date) {
   final dateOnly = DateTime(date.year, date.month, date.day);
-  return dateOnly.subtract(
-    Duration(days: dateOnly.weekday - DateTime.monday),
-  );
-}
-
-List<double> _simulatedValues(
-  DateTime weekStart, {
-  required int multiplier,
-  required int offset,
-}) {
-  final weekIndex = weekStart.difference(DateTime(2020)).inDays ~/ 7;
-
-  return List<double>.generate(
-    DateTime.daysPerWeek,
-    (index) => ((weekIndex * multiplier + (index * 2) + offset) % 5).toDouble(),
-  );
+  return dateOnly.subtract(Duration(days: dateOnly.weekday - DateTime.monday));
 }
 
 String _formatDayLabel(DateTime date) {

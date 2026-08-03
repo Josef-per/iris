@@ -9,15 +9,15 @@ da ETEC Dr. Julio Cardoso.
 
 ## Estado dos dados
 
-A área profissional possui dois modos:
+As áreas conectadas de paciente e profissional usam somente dados reais do
+Supabase. O painel diário do paciente é recalculado após cada registro, e o
+plano de cuidado compartilhado pelo profissional pode ser consultado pelo
+paciente.
 
-- a prévia de design usa dados fictícios, sem persistência;
-- uma sessão autenticada com Supabase configurado usa somente dados reais do
-  banco e apresenta estados de carregamento, erro e lista vazia.
-
-Dados exibidos na prévia não representam pacientes reais. No modo conectado,
-pacientes são adicionados por um convite QR; o profissional não cria uma
-identidade de paciente manualmente.
+Sem a configuração do Supabase, autenticação e cadastro ficam desativados com
+uma mensagem explícita. O aplicativo não simula sucesso nem exibe pacientes ou
+registros clínicos fictícios. No modo conectado, pacientes são adicionados por
+um convite QR; o profissional não cria uma identidade de paciente manualmente.
 
 ## Funcionalidades
 
@@ -51,7 +51,8 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 1. `0001_core_schema.sql`;
 2. `0005_patient_professional_link_rls.sql`;
 3. `0006_professional_backend.sql`;
-4. `0007_professional_invite_legacy_text_compat.sql`.
+4. `0007_professional_invite_legacy_text_compat.sql`;
+5. `0008_clinical_data_integrity.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -62,7 +63,9 @@ supabase db push
 Também é possível aplicar os arquivos nessa ordem pelo SQL Editor. A migration
 `0006` cria consultas, anotações, planos de cuidado, convites e as RPCs usadas
 pelo aplicativo. A `0007` corrige a compatibilidade das RPCs de QR em bancos
-legados cujos campos de perfil ainda usam `varchar`.
+legados cujos campos de perfil ainda usam `varchar`. A `0008` cria o upsert
+emocional diário atômico, migra sintomas para códigos estáveis e aplica os
+contratos de escalas e agenda no banco.
 
 Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
 de validar especialidade e registro, um administrador pode aprovar pelo SQL
@@ -86,11 +89,30 @@ aprovar a própria conta nem alterar seu papel em `usuarios`.
 ### Erro ao carregar a sessão
 
 Se o aplicativo informar que `iris_bootstrap_current_user` não foi encontrado,
-a conexão com o Supabase está ativa, mas a migration do backend ainda não foi
-aplicada nesse projeto. Execute todo o arquivo
-`supabase/migrations/0006_professional_backend.sql` no SQL Editor do Supabase
-ou use `supabase db push`. A migration solicita ao PostgREST o recarregamento
-do schema ao terminar; depois disso, recarregue o aplicativo e tente novamente.
+a conexão com o Supabase está ativa, mas as migrations do backend ainda não
+foram aplicadas nesse projeto. Aplique todos os arquivos pendentes na ordem
+acima pelo SQL Editor ou use `supabase db push`. As migrations solicitam ao
+PostgREST o recarregamento do schema ao terminar; depois disso, recarregue o
+aplicativo e tente novamente.
+
+### Confirmação de e-mail e recuperação de senha
+
+Cadastre o callback do aplicativo em **Authentication > URL Configuration >
+Redirect URLs** no projeto Supabase. O padrão nativo é:
+
+```text
+io.supabase.iris://auth-callback
+```
+
+Para web ou para usar outro domínio/esquema, informe o callback no build:
+
+```bash
+--dart-define=SUPABASE_AUTH_REDIRECT_URL=https://app.exemplo.com/auth-callback
+```
+
+O mesmo callback é usado para confirmação de cadastro, reenvio de confirmação
+e recuperação de senha. Nunca direcione esses links para uma origem não
+controlada pela aplicação.
 
 ## Executar o aplicativo
 

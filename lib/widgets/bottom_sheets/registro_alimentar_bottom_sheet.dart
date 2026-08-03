@@ -5,7 +5,9 @@ import 'package:iris/widgets/app_filled_button.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class RegistroAlimentarBottomSheet extends StatefulWidget {
-  const RegistroAlimentarBottomSheet({super.key});
+  const RegistroAlimentarBottomSheet({super.key, this.repository});
+
+  final FoodRecordDataSource? repository;
 
   @override
   State<RegistroAlimentarBottomSheet> createState() =>
@@ -18,11 +20,17 @@ class _RegistroAlimentarBottomSheetState
   final _descriptionController = TextEditingController();
   final _feelingController = TextEditingController();
   final _observationsController = TextEditingController();
-  final _repository = FoodRecordRepository();
+  late final FoodRecordDataSource _repository;
 
   bool _isLoading = false;
   int _hungerLevel = 5;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.repository ?? FoodRecordRepository();
+  }
 
   @override
   void dispose() {

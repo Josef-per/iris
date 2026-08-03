@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfessionalClinicalNote {
   const ProfessionalClinicalNote({
@@ -148,6 +149,38 @@ class ProfessionalSettingsDraft {
   }
 }
 
+/// Signals that the profile/settings transaction was persisted, but the
+/// separate Supabase Auth update (for example, changing the login e-mail)
+/// failed or is still awaiting confirmation.
+class ProfessionalSettingsPartialUpdateException implements Exception {
+  const ProfessionalSettingsPartialUpdateException({
+    required this.persistedSettings,
+    required this.message,
+  });
+
+  final ProfessionalSettingsDraft persistedSettings;
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class ProfessionalClinicalAlert {
+  const ProfessionalClinicalAlert({
+    required this.id,
+    required this.patientId,
+    required this.occurredAt,
+    required this.reasons,
+  });
+
+  final String id;
+  final String patientId;
+  final DateTime occurredAt;
+  final List<String> reasons;
+
+  String get summary => reasons.join(' · ');
+}
+
 class ProfessionalWorkspaceSnapshot {
   const ProfessionalWorkspaceSnapshot({
     required this.patients,
@@ -158,6 +191,7 @@ class ProfessionalWorkspaceSnapshot {
     required this.settings,
     required this.appointmentsThisMonth,
     required this.alerts,
+    this.clinicalAlerts = const [],
   });
 
   final List<ProfessionalPatient> patients;
@@ -168,6 +202,7 @@ class ProfessionalWorkspaceSnapshot {
   final ProfessionalSettingsDraft settings;
   final int appointmentsThisMonth;
   final int alerts;
+  final List<ProfessionalClinicalAlert> clinicalAlerts;
 }
 
 abstract interface class ProfessionalWorkspaceBackend {
@@ -222,6 +257,7 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   final List<ProfessionalClinicalNote> _notes;
   final Map<String, ProfessionalCarePlanDraft> _carePlans = {};
   final Map<String, List<ProfessionalRecord>> _records = {};
+  final List<ProfessionalClinicalAlert> _clinicalAlerts = [];
 
   ProfessionalSettingsDraft _settings;
   bool _isLoading;
@@ -238,6 +274,8 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   Object? get loadError => _loadError;
   int get appointmentsThisMonth => _appointmentsThisMonth;
   int get alerts => _alerts;
+  List<ProfessionalClinicalAlert> get clinicalAlerts =>
+      List.unmodifiable(_clinicalAlerts);
   List<ProfessionalPatient> get patients => List.unmodifiable(_patients);
   List<ProfessionalAppointment> get appointments =>
       List.unmodifiable(_appointments);
@@ -267,11 +305,17 @@ class ProfessionalFrontendStore extends ChangeNotifier {
       _records
         ..clear()
         ..addAll(snapshot.records);
+      _clinicalAlerts
+        ..clear()
+        ..addAll(snapshot.clinicalAlerts);
       _settings = snapshot.settings;
       _appointmentsThisMonth = snapshot.appointmentsThisMonth;
       _alerts = snapshot.alerts;
     } catch (error) {
-      if (generation == _loadGeneration) _loadError = error;
+      if (generation == _loadGeneration) {
+        _loadError = error;
+        if (_isAuthorizationError(error)) _clearWorkspaceData();
+      }
     } finally {
       if (generation == _loadGeneration) {
         _isLoading = false;
@@ -308,20 +352,17 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   Future<void> updatePatient(ProfessionalPatient patient) async {
+    final previous = patientByIdOrNull(patient.id);
     final saved = await _mutate(() => _backend.updatePatient(patient));
-    final index = _patients.indexWhere((item) => item.id == saved.id);
-    if (index == -1) return;
-    _patients[index] = saved;
-    for (
-      var appointmentIndex = 0;
-      appointmentIndex < _appointments.length;
-      appointmentIndex++
-    ) {
-      final appointment = _appointments[appointmentIndex];
-      if (appointment.patient.id != saved.id) continue;
-      _appointments[appointmentIndex] = appointment.copyWith(patient: saved);
+    _replacePatient(saved);
+    if (previous?.status == PatientStatus.active &&
+        saved.status == PatientStatus.inactive) {
+      _purgeClinicalDataFor(saved.id);
     }
     notifyListeners();
+    if (previous != null && previous.status != saved.status) {
+      await initialize();
+    }
   }
 
   Future<void> addAppointment(ProfessionalAppointment appointment) async {
@@ -331,6 +372,7 @@ class ProfessionalFrontendStore extends ChangeNotifier {
       _appointmentsThisMonth++;
     }
     _sortAppointments();
+    _refreshNextAppointment(saved.patient.id);
     notifyListeners();
   }
 
@@ -351,6 +393,7 @@ class ProfessionalFrontendStore extends ChangeNotifier {
         _isInCurrentMonth(appointment.startsAt)) {
       _appointmentsThisMonth--;
     }
+    _refreshNextAppointment(appointment.patient.id);
     notifyListeners();
   }
 
@@ -389,8 +432,14 @@ class ProfessionalFrontendStore extends ChangeNotifier {
   }
 
   Future<void> updateSettings(ProfessionalSettingsDraft settings) async {
-    _settings = await _mutate(() => _backend.updateSettings(settings));
-    notifyListeners();
+    try {
+      _settings = await _mutate(() => _backend.updateSettings(settings));
+      notifyListeners();
+    } on ProfessionalSettingsPartialUpdateException catch (error) {
+      _settings = error.persistedSettings;
+      notifyListeners();
+      rethrow;
+    }
   }
 
   Future<void> changePassword({
@@ -410,6 +459,11 @@ class ProfessionalFrontendStore extends ChangeNotifier {
     notifyListeners();
     try {
       return await operation();
+    } catch (error) {
+      if (_isAuthorizationError(error)) {
+        _clearWorkspaceData();
+      }
+      rethrow;
     } finally {
       _pendingMutations--;
       notifyListeners();
@@ -425,12 +479,119 @@ class ProfessionalFrontendStore extends ChangeNotifier {
     });
   }
 
+  void _replacePatient(ProfessionalPatient patient) {
+    final index = _patients.indexWhere((item) => item.id == patient.id);
+    if (index == -1) return;
+    _patients[index] = patient;
+    for (var index = 0; index < _appointments.length; index++) {
+      final appointment = _appointments[index];
+      if (appointment.patient.id != patient.id) continue;
+      _appointments[index] = appointment.copyWith(patient: patient);
+    }
+  }
+
+  void _refreshNextAppointment(String patientId) {
+    final patient = patientByIdOrNull(patientId);
+    if (patient == null) return;
+    final upcoming =
+        _appointments
+            .where(
+              (item) =>
+                  item.patient.id == patientId &&
+                  item.startsAt != null &&
+                  item.startsAt!.isAfter(DateTime.now()),
+            )
+            .toList(growable: false)
+          ..sort((left, right) => left.startsAt!.compareTo(right.startsAt!));
+    final next = upcoming.isEmpty ? null : upcoming.first.startsAt!.toLocal();
+    _replacePatient(
+      patient.copyWith(
+        nextAppointment: next == null
+            ? 'Sem consulta'
+            : _formatAppointment(next),
+      ),
+    );
+  }
+
+  void _purgeClinicalDataFor(String patientId) {
+    _notes.removeWhere((note) => note.patientId == patientId);
+    _carePlans.remove(patientId);
+    _records.remove(patientId);
+    _clinicalAlerts.removeWhere((alert) => alert.patientId == patientId);
+    final removedAppointments = _appointments
+        .where((appointment) => appointment.patient.id == patientId)
+        .toList(growable: false);
+    _appointments.removeWhere(
+      (appointment) => appointment.patient.id == patientId,
+    );
+    for (final appointment in removedAppointments) {
+      if (_appointmentsThisMonth > 0 &&
+          _isInCurrentMonth(appointment.startsAt)) {
+        _appointmentsThisMonth--;
+      }
+    }
+    _alerts = _clinicalAlerts.length;
+    final patient = patientByIdOrNull(patientId);
+    if (patient != null) {
+      _replacePatient(patient.copyWith(nextAppointment: 'Sem consulta'));
+    }
+  }
+
+  void _clearWorkspaceData() {
+    _patients.clear();
+    _appointments.clear();
+    _notes.clear();
+    _carePlans.clear();
+    _records.clear();
+    _clinicalAlerts.clear();
+    _appointmentsThisMonth = 0;
+    _alerts = 0;
+  }
+
   bool _isInCurrentMonth(DateTime? value) {
     if (value == null) return false;
     final local = value.toLocal();
     final now = DateTime.now();
     return local.year == now.year && local.month == now.month;
   }
+
+  bool _isAuthorizationError(Object error) {
+    if (error is AuthException) {
+      final message = error.message.toLowerCase();
+      return error is AuthSessionMissingException ||
+          error.statusCode == '401' ||
+          error.statusCode == '403' ||
+          error.code == 'refresh_token_not_found' ||
+          message.contains('jwt') ||
+          message.contains('session missing');
+    }
+    if (error is PostgrestException) {
+      return error.code == '42501' ||
+          error.code == 'PGRST301' ||
+          error.message.toLowerCase().contains('jwt') ||
+          error.message.toLowerCase().contains('row-level security') ||
+          error.message.toLowerCase().contains('link_access_denied');
+    }
+    final message = error.toString().toLowerCase();
+    return message.contains('link_access_denied') ||
+        message.contains('permission denied');
+  }
+
+  String _formatAppointment(DateTime date) {
+    final now = DateTime.now();
+    final time = '${_twoDigits(date.hour)}:${_twoDigits(date.minute)}';
+    if (_sameDay(date, now)) return 'Hoje, $time';
+    final tomorrow = DateTime(now.year, now.month, now.day + 1);
+    if (_sameDay(date, tomorrow)) return 'Amanhã, $time';
+    return '${_twoDigits(date.day)}/${_twoDigits(date.month)}/${date.year}, $time';
+  }
+
+  bool _sameDay(DateTime left, DateTime right) =>
+      left.year == right.year &&
+      left.month == right.month &&
+      left.day == right.day;
+
+  String _twoDigits(int value) => value.toString().padLeft(2, '0');
 
   static ProfessionalSettingsDraft _emptySettings() {
     return const ProfessionalSettingsDraft(

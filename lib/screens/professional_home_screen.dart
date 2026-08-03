@@ -25,7 +25,8 @@ class ProfessionalHomeScreen extends StatefulWidget {
   State<ProfessionalHomeScreen> createState() => _ProfessionalHomeScreenState();
 }
 
-class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
+class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
+    with WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _authService = AuthService();
   final _professionalRepository = ProfessionalRepository();
@@ -42,6 +43,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _store = ProfessionalFrontendStore.connected(
       SupabaseProfessionalWorkspaceBackend(),
     );
@@ -56,9 +58,17 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _store.removeListener(_syncSelectedPatient);
     _store.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadWorkspace());
+    }
   }
 
   Future<void> _loadWorkspace() async {
@@ -143,10 +153,17 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
   }
 
   Future<void> _signOut() async {
-    await _authService.signOut();
+    try {
+      await _authService.signOut();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
   }
 
-  void _showInvitePatient() {
+  Future<void> _showInvitePatient() async {
     if (_credentialLocked) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -157,46 +174,87 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
       );
       return;
     }
-    showDialog<void>(
+    await showDialog<void>(
       context: context,
+      useRootNavigator: false,
       builder: (context) => _ProfessionalInviteDialog(
         createInvite: _professionalRepository.createLinkInvite,
         revokeInvite: _professionalRepository.revokeLinkInvite,
       ),
     );
+    if (mounted) await _loadWorkspace();
   }
 
   Future<void> _showNotifications() async {
     final remoteAlerts = _store.alerts;
+    final clinicalAlerts = [..._store.clinicalAlerts];
     await showDialog<void>(
       context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, _) => AlertDialog(
-          title: const Text('Notificações'),
-          content: SizedBox(
-            width: 420,
-            child: remoteAlerts == 0
-                ? const Text('Nenhum alerta no momento.')
-                : ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.warning_amber_rounded),
-                    title: Text(
-                      '$remoteAlerts ${remoteAlerts == 1 ? 'alerta clínico requer' : 'alertas clínicos requerem'} revisão.',
-                    ),
-                    subtitle: const Text(
-                      'Abra o painel para consultar os registros disponíveis.',
-                    ),
+      useRootNavigator: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Notificações'),
+        content: SizedBox(
+          width: 440,
+          child: remoteAlerts == 0
+              ? const Text('Nenhum alerta no momento.')
+              : clinicalAlerts.isEmpty
+              ? ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.warning_amber_rounded),
+                  title: Text(
+                    '$remoteAlerts ${remoteAlerts == 1 ? 'alerta clínico requer' : 'alertas clínicos requerem'} revisão.',
                   ),
-          ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Fechar'),
-            ),
-          ],
+                  subtitle: const Text(
+                    'Atualize o painel para consultar os registros.',
+                  ),
+                )
+              : ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 420),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: clinicalAlerts.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final alert = clinicalAlerts[index];
+                      final patient = _store.patientByIdOrNull(alert.patientId);
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.warning_amber_rounded),
+                        title: Text(patient?.name ?? 'Paciente'),
+                        subtitle: Text(
+                          '${alert.summary}\n${_formatAlertDate(alert.occurredAt)}',
+                        ),
+                        isThreeLine: true,
+                        trailing: patient == null
+                            ? null
+                            : const Icon(Icons.chevron_right_rounded),
+                        onTap: patient == null
+                            ? null
+                            : () {
+                                Navigator.pop(dialogContext);
+                                _openPatient(patient);
+                              },
+                      );
+                    },
+                  ),
+                ),
         ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Fechar'),
+          ),
+        ],
       ),
     );
+  }
+
+  String _formatAlertDate(DateTime date) {
+    final local = date.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}/${local.year} às '
+        '${local.hour.toString().padLeft(2, '0')}:'
+        '${local.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -311,6 +369,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen> {
         onOpenPatients: () =>
             _selectDestination(ProfessionalDestination.patients),
         onOpenPatient: _openPatient,
+        onOpenAlerts: _showNotifications,
       ),
       ProfessionalDestination.patients => ProfessionalPatientsView(
         store: _store,

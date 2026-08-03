@@ -36,6 +36,7 @@ void main() {
         store: store,
         onOpenPatients: () {},
         onOpenPatient: (_) {},
+        appointmentInitialDate: DateTime.now().add(const Duration(days: 1)),
       ),
     );
 

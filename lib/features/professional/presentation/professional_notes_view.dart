@@ -34,6 +34,9 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
     return widget.store.notes.where((note) {
       final patient = widget.store.patientByIdOrNull(note.patientId);
       if (patient == null) return false;
+      if (widget.store.isConnected && patient.status != PatientStatus.active) {
+        return false;
+      }
       if (query.isEmpty) return true;
       return patient.name.toLowerCase().contains(query) ||
           note.text.toLowerCase().contains(query) ||
@@ -178,6 +181,7 @@ class _ProfessionalNotesViewState extends State<ProfessionalNotesView> {
     var saving = false;
     await showDialog<void>(
       context: context,
+      useRootNavigator: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: Text(note == null ? 'Nova anotação' : 'Editar anotação'),

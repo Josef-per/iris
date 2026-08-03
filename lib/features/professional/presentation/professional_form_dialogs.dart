@@ -12,9 +12,12 @@ Future<void> _waitForDialogExit() {
 }
 
 void showProfessionalOperationError(BuildContext context, Object error) {
+  final message = error is ProfessionalSettingsPartialUpdateException
+      ? error.message
+      : AppErrorMessages.from(error);
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    ..showSnackBar(SnackBar(content: Text(message)));
 }
 
 void showProfessionalPatientRequired(BuildContext context) {
@@ -55,6 +58,7 @@ Future<bool> showProfessionalPatientForm(
   final saved =
       await showDialog<bool>(
         context: context,
+        useRootNavigator: false,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: Text(patient == null ? 'Novo paciente' : 'Editar paciente'),
@@ -287,8 +291,9 @@ class _ResponsiveDialogFields extends StatelessWidget {
 
 Future<bool> showProfessionalAppointmentForm(
   BuildContext context,
-  ProfessionalFrontendStore store,
-) async {
+  ProfessionalFrontendStore store, {
+  DateTime? initialDate,
+}) async {
   final eligiblePatients = store.isConnected
       ? store.patients
             .where((patient) => patient.status == PatientStatus.active)
@@ -308,7 +313,7 @@ Future<bool> showProfessionalAppointmentForm(
   }
 
   final formKey = GlobalKey<FormState>();
-  var selectedDate = DateTime.now();
+  var selectedDate = initialDate ?? DateTime.now();
   final date = TextEditingController(
     text: _formatAppointmentDate(selectedDate),
   );
@@ -320,6 +325,7 @@ Future<bool> showProfessionalAppointmentForm(
   final saved =
       await showDialog<bool>(
         context: context,
+        useRootNavigator: false,
         builder: (context) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
             title: const Text('Nova consulta'),
@@ -358,6 +364,7 @@ Future<bool> showProfessionalAppointmentForm(
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
+                          useRootNavigator: false,
                           initialDate: selectedDate,
                           firstDate: DateTime.now(),
                           lastDate: DateTime.now().add(
@@ -383,9 +390,15 @@ Future<bool> showProfessionalAppointmentForm(
                       validator: (value) {
                         final requiredError = _required(value);
                         if (requiredError != null) return requiredError;
-                        return _parseAppointmentTime(value!) == null
-                            ? 'Use o formato HH:mm'
-                            : null;
+                        final startsAt = _combineAppointmentDateAndTime(
+                          selectedDate,
+                          value!,
+                        );
+                        if (startsAt == null) return 'Use o formato HH:mm';
+                        if (!startsAt.isAfter(DateTime.now())) {
+                          return 'Informe uma data e horário futuros';
+                        }
+                        return null;
                       },
                     ),
                     const SizedBox(height: 12),
@@ -426,6 +439,11 @@ Future<bool> showProfessionalAppointmentForm(
                           selectedDate,
                           cleanTime,
                         );
+                        if (startsAt == null ||
+                            !startsAt.isAfter(DateTime.now())) {
+                          formKey.currentState!.validate();
+                          return;
+                        }
                         setDialogState(() => saving = true);
                         try {
                           await store.addAppointment(
@@ -502,6 +520,7 @@ Future<ProfessionalMedication?> showProfessionalMedicationForm(
 
   final result = await showDialog<ProfessionalMedication>(
     context: context,
+    useRootNavigator: false,
     builder: (context) => AlertDialog(
       title: Text(medication == null ? 'Nova medicação' : 'Editar medicação'),
       content: SizedBox(
@@ -591,6 +610,7 @@ Future<String?> showProfessionalTextItemForm(
   final controller = TextEditingController(text: initialValue);
   final result = await showDialog<String>(
     context: context,
+    useRootNavigator: false,
     builder: (context) => AlertDialog(
       title: Text(title),
       content: SizedBox(
@@ -635,6 +655,7 @@ Future<bool> showProfessionalDeleteConfirmation(
 }) async {
   return await showDialog<bool>(
         context: context,
+        useRootNavigator: false,
         builder: (context) => AlertDialog(
           title: const Text('Remover item?'),
           content: Text(item),

@@ -207,123 +207,128 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
               label: Text(_saving ? 'Salvando...' : 'Salvar'),
             ),
           ),
-          ProfessionalPage(
-            paddingTop: 22,
-            child: Column(
-              children: [
-                _PatientSelector(
-                  patients: widget.store.patients,
-                  patient: patient,
-                  onChanged: (nextPatient) async {
-                    final saved = await _save(showMessage: false);
-                    if (!saved || !mounted) return;
-                    setState(() {
-                      _patient = nextPatient;
-                      _loadPlan();
-                    });
-                  },
-                  onOpenPatient: () => widget.onOpenPatient(patient),
-                ),
-                const SizedBox(height: 22),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final wide = constraints.maxWidth >= 940;
-                    final left = Column(
-                      children: [
-                        _GoalsPanel(
-                          goals: _goals,
-                          onChanged: (goal, value) {
-                            final index = _goals.indexWhere(
-                              (item) => item.id == goal.id,
-                            );
-                            setState(
-                              () => _goals[index] = goal.copyWith(
-                                completed: value,
-                              ),
-                            );
-                          },
-                          onAdd: () async {
-                            final text = await showProfessionalTextItemForm(
-                              context,
-                              title: 'Nova meta',
-                              label: 'Meta',
-                            );
-                            if (text == null) return;
-                            setState(
-                              () => _goals.add(
-                                ProfessionalGoal(
-                                  id: 'goal-${DateTime.now().microsecondsSinceEpoch}',
-                                  text: text,
+          AbsorbPointer(
+            absorbing: _saving,
+            child: ProfessionalPage(
+              paddingTop: 22,
+              child: Column(
+                children: [
+                  _PatientSelector(
+                    patients: widget.store.patients,
+                    patient: patient,
+                    onChanged: (nextPatient) async {
+                      final saved = await _save(showMessage: false);
+                      if (!saved || !mounted) return;
+                      setState(() {
+                        _patient = nextPatient;
+                        _loadPlan();
+                      });
+                    },
+                    onOpenPatient: () => widget.onOpenPatient(patient),
+                  ),
+                  const SizedBox(height: 22),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 940;
+                      final left = Column(
+                        children: [
+                          _GoalsPanel(
+                            goals: _goals,
+                            onChanged: (goal, value) {
+                              final index = _goals.indexWhere(
+                                (item) => item.id == goal.id,
+                              );
+                              setState(
+                                () => _goals[index] = goal.copyWith(
+                                  completed: value,
                                 ),
-                              ),
-                            );
-                          },
-                          onEdit: (goal) async {
-                            final text = await showProfessionalTextItemForm(
-                              context,
-                              title: 'Editar meta',
-                              label: 'Meta',
-                              initialValue: goal.text,
-                            );
-                            if (text == null) return;
-                            final index = _goals.indexWhere(
-                              (item) => item.id == goal.id,
-                            );
-                            setState(
-                              () => _goals[index] = goal.copyWith(text: text),
-                            );
-                          },
-                          onDelete: (goal) =>
-                              setState(() => _goals.remove(goal)),
-                        ),
-                        const SizedBox(height: 20),
-                        _OrientationsPanel(controller: _orientationController),
-                      ],
-                    );
-                    final right = Column(
-                      children: [
-                        _PlanMedicationPanel(
-                          medications: _medications,
-                          onAdd: () => _editMedication(),
-                          onEdit: (index) => _editMedication(index: index),
-                          onDelete: (index) =>
-                              setState(() => _medications.removeAt(index)),
-                        ),
-                        const SizedBox(height: 20),
-                        _FollowUpPanel(
-                          shareWithPatient: _shareWithPatient,
-                          notifyMissedCheckIns: _notifyMissedCheckIns,
-                          onShareChanged: (value) =>
-                              setState(() => _shareWithPatient = value),
-                          onNotifyChanged: (value) =>
-                              setState(() => _notifyMissedCheckIns = value),
-                        ),
-                        const SizedBox(height: 20),
-                        _CrisisPlanPanel(
-                          steps: _crisisSteps,
-                          onAdd: () => _editCrisisStep(),
-                          onEdit: (index) => _editCrisisStep(index: index),
-                          onDelete: (index) =>
-                              setState(() => _crisisSteps.removeAt(index)),
-                        ),
-                      ],
-                    );
-                    if (!wide) {
-                      return Column(
-                        children: [left, const SizedBox(height: 20), right],
+                              );
+                            },
+                            onAdd: () async {
+                              final text = await showProfessionalTextItemForm(
+                                context,
+                                title: 'Nova meta',
+                                label: 'Meta',
+                              );
+                              if (text == null) return;
+                              setState(
+                                () => _goals.add(
+                                  ProfessionalGoal(
+                                    id: 'goal-${DateTime.now().microsecondsSinceEpoch}',
+                                    text: text,
+                                  ),
+                                ),
+                              );
+                            },
+                            onEdit: (goal) async {
+                              final text = await showProfessionalTextItemForm(
+                                context,
+                                title: 'Editar meta',
+                                label: 'Meta',
+                                initialValue: goal.text,
+                              );
+                              if (text == null) return;
+                              final index = _goals.indexWhere(
+                                (item) => item.id == goal.id,
+                              );
+                              setState(
+                                () => _goals[index] = goal.copyWith(text: text),
+                              );
+                            },
+                            onDelete: (goal) =>
+                                setState(() => _goals.remove(goal)),
+                          ),
+                          const SizedBox(height: 20),
+                          _OrientationsPanel(
+                            controller: _orientationController,
+                          ),
+                        ],
                       );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(flex: 11, child: left),
-                        const SizedBox(width: 20),
-                        Expanded(flex: 9, child: right),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                      final right = Column(
+                        children: [
+                          _PlanMedicationPanel(
+                            medications: _medications,
+                            onAdd: () => _editMedication(),
+                            onEdit: (index) => _editMedication(index: index),
+                            onDelete: (index) =>
+                                setState(() => _medications.removeAt(index)),
+                          ),
+                          const SizedBox(height: 20),
+                          _FollowUpPanel(
+                            shareWithPatient: _shareWithPatient,
+                            notifyMissedCheckIns: _notifyMissedCheckIns,
+                            onShareChanged: (value) =>
+                                setState(() => _shareWithPatient = value),
+                            onNotifyChanged: (value) =>
+                                setState(() => _notifyMissedCheckIns = value),
+                          ),
+                          const SizedBox(height: 20),
+                          _CrisisPlanPanel(
+                            steps: _crisisSteps,
+                            onAdd: () => _editCrisisStep(),
+                            onEdit: (index) => _editCrisisStep(index: index),
+                            onDelete: (index) =>
+                                setState(() => _crisisSteps.removeAt(index)),
+                          ),
+                        ],
+                      );
+                      if (!wide) {
+                        return Column(
+                          children: [left, const SizedBox(height: 20), right],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(flex: 11, child: left),
+                          const SizedBox(width: 20),
+                          Expanded(flex: 9, child: right),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ],

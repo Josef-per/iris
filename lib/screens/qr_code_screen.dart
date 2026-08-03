@@ -108,6 +108,7 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
   Future<bool> _confirmProfessional(ProfessionalInvitePreview preview) async {
     return await showDialog<bool>(
           context: context,
+          useRootNavigator: false,
           builder: (context) => AlertDialog(
             title: const Text('Confirmar vínculo'),
             content: Column(
@@ -157,12 +158,18 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
   }
 
   Future<void> _signOut() async {
-    await _authService.signOut();
+    try {
+      await _authService.signOut();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _errorMessage = AppErrorMessages.from(error));
+    }
   }
 
   void _showManualEntryDialog() {
     showDialog<void>(
       context: context,
+      useRootNavigator: false,
       builder: (context) {
         return AlertDialog(
           title: const Text('Código do profissional'),

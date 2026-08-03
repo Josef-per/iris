@@ -83,11 +83,17 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
         ),
       );
       if (!mounted) return;
+      _email.text = widget.store.settings.email;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Configurações salvas.')));
     } catch (error) {
-      if (mounted) showProfessionalOperationError(context, error);
+      if (mounted) {
+        if (error is ProfessionalSettingsPartialUpdateException) {
+          _email.text = widget.store.settings.email;
+        }
+        showProfessionalOperationError(context, error);
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -209,6 +215,7 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     var saving = false;
     final saved = await showDialog<bool>(
       context: context,
+      useRootNavigator: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
           title: const Text('Alterar senha'),
@@ -292,6 +299,7 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
   Future<void> _showDevices() async {
     await showDialog<void>(
       context: context,
+      useRootNavigator: false,
       builder: (context) => AlertDialog(
         title: const Text('Dispositivos'),
         content: const Text(

@@ -101,33 +101,40 @@ class _AppAcompanhamentoDatePickerState
 
   @override
   Widget build(BuildContext context) {
-    final calendarTheme = Theme.of(context).copyWith(
-      useMaterial3: false,
-      datePickerTheme: DatePickerThemeData(
-        weekdayStyle: const TextStyle(
-          color: AppColors.deepPurple,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-        ),
-        dayStyle: const TextStyle(
-          color: AppColors.ink,
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-        // The visual selection is drawn in _SelectedDayOverlay so it keeps
-        // the square dimensions of the Figma reference independently of the
-        // Material DatePicker's internal selection state.
-        dayForegroundColor: const WidgetStatePropertyAll(AppColors.ink),
-        dayBackgroundColor: const WidgetStatePropertyAll(Colors.transparent),
-        dayOverlayColor: const WidgetStatePropertyAll(Colors.transparent),
-        dayShape: const WidgetStatePropertyAll(
-          RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(8)),
+    final appTheme = Theme.of(context);
+    final calendarTheme =
+        ThemeData.from(
+          colorScheme: appTheme.colorScheme,
+          textTheme: appTheme.textTheme,
+          useMaterial3: false,
+        ).copyWith(
+          datePickerTheme: DatePickerThemeData(
+            weekdayStyle: const TextStyle(
+              color: AppColors.deepPurple,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            dayStyle: const TextStyle(
+              color: AppColors.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+            // The visual selection is drawn in _SelectedDayOverlay so it keeps
+            // the square dimensions of the Figma reference independently of the
+            // Material DatePicker's internal selection state.
+            dayForegroundColor: const WidgetStatePropertyAll(AppColors.ink),
+            dayBackgroundColor: const WidgetStatePropertyAll(
+              Colors.transparent,
+            ),
+            dayOverlayColor: const WidgetStatePropertyAll(Colors.transparent),
+            dayShape: const WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+              ),
+            ),
+            todayBorder: BorderSide.none,
           ),
-        ),
-        todayBorder: BorderSide.none,
-      ),
-    );
+        );
     final calendarHeight = _dayCellSize * (_visibleWeekCount(context) + 1);
 
     return Column(
