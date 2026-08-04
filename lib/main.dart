@@ -166,7 +166,6 @@ class _AuthGateState extends State<AuthGate> {
             ),
       );
     }
-
     final builder = widget.signedInBuilder;
     return _modeNavigator(
       key: ValueKey('signed-in-${_session!.user.id}'),
