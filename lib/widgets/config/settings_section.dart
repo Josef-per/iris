@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/widgets/config/settings/language_settings.dart';
+import 'package:iris/widgets/config/settings/settings_category_header.dart';
+import 'package:iris/widgets/config/settings/settings_item.dart';
+import 'package:iris/widgets/config/settings/settings_item_indicator.dart';
 
-class SettingsSection extends StatelessWidget {
+class SettingsSection extends StatefulWidget {
   const SettingsSection({super.key});
+
+  @override
+  State<SettingsSection> createState() => _SettingsSectionState();
+}
+
+class _SettingsSectionState extends State<SettingsSection> {
+  var _notificationsEnabled = true;
+  var _soundsEnabled = true;
+  var _vibrationEnabled = true;
+  var _darkModeEnabled = true;
+  var _biometricAuthenticationEnabled = true;
 
   @override
   Widget build(BuildContext context) {
@@ -19,216 +34,77 @@ class SettingsSection extends StatelessWidget {
           ),
         ],
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _SettingsCategoryHeader(
+          const SettingsCategoryHeader(
             icon: Icons.notifications_none_outlined,
-            title: 'Notifica\u{00E7}\u{00E3}o',
+            title: 'Notificações',
           ),
-          SizedBox(height: 28),
+          const SizedBox(height: 28),
           SettingsItem(
-            title: 'Ativar notifica\u{00E7}\u{00F5}es',
+            title: 'Ativar notificações',
             subtitle: 'Receba lembretes e alertas',
-            indicator: SettingsItemIndicator.toggle,
+            indicatorType: SettingsItemIndicatorType.toggle,
+            value: _notificationsEnabled,
+            onChanged: (value) {
+              setState(() => _notificationsEnabled = value);
+            },
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           SettingsItem(
             title: 'Sons',
-            subtitle: 'Sons de notifica\u{00E7}\u{00E3}o',
-            indicator: SettingsItemIndicator.toggle,
+            subtitle: 'Sons de notificação',
+            indicatorType: SettingsItemIndicatorType.toggle,
+            value: _soundsEnabled,
+            onChanged: (value) {
+              setState(() => _soundsEnabled = value);
+            },
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           SettingsItem(
-            title: 'Vibra\u{00E7}\u{00E3}o',
-            subtitle: 'Vibrar ao receber uma notifica\u{00E7}\u{00E3}o',
-            indicator: SettingsItemIndicator.toggle,
+            title: 'Vibração',
+            subtitle: 'Vibrar ao receber uma notificação',
+            indicatorType: SettingsItemIndicatorType.toggle,
+            value: _vibrationEnabled,
+            onChanged: (value) {
+              setState(() => _vibrationEnabled = value);
+            },
           ),
-          _SectionDivider(),
-          _SettingsCategoryHeader(
+          const _SectionDivider(),
+          const SettingsCategoryHeader(
             icon: Icons.dark_mode_outlined,
-            title: 'Apar\u{00EA}ncia',
+            title: 'Aparência',
           ),
-          SizedBox(height: 28),
+          const SizedBox(height: 28),
           SettingsItem(
             title: 'Modo escuro',
             subtitle: 'Tema escuro para o aplicativo',
-            indicator: SettingsItemIndicator.toggle,
+            indicatorType: SettingsItemIndicatorType.toggle,
+            value: _darkModeEnabled,
+            onChanged: (value) {
+              setState(() => _darkModeEnabled = value);
+            },
           ),
-          SizedBox(height: 10),
-          _LanguageSettingsItem(),
-          _SectionDivider(),
-          _SettingsCategoryHeader(
+          const SizedBox(height: 10),
+          const LanguageSettings(),
+          const _SectionDivider(),
+          const SettingsCategoryHeader(
             icon: Icons.lock_outline,
-            title: 'Privacidade e seguran\u{00E7}a',
+            title: 'Privacidade e segurança',
           ),
-          SizedBox(height: 28),
+          const SizedBox(height: 28),
           SettingsItem(
-            title: 'Autentica\u{00E7}\u{00E3}o biom\u{00E9}trica',
-            subtitle: 'Usar impress\u{00E3}o digital/Face ID',
-            indicator: SettingsItemIndicator.toggle,
+            title: 'Autenticação biométrica',
+            subtitle: 'Usar impressão digital/Face ID',
+            indicatorType: SettingsItemIndicatorType.toggle,
+            value: _biometricAuthenticationEnabled,
+            onChanged: (value) {
+              setState(() => _biometricAuthenticationEnabled = value);
+            },
           ),
         ],
       ),
-    );
-  }
-}
-
-enum SettingsItemIndicator { toggle, arrow }
-
-class SettingsItem extends StatelessWidget {
-  const SettingsItem({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    this.indicator = SettingsItemIndicator.arrow,
-    this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final SettingsItemIndicator indicator;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Ink(
-          height: 63,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF2F2F2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: AppColors.ink,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: AppColors.deepPurple,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (indicator == SettingsItemIndicator.toggle)
-                const _StaticSettingsSwitch()
-              else
-                const Icon(
-                  Icons.chevron_right,
-                  color: AppColors.ink,
-                  size: 24,
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SettingsCategoryHeader extends StatelessWidget {
-  const _SettingsCategoryHeader({required this.icon, required this.title});
-
-  final IconData icon;
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 21, color: AppColors.ink),
-        const SizedBox(width: 12),
-        Text(
-          title,
-          style: const TextStyle(
-            color: AppColors.ink,
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LanguageSettingsItem extends StatelessWidget {
-  const _LanguageSettingsItem();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF2F2F2),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _SettingsCategoryHeader(
-            icon: Icons.language_outlined,
-            title: 'Idioma',
-          ),
-          const SizedBox(height: 8),
-          Container(
-            height: 37,
-            padding: const EdgeInsets.symmetric(horizontal: 11),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(9),
-              border: Border.all(color: AppColors.deepPurple),
-            ),
-            child: const Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Portugu\u{00EA}s (Brasil)',
-                    style: TextStyle(
-                      color: AppColors.deepPurple,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                Icon(Icons.keyboard_arrow_down, color: AppColors.ink),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StaticSettingsSwitch extends StatelessWidget {
-  const _StaticSettingsSwitch();
-
-  @override
-  Widget build(BuildContext context) {
-    return Switch(
-      value: true,
-      onChanged: (_) {},
-      activeThumbColor: AppColors.white,
-      activeTrackColor: AppColors.deepPurple,
     );
   }
 }
