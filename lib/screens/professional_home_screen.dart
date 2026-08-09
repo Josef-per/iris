@@ -19,7 +19,9 @@ import 'package:iris/features/professional/professional_repository.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfessionalHomeScreen extends StatefulWidget {
-  const ProfessionalHomeScreen({super.key});
+  const ProfessionalHomeScreen({super.key, this.backend});
+
+  final ProfessionalWorkspaceBackend? backend;
 
   @override
   State<ProfessionalHomeScreen> createState() => _ProfessionalHomeScreenState();
@@ -45,7 +47,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _store = ProfessionalFrontendStore.connected(
-      SupabaseProfessionalWorkspaceBackend(),
+      widget.backend ?? SupabaseProfessionalWorkspaceBackend(),
     );
 
     if (_store.patients.isNotEmpty) {
@@ -312,7 +314,9 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
 
                       return Column(
                         children: [
-                          if (_credentialLocked)
+                          if (!_store.isLoading &&
+                              error == null &&
+                              _credentialLocked)
                             _ProfessionalCredentialBanner(
                               status: _store.settings.credentialStatus,
                               onOpenSettings: () => _selectDestination(

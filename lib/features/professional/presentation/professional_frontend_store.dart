@@ -311,8 +311,16 @@ class ProfessionalFrontendStore extends ChangeNotifier {
       _settings = snapshot.settings;
       _appointmentsThisMonth = snapshot.appointmentsThisMonth;
       _alerts = snapshot.alerts;
-    } catch (error) {
+    } catch (error, stackTrace) {
       if (generation == _loadGeneration) {
+        debugPrint(
+          '[ProfessionalWorkspace] falha ao carregar '
+          '(${error.runtimeType}): $error',
+        );
+        debugPrintStack(
+          label: '[ProfessionalWorkspace] stack trace',
+          stackTrace: stackTrace,
+        );
         _loadError = error;
         if (_isAuthorizationError(error)) _clearWorkspaceData();
       }
