@@ -287,21 +287,20 @@ class _AgendaPanel extends StatefulWidget {
 
 class _AgendaPanelState extends State<_AgendaPanel> {
   late DateTime _selectedDate;
+  late DateTime _visibleRangeStart;
 
   @override
   void initState() {
     super.initState();
     _selectedDate = _dateOnly(widget.initialDate ?? DateTime.now());
+    _visibleRangeStart = _selectedDate;
   }
 
   @override
   Widget build(BuildContext context) {
-    final weekStart = _selectedDate.subtract(
-      Duration(days: _selectedDate.weekday - DateTime.monday),
-    );
     final days = List.generate(
       7,
-      (index) => weekStart.add(Duration(days: index)),
+      (index) => _visibleRangeStart.add(Duration(days: index)),
     );
     final appointments =
         widget.store.appointments.where((appointment) {
@@ -326,20 +325,12 @@ class _AgendaPanelState extends State<_AgendaPanel> {
               children: [
                 IconButton(
                   tooltip: 'Semana anterior',
-                  onPressed: () => setState(
-                    () => _selectedDate = _selectedDate.subtract(
-                      const Duration(days: 7),
-                    ),
-                  ),
+                  onPressed: () => _moveVisibleRange(-7),
                   icon: const Icon(Icons.chevron_left_rounded),
                 ),
                 IconButton(
                   tooltip: 'Próxima semana',
-                  onPressed: () => setState(
-                    () => _selectedDate = _selectedDate.add(
-                      const Duration(days: 7),
-                    ),
-                  ),
+                  onPressed: () => _moveVisibleRange(7),
                   icon: const Icon(Icons.chevron_right_rounded),
                 ),
               ],
@@ -348,22 +339,25 @@ class _AgendaPanelState extends State<_AgendaPanel> {
           const SizedBox(height: 18),
           SizedBox(
             height: 76,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: days.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final day = days[index];
-                final selected = _sameDay(day, _selectedDate);
-                final count = widget.store.appointments.where((appointment) {
-                  final startsAt = appointment.startsAt?.toLocal();
-                  return startsAt != null && _sameDay(startsAt, day);
-                }).length;
-                return _AgendaDayButton(
-                  day: day,
-                  selected: selected,
-                  appointmentCount: count,
-                  onTap: () => setState(() => _selectedDate = day),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 332) {
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: days.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 4),
+                    itemBuilder: (context, index) =>
+                        _buildDayButton(days[index]),
+                  );
+                }
+                final gap = constraints.maxWidth < 420 ? 4.0 : 8.0;
+                return Row(
+                  children: [
+                    for (var index = 0; index < days.length; index++) ...[
+                      if (index > 0) SizedBox(width: gap),
+                      Expanded(child: _buildDayButton(days[index])),
+                    ],
+                  ],
                 );
               },
             ),
@@ -418,6 +412,27 @@ class _AgendaPanelState extends State<_AgendaPanel> {
             ),
         ],
       ),
+    );
+  }
+
+  void _moveVisibleRange(int days) {
+    setState(() {
+      _visibleRangeStart = _visibleRangeStart.add(Duration(days: days));
+      _selectedDate = _visibleRangeStart;
+    });
+  }
+
+  Widget _buildDayButton(DateTime day) {
+    final selected = _sameDay(day, _selectedDate);
+    final count = widget.store.appointments.where((appointment) {
+      final startsAt = appointment.startsAt?.toLocal();
+      return startsAt != null && _sameDay(startsAt, day);
+    }).length;
+    return _AgendaDayButton(
+      day: day,
+      selected: selected,
+      appointmentCount: count,
+      onTap: () => setState(() => _selectedDate = day),
     );
   }
 }

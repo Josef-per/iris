@@ -148,6 +148,52 @@ void main() {
     expect(tester.widget<Semantics>(unselected).properties.selected, isFalse);
   });
 
+  testWidgets('agenda começa hoje e mostra os sete dias seguintes', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(440, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final today = DateTime(2026, 8, 9);
+    final store = ProfessionalFrontendStore.connected(
+      _AgendaBackend(appointments: const []),
+    );
+    addTearDown(store.dispose);
+    await store.initialize();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: ProfessionalDashboardView(
+            store: store,
+            appointmentInitialDate: today,
+            onOpenPatients: () {},
+            onOpenPatient: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final firstDay = _agendaDay('domingo, 9.');
+    final lastDay = _agendaDay('sábado, 15.');
+    expect(firstDay, findsOneWidget);
+    expect(lastDay, findsOneWidget);
+    expect(_agendaDay('segunda, 3.'), findsNothing);
+    expect(tester.getTopLeft(firstDay).dx, greaterThanOrEqualTo(0));
+    expect(tester.getTopRight(lastDay).dx, lessThanOrEqualTo(440));
+
+    await tester.tap(find.byTooltip('Próxima semana'));
+    await tester.pumpAndSettle();
+
+    expect(_agendaDay('domingo, 16.'), findsOneWidget);
+    expect(_agendaDay('sábado, 22.'), findsOneWidget);
+    expect(_agendaDay('domingo, 9.'), findsNothing);
+  });
+
   testWidgets('navegação profissional continua utilizável em 320 por 568', (
     tester,
   ) async {
@@ -195,6 +241,15 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(signedOut, isTrue);
   });
+}
+
+Finder _agendaDay(String labelStart) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Semantics &&
+        (widget.properties.label ?? '').startsWith(labelStart),
+    description: 'dia da agenda começando com "$labelStart"',
+  );
 }
 
 class _AgendaBackend implements ProfessionalWorkspaceBackend {
