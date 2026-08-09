@@ -109,6 +109,25 @@ void main() {
         'dark info container',
       );
     });
+
+    test('ação desabilitada sobre o gradiente mantém contraste', () {
+      final states = <WidgetState>{WidgetState.disabled};
+      final style = AppButtonStyles.onBrandFilled;
+      final foreground = style.foregroundColor!.resolve(states)!;
+      final translucentBackground = style.backgroundColor!.resolve(states)!;
+
+      for (final gradientColor in AppColors.brandGradient.colors) {
+        final renderedBackground = Color.alphaBlend(
+          translucentBackground,
+          gradientColor,
+        );
+        _expectTextContrast(
+          foreground,
+          renderedBackground,
+          'ação desabilitada sobre ${gradientColor.toARGB32().toRadixString(16)}',
+        );
+      }
+    });
   });
 
   testWidgets('controles globais renderizam alvos de pelo menos 44 por 44', (

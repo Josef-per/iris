@@ -172,10 +172,7 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
                 : 'Dados e preferências',
             action: FilledButton.icon(
               onPressed: _saving || !_dirty ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.white,
-                foregroundColor: AppColors.deepPurple,
-              ),
+              style: AppButtonStyles.onBrandFilled,
               icon: _saving
                   ? const SizedBox.square(
                       dimension: 18,

@@ -223,10 +223,7 @@ class _LembretesScreenState extends State<LembretesScreen> {
                       const SizedBox(height: 22),
                       FilledButton.icon(
                         onPressed: _showForm ? _closeForm : _openCreate,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.white,
-                          foregroundColor: AppColors.deepPurple,
-                        ),
+                        style: AppButtonStyles.onBrandFilled,
                         icon: Icon(
                           _showForm ? Icons.close_rounded : Icons.add_rounded,
                         ),

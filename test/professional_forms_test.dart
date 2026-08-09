@@ -113,6 +113,12 @@ void main() {
         onDirtyChanged: dirtyStates.add,
       ),
     );
+    final savedButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Salvo'),
+    );
+    expect(savedButton.onPressed, isNull);
+    expect(savedButton.style, same(AppButtonStyles.onBrandFilled));
+
     await tester.tap(find.byTooltip('Adicionar meta'));
     await tester.pumpAndSettle();
     await tester.enterText(

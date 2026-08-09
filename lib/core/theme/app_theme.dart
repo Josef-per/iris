@@ -49,6 +49,19 @@ abstract final class AppColors {
   );
 }
 
+abstract final class AppButtonStyles {
+  /// Ação preenchida usada diretamente sobre superfícies da marca.
+  ///
+  /// O estado desabilitado continua visualmente distinto, mas mantém um fundo
+  /// claro suficiente para que texto e ícone permaneçam legíveis no gradiente.
+  static final ButtonStyle onBrandFilled = FilledButton.styleFrom(
+    backgroundColor: AppColors.white,
+    foregroundColor: AppColors.deepPurple,
+    disabledBackgroundColor: AppColors.white.withValues(alpha: .82),
+    disabledForegroundColor: AppColors.deepPurple,
+  );
+}
+
 abstract final class AppTheme {
   static const _lightSemanticColors = AppSemanticColors(
     success: AppColors.success,

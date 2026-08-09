@@ -101,10 +101,7 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                 FilledButton.icon(
                   key: const Key('professional-add-patient'),
                   onPressed: !_canManage ? null : _addPatient,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.white,
-                    foregroundColor: AppColors.deepPurple,
-                  ),
+                  style: AppButtonStyles.onBrandFilled,
                   icon: Icon(
                     widget.store.isConnected
                         ? Icons.qr_code_rounded

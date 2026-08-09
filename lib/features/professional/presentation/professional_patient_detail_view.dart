@@ -225,10 +225,7 @@ class _PatientHero extends StatelessWidget {
                 const SizedBox(height: 20),
                 FilledButton.icon(
                   onPressed: onOpenCarePlan,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.white,
-                    foregroundColor: AppColors.deepPurple,
-                  ),
+                  style: AppButtonStyles.onBrandFilled,
                   icon: const Icon(Icons.health_and_safety_outlined),
                   label: const Text('Plano de cuidado'),
                 ),
@@ -241,10 +238,7 @@ class _PatientHero extends StatelessWidget {
                 const SizedBox(width: 28),
                 FilledButton.icon(
                   onPressed: onOpenCarePlan,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.white,
-                    foregroundColor: AppColors.deepPurple,
-                  ),
+                  style: AppButtonStyles.onBrandFilled,
                   icon: const Icon(Icons.health_and_safety_outlined),
                   label: const Text('Plano de cuidado'),
                 ),

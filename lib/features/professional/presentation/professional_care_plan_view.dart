@@ -141,6 +141,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
               subtitle: 'Nenhum paciente selecionado',
               action: FilledButton.icon(
                 onPressed: null,
+                style: AppButtonStyles.onBrandFilled,
                 icon: const Icon(Icons.check_rounded),
                 label: const Text('Salvar'),
               ),
@@ -167,6 +168,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
               subtitle: patient.name,
               action: FilledButton.icon(
                 onPressed: null,
+                style: AppButtonStyles.onBrandFilled,
                 icon: const Icon(Icons.lock_outline_rounded),
                 label: const Text('Acompanhamento inativo'),
               ),
@@ -198,10 +200,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
             subtitle: patient.name,
             action: FilledButton.icon(
               onPressed: _saving || !_dirty ? null : () => _save(),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.white,
-                foregroundColor: AppColors.deepPurple,
-              ),
+              style: AppButtonStyles.onBrandFilled,
               icon: _saving
                   ? const SizedBox.square(
                       dimension: 18,
