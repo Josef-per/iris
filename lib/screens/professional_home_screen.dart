@@ -8,11 +8,10 @@ import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
-import 'package:iris/features/professional/presentation/professional_care_plan_view.dart';
+import 'package:iris/features/professional/presentation/professional_clinical_workspace_view.dart';
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
-import 'package:iris/features/professional/presentation/professional_notes_view.dart';
 import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
 import 'package:iris/features/professional/presentation/professional_patients_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
@@ -209,6 +208,32 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     unawaited(_selectDestinationGuarded(destination));
   }
 
+  void _selectClinicalDestination(ProfessionalDestination destination) {
+    assert(
+      destination == ProfessionalDestination.carePlan ||
+          destination == ProfessionalDestination.notes,
+    );
+    _hideTransientFeedback();
+    final route =
+        destination == ProfessionalDestination.carePlan &&
+            _selectedPatient != null
+        ? ProfessionalRouteLocation(
+            destination: destination,
+            patientId: _selectedPatient!.id,
+          )
+        : ProfessionalRouteLocation.forDestination(destination);
+    final controller = _routeController;
+    if (controller != null) {
+      controller.go(route.location);
+      return;
+    }
+    setState(() {
+      _destination = destination;
+      _routePatientId = route.patientId;
+      _detailPatient = null;
+    });
+  }
+
   Future<void> _selectDestinationGuarded(
     ProfessionalDestination destination,
   ) async {
@@ -340,7 +365,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     setState(() => _hasUnsavedChanges = dirty);
   }
 
-  Future<bool> _confirmRouteChange(IrisRoutePath _) {
+  Future<bool> _confirmRouteChange(IrisRoutePath nextPath) {
+    final nextRoute = ProfessionalRouteLocation.tryParse(nextPath.uri);
+    if (_isClinicalDestination(_destination) &&
+        nextRoute != null &&
+        _isClinicalDestination(nextRoute.destination)) {
+      return Future.value(true);
+    }
     return _confirmDiscardChanges();
   }
 
@@ -553,9 +584,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
                                 children: [...previousChildren, ?currentChild],
                               ),
                           child: KeyedSubtree(
-                            key: ValueKey(
-                              '${_destination.name}-${_detailPatient?.id ?? 'list'}',
-                            ),
+                            key: ValueKey(_workspaceContentKey),
                             child: _currentView,
                           ),
                         );
@@ -599,10 +628,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     return switch (_destination) {
       ProfessionalDestination.dashboard => 'Visão geral',
       ProfessionalDestination.patients => 'Pacientes',
-      ProfessionalDestination.notes => 'Anotações',
-      ProfessionalDestination.carePlan => 'Plano de cuidado',
+      ProfessionalDestination.notes ||
+      ProfessionalDestination.carePlan => 'Acompanhamento clínico',
       ProfessionalDestination.settings => 'Configurações',
     };
+  }
+
+  String get _workspaceContentKey {
+    final destinationKey =
+        _destination == ProfessionalDestination.notes ||
+            _destination == ProfessionalDestination.carePlan
+        ? 'clinical'
+        : _destination.name;
+    return '$destinationKey-${_detailPatient?.id ?? 'list'}';
   }
 
   Widget get _currentView {
@@ -647,6 +685,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
       );
     }
 
+    if (_destination == ProfessionalDestination.notes ||
+        _destination == ProfessionalDestination.carePlan) {
+      return ProfessionalClinicalWorkspaceView(
+        store: _store,
+        activeDestination: _destination,
+        initialPatient: _selectedPatient,
+        onDestinationChanged: _selectClinicalDestination,
+        onOpenPatient: _openPatient,
+        onPatientChanged: _openCarePlan,
+        onDirtyChanged: _handleDirtyChanged,
+      );
+    }
+
     return switch (_destination) {
       ProfessionalDestination.dashboard => ProfessionalDashboardView(
         store: _store,
@@ -660,23 +711,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
         onOpenPatient: _openPatient,
         onInvitePatient: _showInvitePatient,
       ),
-      ProfessionalDestination.notes => ProfessionalNotesView(
-        store: _store,
-        onOpenPatient: _openPatient,
-      ),
-      ProfessionalDestination.carePlan => ProfessionalCarePlanView(
-        store: _store,
-        initialPatient: _selectedPatient,
-        onOpenPatient: _openPatient,
-        onPatientChanged: _openCarePlan,
-        onDirtyChanged: _handleDirtyChanged,
-      ),
+      ProfessionalDestination.notes || ProfessionalDestination.carePlan =>
+        throw StateError('Destinos clínicos são tratados antes do switch.'),
       ProfessionalDestination.settings => ProfessionalSettingsView(
         store: _store,
         onDirtyChanged: _handleDirtyChanged,
       ),
     };
   }
+}
+
+bool _isClinicalDestination(ProfessionalDestination destination) {
+  return destination == ProfessionalDestination.notes ||
+      destination == ProfessionalDestination.carePlan;
 }
 
 class _ProfessionalCredentialPending extends StatelessWidget {
@@ -1068,20 +1115,19 @@ class ProfessionalNavigation extends StatelessWidget {
                             onSelected(ProfessionalDestination.patients),
                       ),
                       _NavigationItem(
-                        icon: Icons.auto_stories_outlined,
-                        selectedIcon: Icons.auto_stories_rounded,
-                        label: 'Anotações',
-                        selected: destination == ProfessionalDestination.notes,
-                        onTap: () => onSelected(ProfessionalDestination.notes),
-                      ),
-                      _NavigationItem(
-                        icon: Icons.health_and_safety_outlined,
-                        selectedIcon: Icons.health_and_safety_rounded,
-                        label: 'Plano de cuidado',
+                        icon: Icons.medical_information_outlined,
+                        selectedIcon: Icons.medical_information_rounded,
+                        label: 'Acompanhamento clínico',
                         selected:
+                            destination == ProfessionalDestination.notes ||
                             destination == ProfessionalDestination.carePlan,
-                        onTap: () =>
-                            onSelected(ProfessionalDestination.carePlan),
+                        onTap: () => onSelected(
+                          destination == ProfessionalDestination.notes ||
+                                  destination ==
+                                      ProfessionalDestination.carePlan
+                              ? destination
+                              : ProfessionalDestination.carePlan,
+                        ),
                       ),
                       _NavigationItem(
                         icon: Icons.settings_outlined,
