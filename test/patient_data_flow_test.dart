@@ -11,6 +11,7 @@ import 'package:iris/features/food/food_record_repository.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
+import 'package:iris/widgets/app_mood_selector.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 
 void main() {
@@ -123,6 +124,29 @@ void main() {
     expect(find.text('Regular'), findsOneWidget);
   });
 
+  testWidgets('Home permanece legível na largura de 320 pixels', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 2,
+            moodScore: 4,
+            hasCheckIn: true,
+            hasDiaryEntry: true,
+          ),
+        ),
+      ),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Cuidar de você hoje'), findsOneWidget);
+  });
+
   testWidgets('check-in nao salva respostas neutras implicitas', (
     tester,
   ) async {
@@ -134,7 +158,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final confirm = find.text('Confirmar ->');
+    final confirm = find.byKey(const Key('check-in-submit'));
     await tester.ensureVisible(confirm);
     await tester.tap(confirm);
     await tester.pump();
@@ -157,8 +181,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('check-in-load-retry')), findsOneWidget);
-    expect(find.text('Confirmar ->'), findsNothing);
+    expect(find.byKey(const Key('check-in-submit')), findsNothing);
     expect(repository.createCheckInCalls, 0);
+  });
+
+  testWidgets('check-in adapta os seletores à largura de 320 pixels', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      CheckInDiarioBottomSheet(repository: _EmotionalDataSource(record: null)),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('check-in-submit')), findsOneWidget);
+    final surface = find.byKey(const Key('app-bottom-sheet-surface'));
+    expect(tester.getTopLeft(surface).dy, 0);
+    expect(tester.getSize(surface).height, 700);
+    expect(
+      find.byKey(const Key('app-bottom-sheet-drag-handle')),
+      findsOneWidget,
+    );
+    expect(tester.getCenter(find.byTooltip('Fechar')).dx, greaterThan(270));
+
+    for (final gridKey in const [
+      Key('check-in-mood-options'),
+      Key('check-in-food-options'),
+    ]) {
+      final selectors = find.descendant(
+        of: find.byKey(gridKey),
+        matching: find.byType(AppMoodSelector),
+      );
+      expect(selectors, findsNWidgets(5));
+      final topPositions = [
+        for (var index = 0; index < 5; index++)
+          tester.getTopLeft(selectors.at(index)).dy,
+      ];
+      expect(topPositions.toSet(), hasLength(1));
+    }
   });
 
   testWidgets('plano compartilhado exibe metas e medicacoes reais', (

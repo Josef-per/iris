@@ -11,11 +11,15 @@ class ProfessionalCarePlanView extends StatefulWidget {
     required this.store,
     required this.initialPatient,
     required this.onOpenPatient,
+    this.onPatientChanged,
+    this.onDirtyChanged,
   });
 
   final ProfessionalFrontendStore store;
   final ProfessionalPatient? initialPatient;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
+  final ValueChanged<ProfessionalPatient>? onPatientChanged;
+  final ValueChanged<bool>? onDirtyChanged;
 
   @override
   State<ProfessionalCarePlanView> createState() =>
@@ -31,6 +35,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
   bool _shareWithPatient = true;
   bool _notifyMissedCheckIns = true;
   bool _saving = false;
+  bool _dirty = false;
 
   @override
   void initState() {
@@ -70,11 +75,13 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
     _shareWithPatient = plan.shareWithPatient;
     _notifyMissedCheckIns = plan.notifyMissedCheckIns;
     _orientationController.text = plan.orientation;
+    _dirty = false;
   }
 
   Future<bool> _save({bool showMessage = true}) async {
     final patient = _patient;
     if (patient == null || _saving) return false;
+    if (!_dirty) return true;
     setState(() => _saving = true);
     try {
       await widget.store.updateCarePlan(
@@ -89,10 +96,20 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
         ),
       );
       if (!mounted) return true;
+      setState(() => _dirty = false);
+      widget.onDirtyChanged?.call(false);
       if (showMessage) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Plano salvo.')));
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.store.isConnected
+                    ? 'Plano salvo.'
+                    : 'Plano salvo nesta sessão.',
+              ),
+            ),
+          );
       }
       return true;
     } catch (error) {
@@ -101,6 +118,15 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _change(VoidCallback change) {
+    final wasDirty = _dirty;
+    setState(() {
+      change();
+      _dirty = true;
+    });
+    if (!wasDirty) widget.onDirtyChanged?.call(true);
   }
 
   @override
@@ -115,30 +141,18 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
               subtitle: 'Nenhum paciente selecionado',
               action: FilledButton.icon(
                 onPressed: null,
+                style: AppButtonStyles.onBrandFilled,
                 icon: const Icon(Icons.check_rounded),
                 label: const Text('Salvar'),
               ),
             ),
             const ProfessionalPage(
               paddingTop: 22,
-              child: ProfessionalPanel(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 42),
-                  child: Column(
-                    children: [
-                      Icon(
-                        Icons.health_and_safety_outlined,
-                        size: 50,
-                        color: AppColors.purple,
-                      ),
-                      SizedBox(height: 14),
-                      Text(
-                        'Vincule um paciente para criar um plano de cuidado.',
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-                ),
+              child: ProfessionalEmptyState(
+                icon: Icons.health_and_safety_outlined,
+                title: 'Nenhum paciente vinculado',
+                message:
+                    'Vincule um paciente para criar e compartilhar um plano de cuidado.',
               ),
             ),
           ],
@@ -154,35 +168,22 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
               subtitle: patient.name,
               action: FilledButton.icon(
                 onPressed: null,
+                style: AppButtonStyles.onBrandFilled,
                 icon: const Icon(Icons.lock_outline_rounded),
                 label: const Text('Acompanhamento inativo'),
               ),
             ),
             ProfessionalPage(
               paddingTop: 22,
-              child: ProfessionalPanel(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Column(
-                    children: [
-                      const Icon(
-                        Icons.pause_circle_outline_rounded,
-                        size: 50,
-                        color: AppColors.purple,
-                      ),
-                      const SizedBox(height: 14),
-                      const Text(
-                        'Ative o acompanhamento para editar o plano de cuidado.',
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 18),
-                      OutlinedButton.icon(
-                        onPressed: () => widget.onOpenPatient(patient),
-                        icon: const Icon(Icons.open_in_new_rounded),
-                        label: const Text('Abrir paciente'),
-                      ),
-                    ],
-                  ),
+              child: ProfessionalEmptyState(
+                icon: Icons.pause_circle_outline_rounded,
+                title: 'Acompanhamento inativo',
+                message:
+                    'Ative o acompanhamento para editar o plano de cuidado.',
+                action: OutlinedButton.icon(
+                  onPressed: () => widget.onOpenPatient(patient),
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Abrir paciente'),
                 ),
               ),
             ),
@@ -198,13 +199,21 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
             title: 'Plano de cuidado',
             subtitle: patient.name,
             action: FilledButton.icon(
-              onPressed: _saving ? null : () => _save(),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.white,
-                foregroundColor: AppColors.deepPurple,
+              onPressed: _saving || !_dirty ? null : () => _save(),
+              style: AppButtonStyles.onBrandFilled,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_rounded),
+              label: Text(
+                _saving
+                    ? 'Salvando...'
+                    : _dirty
+                    ? 'Salvar alterações'
+                    : 'Salvo',
               ),
-              icon: const Icon(Icons.check_rounded),
-              label: Text(_saving ? 'Salvando...' : 'Salvar'),
             ),
           ),
           AbsorbPointer(
@@ -216,15 +225,38 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
                   _PatientSelector(
                     patients: widget.store.patients,
                     patient: patient,
-                    onChanged: (nextPatient) async {
-                      final saved = await _save(showMessage: false);
-                      if (!saved || !mounted) return;
-                      setState(() {
-                        _patient = nextPatient;
-                        _loadPlan();
-                      });
-                    },
+                    onChanged: _selectPatient,
                     onOpenPatient: () => widget.onOpenPatient(patient),
+                  ),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 180),
+                    child: _dirty
+                        ? Padding(
+                            key: const ValueKey('care-plan-dirty'),
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.edit_outlined,
+                                    size: 18,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Alterações não salvas',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          )
+                        : const SizedBox.shrink(),
                   ),
                   const SizedBox(height: 22),
                   LayoutBuilder(
@@ -238,7 +270,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
                               final index = _goals.indexWhere(
                                 (item) => item.id == goal.id,
                               );
-                              setState(
+                              _change(
                                 () => _goals[index] = goal.copyWith(
                                   completed: value,
                                 ),
@@ -251,7 +283,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
                                 label: 'Meta',
                               );
                               if (text == null) return;
-                              setState(
+                              _change(
                                 () => _goals.add(
                                   ProfessionalGoal(
                                     id: 'goal-${DateTime.now().microsecondsSinceEpoch}',
@@ -271,16 +303,16 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
                               final index = _goals.indexWhere(
                                 (item) => item.id == goal.id,
                               );
-                              setState(
+                              _change(
                                 () => _goals[index] = goal.copyWith(text: text),
                               );
                             },
-                            onDelete: (goal) =>
-                                setState(() => _goals.remove(goal)),
+                            onDelete: _deleteGoal,
                           ),
                           const SizedBox(height: 20),
                           _OrientationsPanel(
                             controller: _orientationController,
+                            onChanged: (_) => _change(() {}),
                           ),
                         ],
                       );
@@ -290,25 +322,23 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
                             medications: _medications,
                             onAdd: () => _editMedication(),
                             onEdit: (index) => _editMedication(index: index),
-                            onDelete: (index) =>
-                                setState(() => _medications.removeAt(index)),
+                            onDelete: _deleteMedication,
                           ),
                           const SizedBox(height: 20),
                           _FollowUpPanel(
                             shareWithPatient: _shareWithPatient,
                             notifyMissedCheckIns: _notifyMissedCheckIns,
                             onShareChanged: (value) =>
-                                setState(() => _shareWithPatient = value),
+                                _change(() => _shareWithPatient = value),
                             onNotifyChanged: (value) =>
-                                setState(() => _notifyMissedCheckIns = value),
+                                _change(() => _notifyMissedCheckIns = value),
                           ),
                           const SizedBox(height: 20),
                           _CrisisPlanPanel(
                             steps: _crisisSteps,
                             onAdd: () => _editCrisisStep(),
                             onEdit: (index) => _editCrisisStep(index: index),
-                            onDelete: (index) =>
-                                setState(() => _crisisSteps.removeAt(index)),
+                            onDelete: _deleteCrisisStep,
                           ),
                         ],
                       );
@@ -342,13 +372,62 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
       medication: index == null ? null : _medications[index],
     );
     if (result == null) return;
-    setState(() {
+    _change(() {
       if (index == null) {
         _medications.add(result);
       } else {
         _medications[index] = result;
       }
     });
+  }
+
+  Future<void> _selectPatient(ProfessionalPatient nextPatient) async {
+    if (nextPatient.id == _patient?.id) return;
+    final onPatientChanged = widget.onPatientChanged;
+    if (onPatientChanged != null) {
+      onPatientChanged(nextPatient);
+      return;
+    }
+
+    if (_dirty) {
+      final discard =
+          await showDialog<bool>(
+            context: context,
+            useRootNavigator: false,
+            barrierDismissible: false,
+            builder: (dialogContext) => ProfessionalResponsiveDialog(
+              title: 'Descartar alterações?',
+              maxWidth: 440,
+              content: const Text(
+                'O plano atual tem alterações não salvas. Elas serão perdidas ao trocar de paciente.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Continuar editando'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                    foregroundColor: Theme.of(
+                      dialogContext,
+                    ).colorScheme.onError,
+                  ),
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: const Text('Descartar'),
+                ),
+              ],
+            ),
+          ) ??
+          false;
+      if (!discard || !mounted) return;
+    }
+
+    setState(() {
+      _patient = nextPatient;
+      _loadPlan();
+    });
+    widget.onDirtyChanged?.call(false);
   }
 
   Future<void> _editCrisisStep({int? index}) async {
@@ -360,13 +439,41 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
       maxLines: 3,
     );
     if (result == null) return;
-    setState(() {
+    _change(() {
       if (index == null) {
         _crisisSteps.add(result);
       } else {
         _crisisSteps[index] = result;
       }
     });
+  }
+
+  Future<void> _deleteGoal(ProfessionalGoal goal) async {
+    final confirmed = await showProfessionalDeleteConfirmation(
+      context,
+      item: 'Meta: ${goal.text}',
+    );
+    if (!confirmed || !mounted) return;
+    _change(() => _goals.remove(goal));
+  }
+
+  Future<void> _deleteMedication(int index) async {
+    final medication = _medications[index];
+    final confirmed = await showProfessionalDeleteConfirmation(
+      context,
+      item: 'Medicação: ${medication.name}',
+    );
+    if (!confirmed || !mounted) return;
+    _change(() => _medications.removeAt(index));
+  }
+
+  Future<void> _deleteCrisisStep(int index) async {
+    final confirmed = await showProfessionalDeleteConfirmation(
+      context,
+      item: _crisisSteps[index],
+    );
+    if (!confirmed || !mounted) return;
+    _change(() => _crisisSteps.removeAt(index));
   }
 }
 
@@ -477,6 +584,7 @@ class _GoalsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final completed = goals.where((goal) => goal.completed).length;
+    final colors = Theme.of(context).colorScheme;
     return ProfessionalPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -492,9 +600,16 @@ class _GoalsPanel extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (goals.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('Nenhuma meta.'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Adicionar a primeira meta'),
+                ),
+              ),
             )
           else
             ...goals.map(
@@ -506,14 +621,17 @@ class _GoalsPanel extends StatelessWidget {
                       onChanged: (value) => onChanged(goal, value ?? false),
                       contentPadding: EdgeInsets.zero,
                       controlAffinity: ListTileControlAffinity.leading,
-                      activeColor: AppColors.deepPurple,
+                      activeColor: colors.primary,
                       title: Text(
                         goal.text,
                         style: TextStyle(
                           color: goal.completed
-                              ? AppColors.text
-                              : AppColors.muted,
+                              ? colors.onSurfaceVariant
+                              : colors.onSurface,
                           fontWeight: FontWeight.w600,
+                          decoration: goal.completed
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                     ),
@@ -537,9 +655,10 @@ class _GoalsPanel extends StatelessWidget {
 }
 
 class _OrientationsPanel extends StatelessWidget {
-  const _OrientationsPanel({required this.controller});
+  const _OrientationsPanel({required this.controller, required this.onChanged});
 
   final TextEditingController controller;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -551,6 +670,7 @@ class _OrientationsPanel extends StatelessWidget {
           const SizedBox(height: 18),
           TextField(
             controller: controller,
+            onChanged: onChanged,
             minLines: 6,
             maxLines: 10,
             decoration: const InputDecoration(
@@ -579,6 +699,7 @@ class _PlanMedicationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ProfessionalPanel(
       child: Column(
         children: [
@@ -593,9 +714,16 @@ class _PlanMedicationPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (medications.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
-              child: Text('Nenhuma medicação.'),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Adicionar a primeira medicação'),
+                ),
+              ),
             )
           else
             ...medications.asMap().entries.map(
@@ -605,12 +733,12 @@ class _PlanMedicationPanel extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(
-                    color: AppColors.lavender.withValues(alpha: .35),
-                    borderRadius: BorderRadius.circular(13),
+                    color: colors.primaryContainer,
+                    borderRadius: AppRadius.small,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.medication_outlined,
-                    color: AppColors.deepPurple,
+                    color: colors.onPrimaryContainer,
                   ),
                 ),
                 title: Text('${entry.value.name} · ${entry.value.dose}'),
@@ -686,8 +814,9 @@ class _CrisisPlanPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return ProfessionalPanel(
-      borderColor: AppColors.danger.withValues(alpha: .35),
+      borderColor: colors.error.withValues(alpha: .55),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -697,12 +826,12 @@ class _CrisisPlanPanel extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: BoxDecoration(
-                  color: AppColors.danger.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(13),
+                  color: colors.errorContainer,
+                  borderRadius: AppRadius.small,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.health_and_safety_outlined,
-                  color: AppColors.danger,
+                  color: colors.onErrorContainer,
                 ),
               ),
               const SizedBox(width: 12),
@@ -716,7 +845,13 @@ class _CrisisPlanPanel extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (steps.isEmpty)
-            const Text('Nenhuma orientação.')
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'Inclua orientações objetivas para momentos de crise.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            )
           else
             ...steps.asMap().entries.map(
               (entry) => ListTile(

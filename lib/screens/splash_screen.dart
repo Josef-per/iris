@@ -70,6 +70,7 @@ class _IrisSplashScreenState extends State<IrisSplashScreen>
                     'assets/images/Login.svg',
                     width: MediaQuery.sizeOf(context).width < 600 ? 230 : 330,
                     fit: BoxFit.contain,
+                    semanticsLabel: 'Íris',
                   ),
                   const SizedBox(height: 24),
                   const Text(
@@ -87,6 +88,7 @@ class _IrisSplashScreenState extends State<IrisSplashScreen>
                     child: CircularProgressIndicator(
                       color: AppColors.white,
                       strokeWidth: 2.4,
+                      semanticsLabel: 'Carregando Íris',
                     ),
                   ),
                 ],

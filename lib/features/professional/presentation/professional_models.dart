@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 
-enum ProfessionalDestination { dashboard, patients, notes, carePlan, settings }
-
 enum PatientStatus { active, inactive }
 
 class ProfessionalPatient {
@@ -131,18 +129,20 @@ class ProfessionalMedication {
   }
 }
 
+enum ProfessionalRecordTone { brand, success, warning, info }
+
 class ProfessionalRecord {
   const ProfessionalRecord({
     required this.title,
     required this.description,
     required this.time,
     required this.icon,
-    required this.color,
+    required this.tone,
   });
 
   final String title;
   final String description;
   final String time;
   final IconData icon;
-  final Color color;
+  final ProfessionalRecordTone tone;
 }

@@ -4,17 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
-import 'package:iris/features/professional/presentation/professional_care_plan_view.dart';
+import 'package:iris/features/professional/presentation/professional_clinical_workspace_view.dart';
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
-import 'package:iris/features/professional/presentation/professional_notes_view.dart';
 import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
 import 'package:iris/features/professional/presentation/professional_patients_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
+import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 import 'package:iris/features/professional/professional_repository.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -37,6 +38,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
   ProfessionalDestination _destination = ProfessionalDestination.dashboard;
   ProfessionalPatient? _selectedPatient;
   ProfessionalPatient? _detailPatient;
+  IrisRouteController? _routeController;
+  String? _routePatientId;
+  String _routePatientTab = 'overview';
+  bool _routeNormalizationScheduled = false;
+  bool _invalidPatientRouteScheduled = false;
+  bool _hasUnsavedChanges = false;
+  bool _discardDialogVisible = false;
   late ProfessionalSettingsDraft _lastRenderedSettings;
 
   bool get _credentialLocked => _store.settings.credentialStatus != 'ativo';
@@ -61,9 +69,69 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _routeController?.clearNavigationGuard(this);
     _store.removeListener(_syncSelectedPatient);
     _store.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final nextRouteController = IrisRouteScope.maybeOf(context);
+    if (!identical(_routeController, nextRouteController)) {
+      _routeController?.clearNavigationGuard(this);
+      _routeController = nextRouteController;
+      _routeController?.setNavigationGuard(this, _confirmRouteChange);
+    }
+    final route = _routeController == null
+        ? null
+        : ProfessionalRouteLocation.tryParse(_routeController!.path.uri);
+    if (route == null) {
+      _destination = ProfessionalDestination.dashboard;
+      _routePatientId = null;
+      _routePatientTab = 'overview';
+      _detailPatient = null;
+      if (_routeController != null && !_routeNormalizationScheduled) {
+        _routeNormalizationScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _routeNormalizationScheduled = false;
+          if (mounted) {
+            Router.neglect(
+              context,
+              () => _routeController?.go(
+                ProfessionalRouteLocation.dashboard.location,
+              ),
+            );
+          }
+        });
+      }
+      return;
+    }
+
+    if (_routeController!.path.location != route.location &&
+        !_routeNormalizationScheduled) {
+      _routeNormalizationScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _routeNormalizationScheduled = false;
+        if (mounted) {
+          Router.neglect(context, () => _routeController?.go(route.location));
+        }
+      });
+    }
+
+    _destination = route.destination;
+    _routePatientId = route.patientId;
+    _routePatientTab = route.patientTab;
+    if (route.patientId == null) {
+      _detailPatient = null;
+    } else {
+      final routePatient = _patientById(route.patientId!);
+      _selectedPatient = routePatient ?? _selectedPatient;
+      _detailPatient = route.destination == ProfessionalDestination.patients
+          ? routePatient
+          : null;
+    }
   }
 
   @override
@@ -97,13 +165,32 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
       return;
     }
 
-    final selectedId = _selectedPatient?.id;
-    final detailId = _detailPatient?.id;
+    final selectedId = _routePatientId ?? _selectedPatient?.id;
+    final detailId = _destination == ProfessionalDestination.patients
+        ? (_routePatientId ?? _detailPatient?.id)
+        : null;
     ProfessionalPatient? selected;
     ProfessionalPatient? detail;
     for (final patient in _store.patients) {
       if (patient.id == selectedId) selected = patient;
       if (patient.id == detailId) detail = patient;
+    }
+    if (_routePatientId != null &&
+        selected == null &&
+        !_store.isLoading &&
+        _store.loadError == null &&
+        !_invalidPatientRouteScheduled) {
+      _invalidPatientRouteScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _invalidPatientRouteScheduled = false;
+        if (!mounted) return;
+        final fallback = _destination == ProfessionalDestination.carePlan
+            ? ProfessionalRouteLocation.forDestination(
+                ProfessionalDestination.carePlan,
+              )
+            : ProfessionalRouteLocation.patients;
+        _routeController?.go(fallback.location);
+      });
     }
     final nextSelected = selected ?? _store.patients[0];
     if (identical(nextSelected, _selectedPatient) &&
@@ -118,24 +205,95 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
   }
 
   void _selectDestination(ProfessionalDestination destination) {
+    unawaited(_selectDestinationGuarded(destination));
+  }
+
+  void _selectClinicalDestination(ProfessionalDestination destination) {
+    assert(
+      destination == ProfessionalDestination.carePlan ||
+          destination == ProfessionalDestination.notes,
+    );
+    _hideTransientFeedback();
+    final route =
+        destination == ProfessionalDestination.carePlan &&
+            _selectedPatient != null
+        ? ProfessionalRouteLocation(
+            destination: destination,
+            patientId: _selectedPatient!.id,
+          )
+        : ProfessionalRouteLocation.forDestination(destination);
+    final controller = _routeController;
+    if (controller != null) {
+      controller.go(route.location);
+      return;
+    }
     setState(() {
       _destination = destination;
+      _routePatientId = route.patientId;
       _detailPatient = null;
     });
+  }
+
+  Future<void> _selectDestinationGuarded(
+    ProfessionalDestination destination,
+  ) async {
+    _hideTransientFeedback();
+    final route =
+        destination == ProfessionalDestination.carePlan &&
+            _selectedPatient != null
+        ? ProfessionalRouteLocation(
+            destination: destination,
+            patientId: _selectedPatient!.id,
+          )
+        : ProfessionalRouteLocation.forDestination(destination);
+    final navigated = await _requestNavigation(
+      route,
+      fallback: () {
+        setState(() {
+          _destination = destination;
+          _routePatientId = null;
+          _routePatientTab = 'overview';
+          _detailPatient = null;
+        });
+      },
+    );
+    if (!navigated || !mounted) return;
     if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
       Navigator.of(context).pop();
     }
   }
 
   void _openPatient(ProfessionalPatient patient) {
-    setState(() {
+    unawaited(_openPatientGuarded(patient));
+  }
+
+  Future<void> _openPatientGuarded(ProfessionalPatient patient) async {
+    _hideTransientFeedback();
+    final route = ProfessionalRouteLocation(
+      destination: ProfessionalDestination.patients,
+      patientId: patient.id,
+    );
+    final navigated = await _requestNavigation(
+      route,
+      fallback: () {
+        setState(() {
+          _selectedPatient = patient;
+          _routePatientId = patient.id;
+          _detailPatient = patient;
+          _destination = ProfessionalDestination.patients;
+        });
+      },
+    );
+    if (navigated && mounted && _routeController != null) {
       _selectedPatient = patient;
-      _detailPatient = patient;
-      _destination = ProfessionalDestination.patients;
-    });
+    }
   }
 
   void _openCarePlan([ProfessionalPatient? patient]) {
+    unawaited(_openCarePlanGuarded(patient));
+  }
+
+  Future<void> _openCarePlanGuarded([ProfessionalPatient? patient]) async {
     final targetPatient = patient ?? _selectedPatient;
     if (targetPatient != null && targetPatient.status != PatientStatus.active) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,22 +305,138 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
       );
       return;
     }
-    setState(() {
-      if (patient != null) _selectedPatient = patient;
-      _detailPatient = null;
-      _destination = ProfessionalDestination.carePlan;
-    });
+    final selected = patient ?? _selectedPatient;
+    if (selected == null) {
+      await _selectDestinationGuarded(ProfessionalDestination.carePlan);
+      return;
+    }
+    final route = ProfessionalRouteLocation(
+      destination: ProfessionalDestination.carePlan,
+      patientId: selected.id,
+    );
+    final navigated = await _requestNavigation(
+      route,
+      fallback: () {
+        setState(() {
+          _selectedPatient = selected;
+          _destination = ProfessionalDestination.carePlan;
+          _routePatientId = selected.id;
+          _detailPatient = null;
+        });
+      },
+    );
+    if (navigated && mounted && _routeController != null) {
+      _selectedPatient = selected;
+    }
   }
 
   Future<void> _signOut() async {
+    final hadUnsavedChanges = _hasUnsavedChanges;
+    if (!await _confirmDiscardChanges() || !mounted) return;
     try {
       await _authService.signOut();
+      if (_routeController != null && mounted) {
+        Router.neglect(context, () => _routeController?.go('/'));
+      }
     } catch (error) {
       if (!mounted) return;
+      if (hadUnsavedChanges) {
+        setState(() => _hasUnsavedChanges = true);
+      }
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
     }
+  }
+
+  ProfessionalPatient? _patientById(String id) {
+    for (final patient in _store.patients) {
+      if (patient.id == id) return patient;
+    }
+    return null;
+  }
+
+  void _hideTransientFeedback() {
+    ScaffoldMessenger.maybeOf(context)?.hideCurrentSnackBar();
+  }
+
+  void _handleDirtyChanged(bool dirty) {
+    if (!mounted || _hasUnsavedChanges == dirty) return;
+    setState(() => _hasUnsavedChanges = dirty);
+  }
+
+  Future<bool> _confirmRouteChange(IrisRoutePath nextPath) {
+    final nextRoute = ProfessionalRouteLocation.tryParse(nextPath.uri);
+    if (_isClinicalDestination(_destination) &&
+        nextRoute != null &&
+        _isClinicalDestination(nextRoute.destination)) {
+      return Future.value(true);
+    }
+    return _confirmDiscardChanges();
+  }
+
+  Future<bool> _confirmDiscardChanges() async {
+    if (!_hasUnsavedChanges) return true;
+    if (!mounted) return false;
+    if (_store.isSaving) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Aguarde o salvamento antes de sair desta tela.'),
+          ),
+        );
+      return false;
+    }
+    if (_discardDialogVisible) return false;
+    _discardDialogVisible = true;
+    final discard =
+        await showDialog<bool>(
+          context: context,
+          useRootNavigator: false,
+          barrierDismissible: false,
+          builder: (dialogContext) => ProfessionalResponsiveDialog(
+            title: 'Descartar alterações?',
+            maxWidth: 440,
+            content: const Text(
+              'Há alterações que ainda não foram salvas. Se você sair agora, elas serão perdidas.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Continuar editando'),
+              ),
+              FilledButton(
+                key: const Key('professional-discard-changes'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Theme.of(dialogContext).colorScheme.error,
+                  foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+                ),
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Descartar'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    _discardDialogVisible = false;
+    if (discard && mounted) {
+      setState(() => _hasUnsavedChanges = false);
+    }
+    return discard;
+  }
+
+  Future<bool> _requestNavigation(
+    ProfessionalRouteLocation route, {
+    required VoidCallback fallback,
+  }) async {
+    final controller = _routeController;
+    if (controller != null) {
+      return controller.requestNavigation(route.location);
+    }
+    if (!await _confirmDiscardChanges() || !mounted) return false;
+    fallback();
+    return true;
   }
 
   Future<void> _showInvitePatient() async {
@@ -261,7 +535,8 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final desktop = MediaQuery.sizeOf(context).width >= 1000;
+    final desktop =
+        MediaQuery.sizeOf(context).width >= AppBreakpoint.persistentNavigation;
     final navigation = ProfessionalNavigation(
       destination: _destination,
       showingPatientDetail: _detailPatient != null,
@@ -303,10 +578,13 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
                       } else {
                         content = AnimatedSwitcher(
                           duration: const Duration(milliseconds: 180),
+                          layoutBuilder: (currentChild, previousChildren) =>
+                              Stack(
+                                alignment: Alignment.topCenter,
+                                children: [...previousChildren, ?currentChild],
+                              ),
                           child: KeyedSubtree(
-                            key: ValueKey(
-                              '${_destination.name}-${_detailPatient?.id ?? 'list'}',
-                            ),
+                            key: ValueKey(_workspaceContentKey),
                             child: _currentView,
                           ),
                         );
@@ -321,6 +599,14 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
                               status: _store.settings.credentialStatus,
                               onOpenSettings: () => _selectDestination(
                                 ProfessionalDestination.settings,
+                              ),
+                            ),
+                          if (_store.isSaving)
+                            Semantics(
+                              liveRegion: true,
+                              label: 'Salvando alterações',
+                              child: const LinearProgressIndicator(
+                                minHeight: 3,
                               ),
                             ),
                           Expanded(child: content),
@@ -342,10 +628,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     return switch (_destination) {
       ProfessionalDestination.dashboard => 'Visão geral',
       ProfessionalDestination.patients => 'Pacientes',
-      ProfessionalDestination.notes => 'Anotações',
-      ProfessionalDestination.carePlan => 'Plano de cuidado',
+      ProfessionalDestination.notes ||
+      ProfessionalDestination.carePlan => 'Acompanhamento clínico',
       ProfessionalDestination.settings => 'Configurações',
     };
+  }
+
+  String get _workspaceContentKey {
+    final destinationKey =
+        _destination == ProfessionalDestination.notes ||
+            _destination == ProfessionalDestination.carePlan
+        ? 'clinical'
+        : _destination.name;
+    return '$destinationKey-${_detailPatient?.id ?? 'list'}';
   }
 
   Widget get _currentView {
@@ -362,8 +657,44 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
       return ProfessionalPatientDetailView(
         store: _store,
         patient: detailPatient,
-        onBack: () => setState(() => _detailPatient = null),
+        onBack: () {
+          final controller = _routeController;
+          if (controller == null) {
+            _selectDestination(ProfessionalDestination.patients);
+            return;
+          }
+          _hideTransientFeedback();
+          Router.neglect(
+            context,
+            () => controller.go(ProfessionalRouteLocation.patients.location),
+          );
+        },
         onOpenCarePlan: () => _openCarePlan(detailPatient),
+        initialTab: _routePatientTab,
+        onTabChanged: (tab) {
+          final controller = _routeController;
+          if (controller == null) return;
+          controller.go(
+            ProfessionalRouteLocation(
+              destination: ProfessionalDestination.patients,
+              patientId: detailPatient.id,
+              patientTab: tab,
+            ).location,
+          );
+        },
+      );
+    }
+
+    if (_destination == ProfessionalDestination.notes ||
+        _destination == ProfessionalDestination.carePlan) {
+      return ProfessionalClinicalWorkspaceView(
+        store: _store,
+        activeDestination: _destination,
+        initialPatient: _selectedPatient,
+        onDestinationChanged: _selectClinicalDestination,
+        onOpenPatient: _openPatient,
+        onPatientChanged: _openCarePlan,
+        onDirtyChanged: _handleDirtyChanged,
       );
     }
 
@@ -380,20 +711,19 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
         onOpenPatient: _openPatient,
         onInvitePatient: _showInvitePatient,
       ),
-      ProfessionalDestination.notes => ProfessionalNotesView(
-        store: _store,
-        onOpenPatient: _openPatient,
-      ),
-      ProfessionalDestination.carePlan => ProfessionalCarePlanView(
-        store: _store,
-        initialPatient: _selectedPatient,
-        onOpenPatient: _openPatient,
-      ),
+      ProfessionalDestination.notes || ProfessionalDestination.carePlan =>
+        throw StateError('Destinos clínicos são tratados antes do switch.'),
       ProfessionalDestination.settings => ProfessionalSettingsView(
         store: _store,
+        onDirtyChanged: _handleDirtyChanged,
       ),
     };
   }
+}
+
+bool _isClinicalDestination(ProfessionalDestination destination) {
+  return destination == ProfessionalDestination.notes ||
+      destination == ProfessionalDestination.carePlan;
 }
 
 class _ProfessionalCredentialPending extends StatelessWidget {
@@ -452,14 +782,18 @@ class _ProfessionalWorkspaceLoading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Carregando área profissional...'),
-        ],
+    return Center(
+      child: Semantics(
+        liveRegion: true,
+        label: 'Carregando área profissional',
+        child: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Carregando área profissional...'),
+          ],
+        ),
       ),
     );
   }
@@ -477,10 +811,10 @@ class _ProfessionalCredentialBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rejected = status == 'rejeitado';
+    final semanticColors = AppSemanticColors.of(context);
+    final colors = Theme.of(context).colorScheme;
     return Material(
-      color: rejected
-          ? AppColors.danger.withValues(alpha: .12)
-          : const Color(0xFFFFF3D8),
+      color: rejected ? colors.errorContainer : semanticColors.warningContainer,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Row(
@@ -489,7 +823,9 @@ class _ProfessionalCredentialBanner extends StatelessWidget {
               rejected
                   ? Icons.error_outline_rounded
                   : Icons.pending_actions_outlined,
-              color: rejected ? AppColors.danger : const Color(0xFF9A6814),
+              color: rejected
+                  ? colors.onErrorContainer
+                  : semanticColors.onWarningContainer,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -736,82 +1072,97 @@ class ProfessionalNavigation extends StatelessWidget {
     return Container(
       decoration: const BoxDecoration(gradient: AppColors.brandGradient),
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: SvgPicture.asset(
-                  'assets/images/Login.svg',
-                  height: 92,
-                  fit: BoxFit.contain,
-                ),
-              ),
-              const SizedBox(height: 14),
-              const Divider(color: Color(0x33FFFFFF)),
-              const SizedBox(height: 22),
-              _NavigationItem(
-                icon: Icons.dashboard_outlined,
-                selectedIcon: Icons.dashboard_rounded,
-                label: 'Visão geral',
-                selected:
-                    destination == ProfessionalDestination.dashboard &&
-                    !showingPatientDetail,
-                onTap: () => onSelected(ProfessionalDestination.dashboard),
-              ),
-              _NavigationItem(
-                icon: Icons.people_alt_outlined,
-                selectedIcon: Icons.people_alt_rounded,
-                label: 'Pacientes',
-                selected:
-                    destination == ProfessionalDestination.patients ||
-                    showingPatientDetail,
-                onTap: () => onSelected(ProfessionalDestination.patients),
-              ),
-              _NavigationItem(
-                icon: Icons.auto_stories_outlined,
-                selectedIcon: Icons.auto_stories_rounded,
-                label: 'Anotações',
-                selected: destination == ProfessionalDestination.notes,
-                onTap: () => onSelected(ProfessionalDestination.notes),
-              ),
-              _NavigationItem(
-                icon: Icons.health_and_safety_outlined,
-                selectedIcon: Icons.health_and_safety_rounded,
-                label: 'Plano de cuidado',
-                selected: destination == ProfessionalDestination.carePlan,
-                onTap: () => onSelected(ProfessionalDestination.carePlan),
-              ),
-              _NavigationItem(
-                icon: Icons.settings_outlined,
-                selectedIcon: Icons.settings_rounded,
-                label: 'Configurações',
-                selected: destination == ProfessionalDestination.settings,
-                onTap: () => onSelected(ProfessionalDestination.settings),
-              ),
-              const Spacer(),
-              const Divider(color: Color(0x33FFFFFF)),
-              const SizedBox(height: 14),
-              _ProfessionalIdentity(settings: settings),
-              const SizedBox(height: 14),
-              const Divider(color: Color(0x33FFFFFF)),
-              const SizedBox(height: 10),
-              TextButton.icon(
-                onPressed: onSignOut,
-                style: TextButton.styleFrom(
-                  foregroundColor: AppColors.lavender.withValues(alpha: .7),
-                  alignment: Alignment.centerLeft,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: SvgPicture.asset(
+                          'assets/images/Login.svg',
+                          height: 92,
+                          fit: BoxFit.contain,
+                          semanticsLabel: 'Íris',
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Divider(color: AppColors.white.withValues(alpha: .2)),
+                      const SizedBox(height: 22),
+                      _NavigationItem(
+                        icon: Icons.dashboard_outlined,
+                        selectedIcon: Icons.dashboard_rounded,
+                        label: 'Visão geral',
+                        selected:
+                            destination == ProfessionalDestination.dashboard &&
+                            !showingPatientDetail,
+                        onTap: () =>
+                            onSelected(ProfessionalDestination.dashboard),
+                      ),
+                      _NavigationItem(
+                        icon: Icons.people_alt_outlined,
+                        selectedIcon: Icons.people_alt_rounded,
+                        label: 'Pacientes',
+                        selected:
+                            destination == ProfessionalDestination.patients ||
+                            showingPatientDetail,
+                        onTap: () =>
+                            onSelected(ProfessionalDestination.patients),
+                      ),
+                      _NavigationItem(
+                        icon: Icons.medical_information_outlined,
+                        selectedIcon: Icons.medical_information_rounded,
+                        label: 'Acompanhamento clínico',
+                        selected:
+                            destination == ProfessionalDestination.notes ||
+                            destination == ProfessionalDestination.carePlan,
+                        onTap: () => onSelected(
+                          destination == ProfessionalDestination.notes ||
+                                  destination ==
+                                      ProfessionalDestination.carePlan
+                              ? destination
+                              : ProfessionalDestination.carePlan,
+                        ),
+                      ),
+                      _NavigationItem(
+                        icon: Icons.settings_outlined,
+                        selectedIcon: Icons.settings_rounded,
+                        label: 'Configurações',
+                        selected:
+                            destination == ProfessionalDestination.settings,
+                        onTap: () =>
+                            onSelected(ProfessionalDestination.settings),
+                      ),
+                      const Spacer(),
+                      Divider(color: AppColors.white.withValues(alpha: .2)),
+                      const SizedBox(height: 14),
+                      _ProfessionalIdentity(settings: settings),
+                      const SizedBox(height: 14),
+                      Divider(color: AppColors.white.withValues(alpha: .2)),
+                      const SizedBox(height: 10),
+                      TextButton.icon(
+                        onPressed: onSignOut,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.lavender,
+                          alignment: Alignment.centerLeft,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 14,
+                          ),
+                        ),
+                        icon: const Icon(Icons.logout_rounded),
+                        label: const Text('Sair'),
+                      ),
+                    ],
                   ),
                 ),
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text('Sair'),
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -838,34 +1189,40 @@ class _NavigationItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Material(
-        color: selected
-            ? AppColors.white.withValues(alpha: .15)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
+      child: Semantics(
+        button: true,
+        selected: selected,
+        label: label,
+        excludeSemantics: true,
+        child: Material(
+          color: selected
+              ? AppColors.white.withValues(alpha: .15)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(14),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            child: Row(
-              children: [
-                Icon(
-                  selected ? selectedIcon : icon,
-                  color: AppColors.white,
-                  size: 24,
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontWeight: FontWeight.w800,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(
+                    selected ? selectedIcon : icon,
+                    color: AppColors.white,
+                    size: 24,
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -885,10 +1242,13 @@ class _ProfessionalIdentity extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 24,
-            backgroundColor: Color(0x337D6AC6),
-            child: Icon(Icons.person_outline_rounded, color: AppColors.white),
+            backgroundColor: AppColors.purple.withValues(alpha: .2),
+            child: const Icon(
+              Icons.person_outline_rounded,
+              color: AppColors.white,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -941,6 +1301,7 @@ class _MobileProfessionalBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
+      key: const Key('professional-mobile-bar'),
       color: Theme.of(context).colorScheme.surface,
       elevation: 1,
       child: SafeArea(
@@ -956,11 +1317,14 @@ class _MobileProfessionalBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge,
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),

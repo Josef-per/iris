@@ -61,11 +61,14 @@ class ProfessionalPageHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.displaySmall?.copyWith(fontSize: compact ? 28 : 34),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontSize: compact ? 28 : 34,
+                  ),
+                ),
               ),
               const SizedBox(height: 6),
               Text(subtitle, style: Theme.of(context).textTheme.bodyLarge),
@@ -111,19 +114,22 @@ class ProfessionalGradientHeader extends StatelessWidget {
     final text = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-            color: AppColors.white,
-            fontSize: compact ? 30 : 38,
+        Semantics(
+          header: true,
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              color: AppColors.white,
+              fontSize: compact ? 30 : 38,
+            ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           subtitle,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-            color: AppColors.lavender.withValues(alpha: .8),
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodyLarge?.copyWith(color: AppColors.white),
         ),
       ],
     );
@@ -138,7 +144,9 @@ class ProfessionalGradientHeader extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(AppRadius.lg),
+        ),
       ),
       child: compact && action != null
           ? Column(
@@ -171,35 +179,300 @@ class ProfessionalPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final surface = Theme.of(context).colorScheme.surface;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final panel = AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: padding,
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color:
-              borderColor ??
-              (dark ? const Color(0xFF443653) : AppColors.outline),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: dark ? const Color(0x26000000) : const Color(0x0D28174E),
-            blurRadius: 22,
-            offset: Offset(0, 8),
-          ),
-        ],
+    final colors = Theme.of(context).colorScheme;
+    final shape = RoundedRectangleBorder(
+      borderRadius: AppRadius.large,
+      side: BorderSide(color: borderColor ?? colors.outlineVariant),
+    );
+    final content = Padding(padding: padding, child: child);
+
+    return Semantics(
+      button: onTap != null,
+      child: Material(
+        color: colors.surface,
+        elevation: AppElevation.none,
+        shape: shape,
+        clipBehavior: Clip.antiAlias,
+        child: onTap == null ? content : InkWell(onTap: onTap, child: content),
       ),
-      child: Material(type: MaterialType.transparency, child: child),
+    );
+  }
+}
+
+/// Uma única superfície para listas, evitando um card e uma sombra por linha.
+class ProfessionalListSurface extends StatelessWidget {
+  const ProfessionalListSurface({
+    super.key,
+    required this.children,
+    this.padding = EdgeInsets.zero,
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.large,
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: padding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var index = 0; index < children.length; index++) ...[
+              children[index],
+              if (index < children.length - 1)
+                Divider(height: 1, color: colors.outlineVariant),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProfessionalEmptyState extends StatelessWidget {
+  const ProfessionalEmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.action,
+    this.secondaryAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final Widget? action;
+  final Widget? secondaryAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ProfessionalPanel(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 48, color: theme.colorScheme.primary),
+                const SizedBox(height: AppSpacing.md),
+                Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleLarge,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                if (action != null || secondaryAction != null) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.xs,
+                    children: [?secondaryAction, ?action],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Dialog de formulário que vira uma superfície de largura total em telas
+/// estreitas e mantém um único scroll para conteúdo longo.
+class ProfessionalResponsiveDialog extends StatelessWidget {
+  const ProfessionalResponsiveDialog({
+    super.key,
+    required this.title,
+    required this.content,
+    required this.actions,
+    this.maxWidth = 560,
+    this.canClose = true,
+    this.blockingMessage = 'Salvando. Aguarde a conclusão para fechar.',
+  });
+
+  final String title;
+  final Widget content;
+  final List<Widget> actions;
+  final double maxWidth;
+  final bool canClose;
+  final String blockingMessage;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final compact = media.size.width < 600;
+    final heading = Semantics(
+      header: true,
+      child: Text(title, style: Theme.of(context).textTheme.headlineSmall),
     );
 
-    if (onTap == null) return panel;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: panel,
+    late final Widget dialog;
+    if (!compact) {
+      final contentWidth = (media.size.width - 160).clamp(320.0, maxWidth);
+      dialog = AlertDialog(
+        title: heading,
+        content: SizedBox(
+          width: contentWidth,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (!canClose) ...[
+                  _ProfessionalDialogBlockingNotice(message: blockingMessage),
+                  const SizedBox(height: AppSpacing.md),
+                ],
+                content,
+              ],
+            ),
+          ),
+        ),
+        actions: actions,
+      );
+    } else {
+      final colors = Theme.of(context).colorScheme;
+      dialog = Dialog.fullscreen(
+        child: SafeArea(
+          child: Column(
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minHeight: AppSize.minimumTapTarget + AppSpacing.md,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.xs,
+                    AppSpacing.xs,
+                    AppSpacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(child: heading),
+                      Tooltip(
+                        message: canClose ? 'Fechar' : blockingMessage,
+                        child: IconButton(
+                          onPressed: canClose
+                              ? () => Navigator.maybePop(context)
+                              : null,
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Divider(height: 1, color: colors.outlineVariant),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!canClose) ...[
+                        _ProfessionalDialogBlockingNotice(
+                          message: blockingMessage,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
+                      content,
+                    ],
+                  ),
+                ),
+              ),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  border: Border(top: BorderSide(color: colors.outlineVariant)),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    child: OverflowBar(
+                      alignment: MainAxisAlignment.end,
+                      overflowAlignment: OverflowBarAlignment.end,
+                      spacing: AppSpacing.xs,
+                      overflowSpacing: AppSpacing.xs,
+                      children: actions,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return PopScope<Object?>(
+      canPop: canClose,
+      child: Semantics(
+        liveRegion: !canClose,
+        label: canClose ? null : blockingMessage,
+        child: dialog,
+      ),
+    );
+  }
+}
+
+class _ProfessionalDialogBlockingNotice extends StatelessWidget {
+  const _ProfessionalDialogBlockingNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final semantic = AppSemanticColors.of(context);
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: semantic.infoContainer,
+          borderRadius: AppRadius.small,
+        ),
+        child: Row(
+          children: [
+            SizedBox.square(
+              dimension: 20,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: semantic.onInfoContainer,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: semantic.onInfoContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -225,7 +498,13 @@ class ProfessionalSectionTitle extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: Theme.of(context).textTheme.titleLarge),
+              Semantics(
+                header: true,
+                child: Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+              ),
               if (subtitle != null) ...[
                 const SizedBox(height: 4),
                 Text(subtitle!, style: Theme.of(context).textTheme.bodyMedium),
@@ -247,22 +526,19 @@ class PatientAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.lavender, AppColors.purple.withValues(alpha: .72)],
-        ),
+        color: colors.primaryContainer,
         shape: BoxShape.circle,
       ),
       child: Text(
         patient.initials,
         style: TextStyle(
-          color: AppColors.ink,
+          color: colors.onPrimaryContainer,
           fontWeight: FontWeight.w800,
           fontSize: size * .31,
         ),
@@ -279,12 +555,19 @@ class PatientStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = status == PatientStatus.active;
-    final color = active ? AppColors.success : AppColors.muted;
+    final colors = Theme.of(context).colorScheme;
+    final semantic = AppSemanticColors.of(context);
+    final background = active
+        ? semantic.successContainer
+        : colors.surfaceContainerHighest;
+    final foreground = active
+        ? semantic.onSuccessContainer
+        : colors.onSurfaceVariant;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(999),
+        color: background,
+        borderRadius: AppRadius.pill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -292,13 +575,16 @@ class PatientStatusBadge extends StatelessWidget {
           Container(
             width: 7,
             height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: foreground,
+              shape: BoxShape.circle,
+            ),
           ),
           const SizedBox(width: 6),
           Text(
             active ? 'Ativo' : 'Inativo',
             style: TextStyle(
-              color: color,
+              color: foreground,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -323,6 +609,7 @@ class ProfessionalInfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -330,10 +617,10 @@ class ProfessionalInfoRow extends StatelessWidget {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: AppColors.lavender.withValues(alpha: .35),
-            borderRadius: BorderRadius.circular(12),
+            color: colors.primaryContainer,
+            borderRadius: AppRadius.small,
           ),
-          child: Icon(icon, color: AppColors.deepPurple, size: 19),
+          child: Icon(icon, color: colors.onPrimaryContainer, size: 19),
         ),
         const SizedBox(width: 12),
         Expanded(

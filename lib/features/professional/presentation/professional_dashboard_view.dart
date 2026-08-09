@@ -61,7 +61,11 @@ class ProfessionalDashboardView extends StatelessWidget {
             LayoutBuilder(
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= 940;
-                final calendar = _CalendarPanel(store: store);
+                final calendar = _AgendaPanel(
+                  store: store,
+                  onOpenPatient: onOpenPatient,
+                  initialDate: appointmentInitialDate,
+                );
                 final appointments = _AppointmentsPanel(
                   store: store,
                   onOpenPatient: onOpenPatient,
@@ -101,6 +105,8 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final semanticColors = AppSemanticColors.of(context);
     final today = DateTime.now();
     final appointmentsToday = store.isConnected
         ? store.appointments.where((appointment) {
@@ -113,12 +119,8 @@ class _MetricsGrid extends StatelessWidget {
         : store.appointments.length;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = constraints.maxWidth >= 1120
-            ? 4
-            : constraints.maxWidth >= 620
-            ? 2
-            : 1;
-        const gap = 18.0;
+        final columns = constraints.maxWidth >= 1120 ? 4 : 2;
+        final gap = constraints.maxWidth < 520 ? 12.0 : 18.0;
         final width = (constraints.maxWidth - (gap * (columns - 1))) / columns;
         return Wrap(
           spacing: gap,
@@ -132,7 +134,7 @@ class _MetricsGrid extends StatelessWidget {
               supporting: appointmentsToday == 0
                   ? 'Sem consultas'
                   : 'Agenda do dia',
-              color: AppColors.deepPurple,
+              color: colors.primary,
             ),
             _MetricCard(
               width: width,
@@ -141,7 +143,7 @@ class _MetricsGrid extends StatelessWidget {
               value:
                   '${store.patients.where((patient) => patient.status == PatientStatus.active).length}',
               supporting: '${store.patients.length} no total',
-              color: AppColors.success,
+              color: semanticColors.success,
             ),
             _MetricCard(
               width: width,
@@ -149,7 +151,7 @@ class _MetricsGrid extends StatelessWidget {
               title: 'Alertas',
               value: '${store.alerts}',
               supporting: 'Ver todos',
-              color: AppColors.danger,
+              color: colors.error,
               onTap: onOpenAlerts,
             ),
             _MetricCard(
@@ -158,7 +160,7 @@ class _MetricsGrid extends StatelessWidget {
               title: 'Consultas este mês',
               value: '${store.appointmentsThisMonth}',
               supporting: 'Agenda carregada',
-              color: const Color(0xFF466BC7),
+              color: semanticColors.info,
             ),
           ],
         );
@@ -191,47 +193,76 @@ class _MetricCard extends StatelessWidget {
     return SizedBox(
       width: width,
       child: ProfessionalPanel(
-        borderColor: AppColors.purple,
         padding: const EdgeInsets.all(18),
-        child: InkWell(
-          onTap: onTap,
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .16),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 27),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: Semantics(
+          button: onTap != null,
+          label: '$title: $value. $supporting',
+          excludeSemantics: true,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(16),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 190;
+                final iconWidget = Container(
+                  width: compact ? 42 : 52,
+                  height: compact ? 42 : 52,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(icon, color: color, size: compact ? 22 : 27),
+                );
+                final details = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: compact
+                      ? CrossAxisAlignment.center
+                      : CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: Theme.of(context).textTheme.bodyMedium),
+                    Text(
+                      title,
+                      maxLines: compact ? 2 : 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: compact ? TextAlign.center : null,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       value,
                       style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w500),
+                          ?.copyWith(fontWeight: FontWeight.w700),
                     ),
-                    Text(
-                      supporting,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: color,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    if (!compact)
+                      Text(
+                        supporting,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
                   ],
-                ),
-              ),
-            ],
+                );
+                if (compact) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [iconWidget, const SizedBox(height: 8), details],
+                  );
+                }
+                return ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 58),
+                  child: Row(
+                    children: [
+                      iconWidget,
+                      const SizedBox(width: 14),
+                      Expanded(child: details),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
         ),
       ),
@@ -239,68 +270,240 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _CalendarPanel extends StatelessWidget {
-  const _CalendarPanel({required this.store});
+class _AgendaPanel extends StatefulWidget {
+  const _AgendaPanel({
+    required this.store,
+    required this.onOpenPatient,
+    this.initialDate,
+  });
 
   final ProfessionalFrontendStore store;
+  final ValueChanged<ProfessionalPatient> onOpenPatient;
+  final DateTime? initialDate;
+
+  @override
+  State<_AgendaPanel> createState() => _AgendaPanelState();
+}
+
+class _AgendaPanelState extends State<_AgendaPanel> {
+  late DateTime _selectedDate;
+  late DateTime _visibleRangeStart;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedDate = _dateOnly(widget.initialDate ?? DateTime.now());
+    _visibleRangeStart = _selectedDate;
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (store.isConnected) {
-      final now = DateTime.now();
-      final todayAppointments = store.appointments
-          .where((appointment) {
-            final startsAt = appointment.startsAt?.toLocal();
-            return startsAt != null &&
-                startsAt.year == now.year &&
-                startsAt.month == now.month &&
-                startsAt.day == now.day;
-          })
-          .toList(growable: false);
-      return ProfessionalPanel(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const ProfessionalSectionTitle(title: 'Próximas de hoje'),
-            const SizedBox(height: 18),
-            if (todayAppointments.isEmpty)
-              const _DashboardEmptyState(
-                icon: Icons.event_available_outlined,
-                title: 'Agenda livre',
-                message: 'Não há consultas agendadas para hoje.',
-              )
-            else
-              ...todayAppointments.map(
-                (appointment) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(
-                    Icons.schedule_rounded,
-                    color: AppColors.deepPurple,
-                  ),
-                  title: Text(appointment.patient.name),
-                  subtitle: Text(appointment.type),
-                  trailing: Text(
-                    appointment.time,
-                    style: const TextStyle(
-                      color: AppColors.deepPurple,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+    final days = List.generate(
+      7,
+      (index) => _visibleRangeStart.add(Duration(days: index)),
+    );
+    final appointments =
+        widget.store.appointments.where((appointment) {
+          final startsAt = appointment.startsAt?.toLocal();
+          return startsAt != null && _sameDay(startsAt, _selectedDate);
+        }).toList()..sort((a, b) {
+          final aDate = a.startsAt;
+          final bDate = b.startsAt;
+          if (aDate == null || bDate == null) return a.time.compareTo(b.time);
+          return aDate.compareTo(bDate);
+        });
+
+    return ProfessionalPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ProfessionalSectionTitle(
+            title: 'Agenda semanal',
+            subtitle: _monthAndYear(_selectedDate),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Semana anterior',
+                  onPressed: () => _moveVisibleRange(-7),
+                  icon: const Icon(Icons.chevron_left_rounded),
+                ),
+                IconButton(
+                  tooltip: 'Próxima semana',
+                  onPressed: () => _moveVisibleRange(7),
+                  icon: const Icon(Icons.chevron_right_rounded),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            height: 76,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth < 332) {
+                  return ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: days.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 4),
+                    itemBuilder: (context, index) =>
+                        _buildDayButton(days[index]),
+                  );
+                }
+                final gap = constraints.maxWidth < 420 ? 4.0 : 8.0;
+                return Row(
+                  children: [
+                    for (var index = 0; index < days.length; index++) ...[
+                      if (index > 0) SizedBox(width: gap),
+                      Expanded(child: _buildDayButton(days[index])),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 18),
+          Divider(color: Theme.of(context).colorScheme.outlineVariant),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _selectedDayLabel(_selectedDate),
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
               ),
-          ],
-        ),
-      );
-    }
-    return ProfessionalPanel(
-      padding: EdgeInsets.zero,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(19),
-        child: AspectRatio(
-          aspectRatio: 1402 / 1122,
-          child: Image.asset(
-            'assets/images/professional_calendar.png',
-            fit: BoxFit.cover,
+              TextButton.icon(
+                onPressed: _canManage(widget.store)
+                    ? () => showProfessionalAppointmentForm(
+                        context,
+                        widget.store,
+                        initialDate: _selectedDate,
+                      )
+                    : null,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Agendar'),
+              ),
+            ],
+          ),
+          if (appointments.isEmpty)
+            const _DashboardEmptyState(
+              icon: Icons.event_available_outlined,
+              title: 'Agenda livre',
+              message: 'Não há consultas agendadas para este dia.',
+            )
+          else
+            ...appointments.map(
+              (appointment) => ListTile(
+                minTileHeight: 56,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.schedule_rounded),
+                title: Text(appointment.patient.name),
+                subtitle: Text(appointment.type),
+                trailing: Text(
+                  appointment.time,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onTap: () => widget.onOpenPatient(appointment.patient),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _moveVisibleRange(int days) {
+    setState(() {
+      _visibleRangeStart = _visibleRangeStart.add(Duration(days: days));
+      _selectedDate = _visibleRangeStart;
+    });
+  }
+
+  Widget _buildDayButton(DateTime day) {
+    final selected = _sameDay(day, _selectedDate);
+    final count = widget.store.appointments.where((appointment) {
+      final startsAt = appointment.startsAt?.toLocal();
+      return startsAt != null && _sameDay(startsAt, day);
+    }).length;
+    return _AgendaDayButton(
+      day: day,
+      selected: selected,
+      appointmentCount: count,
+      onTap: () => setState(() => _selectedDate = day),
+    );
+  }
+}
+
+class _AgendaDayButton extends StatelessWidget {
+  const _AgendaDayButton({
+    required this.day,
+    required this.selected,
+    required this.appointmentCount,
+    required this.onTap,
+  });
+
+  final DateTime day;
+  final bool selected;
+  final int appointmentCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Semantics(
+      selected: selected,
+      button: true,
+      label:
+          '${_weekdayName(day.weekday)}, ${day.day}. '
+          '$appointmentCount ${appointmentCount == 1 ? 'consulta' : 'consultas'}',
+      child: Material(
+        color: selected ? colorScheme.primary : colorScheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(
+            width: 54,
+            height: 72,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _weekdayName(day.weekday).substring(0, 3),
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: selected
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${day.day}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: selected
+                        ? colorScheme.onPrimary
+                        : colorScheme.onSurface,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: appointmentCount == 0
+                        ? Colors.transparent
+                        : selected
+                        ? colorScheme.onPrimary
+                        : colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -397,7 +600,7 @@ class _DashboardEmptyState extends StatelessWidget {
       child: Center(
         child: Column(
           children: [
-            Icon(icon, size: 38, color: AppColors.purple),
+            Icon(icon, size: 38, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 10),
             Text(title, style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 4),
@@ -419,6 +622,59 @@ String _displayName(String name) {
   return cleanName.split(RegExp(r'\s+'))[0];
 }
 
+DateTime _dateOnly(DateTime date) {
+  final local = date.toLocal();
+  return DateTime(local.year, local.month, local.day);
+}
+
+bool _sameDay(DateTime a, DateTime b) {
+  final localA = a.toLocal();
+  final localB = b.toLocal();
+  return localA.year == localB.year &&
+      localA.month == localB.month &&
+      localA.day == localB.day;
+}
+
+String _monthAndYear(DateTime date) {
+  const months = [
+    'janeiro',
+    'fevereiro',
+    'março',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
+  ];
+  final month = months[date.month - 1];
+  return '${month[0].toUpperCase()}${month.substring(1)} de ${date.year}';
+}
+
+String _weekdayName(int weekday) {
+  const weekdays = [
+    'segunda',
+    'terça',
+    'quarta',
+    'quinta',
+    'sexta',
+    'sábado',
+    'domingo',
+  ];
+  return weekdays[weekday - 1];
+}
+
+String _selectedDayLabel(DateTime date) {
+  final today = _dateOnly(DateTime.now());
+  if (_sameDay(today, date)) {
+    return 'Hoje, ${date.day} de ${_monthAndYear(date).split(' de ').first.toLowerCase()}';
+  }
+  return '${_weekdayName(date.weekday)[0].toUpperCase()}${_weekdayName(date.weekday).substring(1)}, ${date.day} de ${_monthAndYear(date).split(' de ').first.toLowerCase()}';
+}
+
 bool _canManage(ProfessionalFrontendStore store) {
   return !store.isConnected || store.settings.credentialStatus == 'ativo';
 }
@@ -438,79 +694,87 @@ class _AppointmentRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 480;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            SizedBox(
-              width: compact ? 58 : 72,
-              child: Text(
-                _appointmentLabel(appointment),
-                style: const TextStyle(
-                  color: AppColors.deepPurple,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-            PatientAvatar(patient: appointment.patient, size: 44),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 440;
+        final primary = Theme.of(context).colorScheme.primary;
+        return Semantics(
+          button: true,
+          label:
+              '${appointment.patient.name}, ${_appointmentLabel(appointment)}, ${appointment.type}',
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Row(
                 children: [
-                  Text(
-                    appointment.patient.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.deepPurple,
+                  SizedBox(
+                    width: compact ? 58 : 72,
+                    child: Text(
+                      _appointmentLabel(appointment),
+                      style: TextStyle(
+                        color: primary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
-                  Text(
-                    appointment.type,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                  PatientAvatar(patient: appointment.patient, size: 44),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          appointment.patient.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        Text(
+                          appointment.type,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!compact)
+                    FilledButton.tonal(
+                      onPressed: onTap,
+                      style: FilledButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                      ),
+                      child: const Text('Abrir'),
+                    ),
+                  PopupMenuButton<String>(
+                    enabled: canEdit,
+                    tooltip: canEdit
+                        ? 'Ações da consulta'
+                        : 'Ative o acompanhamento para alterar',
+                    onSelected: (value) {
+                      if (value == 'remove') onRemove();
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: 'remove',
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.delete_outline_rounded),
+                          title: Text('Remover'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            if (!compact)
-              FilledButton.tonal(
-                onPressed: onTap,
-                style: FilledButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                ),
-                child: const Text('Abrir'),
-              ),
-            PopupMenuButton<String>(
-              enabled: canEdit,
-              tooltip: canEdit
-                  ? 'Ações da consulta'
-                  : 'Ative o acompanhamento para alterar',
-              onSelected: (value) {
-                if (value == 'remove') onRemove();
-              },
-              itemBuilder: (context) => const [
-                PopupMenuItem(
-                  value: 'remove',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.delete_outline_rounded),
-                    title: Text('Remover'),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

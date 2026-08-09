@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
-import 'package:iris/widgets/app_filled_button.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class DiarioEmocionalBottomSheet extends StatefulWidget {
@@ -46,43 +45,24 @@ class _DiarioEmocionalBottomSheetState
 
     try {
       final record = await _repository.getTodayRecord();
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       final content = record?['diario_emocional']?.toString();
-
       if (content != null && content.trim().isNotEmpty) {
         _contentController.text = content;
       }
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _loadErrorMessage = AppErrorMessages.from(error);
-      });
+      if (!mounted) return;
+      setState(() => _loadErrorMessage = AppErrorMessages.from(error));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingTodayRecord = false;
-        });
-      }
+      if (mounted) setState(() => _isLoadingTodayRecord = false);
     }
   }
 
   Future<void> _submit() async {
-    if (_loadErrorMessage != null) {
-      return;
-    }
-
+    if (_loadErrorMessage != null || _isLoadingTodayRecord) return;
     FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() {
       _isLoading = true;
@@ -91,182 +71,125 @@ class _DiarioEmocionalBottomSheetState
 
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
-
     try {
       await _repository.createDiaryEntry(content: _contentController.text);
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       navigator.pop(true);
       messenger.showSnackBar(
         const SnackBar(content: Text('Diário emocional salvo.')),
       );
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _errorMessage = AppErrorMessages.from(error);
-      });
+      if (!mounted) return;
+      setState(() => _errorMessage = AppErrorMessages.from(error));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return AppBottomSheet(
       child: Form(
         key: _formKey,
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 10),
-            const Text(
-              'Diário emocional',
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFFFFFFF),
+            Semantics(
+              header: true,
+              child: Text(
+                'Diário emocional',
+                style: theme.textTheme.headlineMedium,
               ),
             ),
-            const SizedBox(height: 7),
-            const Text(
-              'Registre suas emoções e sintomas',
-              style: TextStyle(fontSize: 14, color: Color(0x99FFFFFF)),
+            const SizedBox(height: 6),
+            Text(
+              'Reserve um momento para registrar como você está se sentindo.',
+              style: theme.textTheme.bodyMedium,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             Container(
-              width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: theme.colorScheme.outlineVariant),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Como você está se sentindo?',
-                    style: TextStyle(
-                      color: Color(0xFF462A7E),
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: theme.textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 18),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 18,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F8F8),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x22000000),
-                          blurRadius: 10,
-                          offset: Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(
-                          Icons.format_quote_rounded,
-                          size: 42,
-                          color: Color(0xFF2D175E),
-                        ),
-                        const SizedBox(height: 10),
-                        if (_isLoadingTodayRecord)
-                          const Center(child: CircularProgressIndicator())
-                        else if (_loadErrorMessage != null)
-                          Column(
-                            children: [
-                              Text(
-                                _loadErrorMessage!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFF7A2330),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              OutlinedButton.icon(
-                                key: const Key('emotional-diary-load-retry'),
-                                onPressed: _loadTodayRecord,
-                                icon: const Icon(Icons.refresh_rounded),
-                                label: const Text('Tentar novamente'),
-                              ),
-                            ],
-                          )
-                        else
-                          TextFormField(
-                            controller: _contentController,
-                            maxLines: 4,
-                            validator: _validateContent,
-                            decoration: const InputDecoration(
-                              hintText: 'Escreva um pouco sobre seu dia',
-                              hintStyle: TextStyle(
-                                color: Color(0xFF2D175E),
-                                fontSize: 16,
-                              ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                            style: const TextStyle(
-                              color: Color(0xFF2D175E),
-                              fontSize: 16,
-                            ),
-                          ),
-                      ],
-                    ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Você pode escrever livremente. Este campo é obrigatório.',
+                    style: theme.textTheme.bodyMedium,
                   ),
+                  const SizedBox(height: 16),
+                  if (_isLoadingTodayRecord)
+                    Semantics(
+                      liveRegion: true,
+                      label: 'Carregando o registro de hoje',
+                      child: const SizedBox(
+                        height: 180,
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                    )
+                  else if (_loadErrorMessage != null)
+                    _DiaryLoadError(
+                      message: _loadErrorMessage!,
+                      onRetry: _loadTodayRecord,
+                    )
+                  else
+                    TextFormField(
+                      key: const Key('emotional-diary-field'),
+                      controller: _contentController,
+                      minLines: 6,
+                      maxLines: 10,
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: _validateContent,
+                      decoration: const InputDecoration(
+                        hintText: 'Escreva um pouco sobre o seu dia...',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
                 ],
               ),
             ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 16),
-              Text(
-                _errorMessage!,
-                style: const TextStyle(
-                  color: Color(0xFFFFD6D6),
-                  fontWeight: FontWeight.bold,
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  _errorMessage!,
+                  style: TextStyle(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 33),
+            const SizedBox(height: 24),
             Align(
-              alignment: Alignment.bottomRight,
-              child: AppFilledButton(
-                text: _isLoading ? 'Salvando...' : 'Confirmar',
-                backgroundColor: const Color(0xFF7D6AC6),
-                textColor: const Color(0xFFFAF9F6),
+              alignment: Alignment.centerRight,
+              child: FilledButton.icon(
+                key: const Key('emotional-diary-submit'),
                 onPressed:
                     _isLoading ||
                         _isLoadingTodayRecord ||
                         _loadErrorMessage != null
                     ? null
                     : _submit,
+                icon: _isLoading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_isLoading ? 'Salvando...' : 'Confirmar'),
               ),
             ),
           ],
@@ -279,7 +202,47 @@ class _DiarioEmocionalBottomSheetState
     if (value == null || value.trim().isEmpty) {
       return 'Escreva como você está se sentindo.';
     }
-
     return null;
+  }
+}
+
+class _DiaryLoadError extends StatelessWidget {
+  const _DiaryLoadError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: SizedBox(
+        height: 180,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_off_outlined,
+                color: Theme.of(context).colorScheme.error,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                key: const Key('emotional-diary-load-retry'),
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tentar novamente'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

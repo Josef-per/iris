@@ -5,9 +5,14 @@ import 'package:iris/features/professional/presentation/professional_frontend_st
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 class ProfessionalSettingsView extends StatefulWidget {
-  const ProfessionalSettingsView({super.key, required this.store});
+  const ProfessionalSettingsView({
+    super.key,
+    required this.store,
+    this.onDirtyChanged,
+  });
 
   final ProfessionalFrontendStore store;
+  final ValueChanged<bool>? onDirtyChanged;
 
   @override
   State<ProfessionalSettingsView> createState() =>
@@ -30,6 +35,7 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
   late bool _automaticReports;
   late String _avatarInitials;
   var _saving = false;
+  var _dirty = false;
 
   @override
   void initState() {
@@ -47,23 +53,49 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     _crisisAlerts = settings.crisisAlerts;
     _automaticReports = settings.automaticReports;
     _avatarInitials = settings.avatarInitials;
+    for (final controller in _controllers) {
+      controller.addListener(_markDirty);
+    }
+  }
+
+  List<TextEditingController> get _controllers => [
+    _name,
+    _email,
+    _phone,
+    _specialty,
+    _registration,
+    _biography,
+    _clinic,
+    _clinicAddress,
+  ];
+
+  void _markDirty() {
+    if (!mounted || _saving || _dirty) return;
+    setState(() => _dirty = true);
+    widget.onDirtyChanged?.call(true);
+  }
+
+  void _change(VoidCallback change) {
+    final wasDirty = _dirty;
+    setState(() {
+      change();
+      _dirty = true;
+    });
+    if (!wasDirty) widget.onDirtyChanged?.call(true);
   }
 
   @override
   void dispose() {
-    _name.dispose();
-    _email.dispose();
-    _phone.dispose();
-    _specialty.dispose();
-    _registration.dispose();
-    _biography.dispose();
-    _clinic.dispose();
-    _clinicAddress.dispose();
+    for (final controller in _controllers) {
+      controller
+        ..removeListener(_markDirty)
+        ..dispose();
+    }
     super.dispose();
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate() || _saving) return;
+    if (!_dirty || !_formKey.currentState!.validate() || _saving) return;
     setState(() => _saving = true);
     try {
       await widget.store.updateSettings(
@@ -84,9 +116,19 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
       );
       if (!mounted) return;
       _email.text = widget.store.settings.email;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Configurações salvas.')));
+      setState(() => _dirty = false);
+      widget.onDirtyChanged?.call(false);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.store.isConnected
+                  ? 'Configurações salvas.'
+                  : 'Configurações salvas nesta sessão.',
+            ),
+          ),
+        );
     } catch (error) {
       if (mounted) {
         if (error is ProfessionalSettingsPartialUpdateException) {
@@ -107,7 +149,7 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
       initialValue: _avatarInitials,
     );
     if (value == null) return;
-    setState(
+    _change(
       () => _avatarInitials = value
           .trim()
           .split(RegExp(r'\s+'))
@@ -125,15 +167,25 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
         children: [
           ProfessionalGradientHeader(
             title: 'Perfil e configurações',
-            subtitle: 'Dados e preferências',
+            subtitle: _dirty
+                ? 'Dados e preferências · Alterações não salvas'
+                : 'Dados e preferências',
             action: FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.white,
-                foregroundColor: AppColors.deepPurple,
+              onPressed: _saving || !_dirty ? null : _save,
+              style: AppButtonStyles.onBrandFilled,
+              icon: _saving
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_rounded),
+              label: Text(
+                _saving
+                    ? 'Salvando...'
+                    : _dirty
+                    ? 'Salvar'
+                    : 'Salvo',
               ),
-              icon: const Icon(Icons.check_rounded),
-              label: Text(_saving ? 'Salvando...' : 'Salvar'),
             ),
           ),
           ProfessionalPage(
@@ -143,43 +195,49 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final wide = constraints.maxWidth >= 940;
-                  final profile = Column(
-                    children: [
-                      _ProfilePanel(
-                        avatarInitials: _avatarInitials,
-                        onAvatarPressed: _changeAvatar,
-                        name: _name,
-                        email: _email,
-                        phone: _phone,
-                        specialty: _specialty,
-                        registration: _registration,
-                        biography: _biography,
-                      ),
-                      const SizedBox(height: 20),
-                      _ClinicPanel(clinic: _clinic, address: _clinicAddress),
-                    ],
+                  final profile = ProfessionalPanel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ProfilePanel(
+                          avatarInitials: _avatarInitials,
+                          onAvatarPressed: _changeAvatar,
+                          name: _name,
+                          email: _email,
+                          phone: _phone,
+                          specialty: _specialty,
+                          registration: _registration,
+                          biography: _biography,
+                        ),
+                        const _SettingsDivider(),
+                        _ClinicPanel(clinic: _clinic, address: _clinicAddress),
+                      ],
+                    ),
                   );
-                  final preferences = Column(
-                    children: [
-                      _NotificationsPanel(
-                        appointmentNotifications: _appointmentNotifications,
-                        crisisAlerts: _crisisAlerts,
-                        automaticReports: _automaticReports,
-                        onAppointmentChanged: (value) =>
-                            setState(() => _appointmentNotifications = value),
-                        onCrisisChanged: (value) =>
-                            setState(() => _crisisAlerts = value),
-                        onReportsChanged: (value) =>
-                            setState(() => _automaticReports = value),
-                      ),
-                      const SizedBox(height: 20),
-                      const _AppearancePanel(),
-                      const SizedBox(height: 20),
-                      _SecurityPanel(
-                        onChangePassword: _changePassword,
-                        onManageDevices: _showDevices,
-                      ),
-                    ],
+                  final preferences = ProfessionalPanel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _NotificationsPanel(
+                          appointmentNotifications: _appointmentNotifications,
+                          crisisAlerts: _crisisAlerts,
+                          automaticReports: _automaticReports,
+                          onAppointmentChanged: (value) =>
+                              _change(() => _appointmentNotifications = value),
+                          onCrisisChanged: (value) =>
+                              _change(() => _crisisAlerts = value),
+                          onReportsChanged: (value) =>
+                              _change(() => _automaticReports = value),
+                        ),
+                        const _SettingsDivider(),
+                        const _AppearancePanel(),
+                        const _SettingsDivider(),
+                        _SecurityPanel(
+                          onChangePassword: _changePassword,
+                          onManageDevices: _showDevices,
+                        ),
+                      ],
+                    ),
                   );
                   if (!wide) {
                     return Column(
@@ -216,44 +274,43 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     final saved = await showDialog<bool>(
       context: context,
       useRootNavigator: false,
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Alterar senha'),
-          content: SizedBox(
-            width: 420,
-            child: Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextFormField(
-                    controller: current,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Senha atual'),
-                    validator: _requiredField,
+        builder: (context, setDialogState) => ProfessionalResponsiveDialog(
+          title: 'Alterar senha',
+          maxWidth: 420,
+          canClose: !saving,
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: current,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Senha atual'),
+                  validator: _requiredField,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: password,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Nova senha'),
+                  validator: (value) => value == null || value.length < 8
+                      ? 'Use pelo menos 8 caracteres'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: confirmation,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar senha',
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: password,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Nova senha'),
-                    validator: (value) => value == null || value.length < 8
-                        ? 'Use pelo menos 8 caracteres'
-                        : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: confirmation,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirmar senha',
-                    ),
-                    validator: (value) => value != password.text
-                        ? 'As senhas não conferem'
-                        : null,
-                  ),
-                ],
-              ),
+                  validator: (value) =>
+                      value != password.text ? 'As senhas não conferem' : null,
+                ),
+              ],
             ),
           ),
           actions: [
@@ -300,8 +357,9 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
     await showDialog<void>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => AlertDialog(
-        title: const Text('Dispositivos'),
+      builder: (context) => ProfessionalResponsiveDialog(
+        title: 'Dispositivos',
+        maxWidth: 420,
         content: const Text(
           'A lista de sessões não está disponível. Use “Sair” para encerrar esta sessão.',
         ),
@@ -343,113 +401,111 @@ class _ProfilePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProfessionalPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ProfessionalSectionTitle(title: 'Dados profissionais'),
-          const SizedBox(height: 22),
-          Center(
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: 92,
-                  height: 92,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.brandGradient,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    avatarInitials,
-                    style: const TextStyle(
-                      color: AppColors.white,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: -4,
-                  bottom: -4,
-                  child: IconButton.filled(
-                    tooltip: 'Alterar foto',
-                    onPressed: onAvatarPressed,
-                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 26),
-          _ResponsiveFields(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ProfessionalSectionTitle(title: 'Dados profissionais'),
+        const SizedBox(height: 22),
+        Center(
+          child: Stack(
+            clipBehavior: Clip.none,
             children: [
-              TextFormField(
-                controller: name,
-                decoration: const InputDecoration(
-                  labelText: 'Nome completo',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
+              Container(
+                width: 92,
+                height: 92,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  shape: BoxShape.circle,
                 ),
-                validator: _requiredField,
+                child: Text(
+                  avatarInitials,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-              TextFormField(
-                controller: email,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'E-mail profissional',
-                  prefixIcon: Icon(Icons.mail_outline_rounded),
+              Positioned(
+                right: -4,
+                bottom: -4,
+                child: IconButton.filled(
+                  tooltip: 'Alterar foto',
+                  onPressed: onAvatarPressed,
+                  icon: const Icon(Icons.camera_alt_outlined, size: 18),
                 ),
-                validator: (value) {
-                  final error = _requiredField(value);
-                  if (error != null) return error;
-                  return value!.contains('@') ? null : 'E-mail inválido';
-                },
-              ),
-              TextFormField(
-                controller: phone,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Telefone',
-                  prefixIcon: Icon(Icons.phone_outlined),
-                ),
-                validator: _requiredField,
-              ),
-              TextFormField(
-                controller: registration,
-                decoration: const InputDecoration(
-                  labelText: 'Registro profissional',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
-                validator: _requiredField,
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: specialty,
-            decoration: const InputDecoration(
-              labelText: 'Especialidade',
-              prefixIcon: Icon(Icons.psychology_alt_outlined),
-            ),
-            validator: _requiredField,
-          ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: biography,
-            minLines: 4,
-            maxLines: 7,
-            decoration: const InputDecoration(
-              labelText: 'Biografia',
-              alignLabelWithHint: true,
-              prefixIcon: Padding(
-                padding: EdgeInsets.only(bottom: 74),
-                child: Icon(Icons.description_outlined),
+        ),
+        const SizedBox(height: 26),
+        _ResponsiveFields(
+          children: [
+            TextFormField(
+              controller: name,
+              decoration: const InputDecoration(
+                labelText: 'Nome completo',
+                prefixIcon: Icon(Icons.person_outline_rounded),
               ),
+              validator: _requiredField,
+            ),
+            TextFormField(
+              controller: email,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'E-mail profissional',
+                prefixIcon: Icon(Icons.mail_outline_rounded),
+              ),
+              validator: (value) {
+                final error = _requiredField(value);
+                if (error != null) return error;
+                return value!.contains('@') ? null : 'E-mail inválido';
+              },
+            ),
+            TextFormField(
+              controller: phone,
+              keyboardType: TextInputType.phone,
+              decoration: const InputDecoration(
+                labelText: 'Telefone',
+                prefixIcon: Icon(Icons.phone_outlined),
+              ),
+              validator: _requiredField,
+            ),
+            TextFormField(
+              controller: registration,
+              decoration: const InputDecoration(
+                labelText: 'Registro profissional',
+                prefixIcon: Icon(Icons.badge_outlined),
+              ),
+              validator: _requiredField,
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: specialty,
+          decoration: const InputDecoration(
+            labelText: 'Especialidade',
+            prefixIcon: Icon(Icons.psychology_alt_outlined),
+          ),
+          validator: _requiredField,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: biography,
+          minLines: 4,
+          maxLines: 7,
+          decoration: const InputDecoration(
+            labelText: 'Biografia',
+            alignLabelWithHint: true,
+            prefixIcon: Padding(
+              padding: EdgeInsets.only(bottom: 74),
+              child: Icon(Icons.description_outlined),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -462,31 +518,29 @@ class _ClinicPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProfessionalPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ProfessionalSectionTitle(title: 'Dados da clínica'),
-          const SizedBox(height: 20),
-          TextFormField(
-            controller: clinic,
-            decoration: const InputDecoration(
-              labelText: 'Nome da clínica',
-              prefixIcon: Icon(Icons.local_hospital_outlined),
-            ),
-            validator: _requiredField,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ProfessionalSectionTitle(title: 'Dados da clínica'),
+        const SizedBox(height: 20),
+        TextFormField(
+          controller: clinic,
+          decoration: const InputDecoration(
+            labelText: 'Nome da clínica',
+            prefixIcon: Icon(Icons.local_hospital_outlined),
           ),
-          const SizedBox(height: 16),
-          TextFormField(
-            controller: address,
-            decoration: const InputDecoration(
-              labelText: 'Endereço',
-              prefixIcon: Icon(Icons.location_on_outlined),
-            ),
-            validator: _requiredField,
+          validator: _requiredField,
+        ),
+        const SizedBox(height: 16),
+        TextFormField(
+          controller: address,
+          decoration: const InputDecoration(
+            labelText: 'Endereço',
+            prefixIcon: Icon(Icons.location_on_outlined),
           ),
-        ],
-      ),
+          validator: _requiredField,
+        ),
+      ],
     );
   }
 }
@@ -510,32 +564,33 @@ class _NotificationsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProfessionalPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ProfessionalSectionTitle(title: 'Notificações'),
-          const SizedBox(height: 10),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: appointmentNotifications,
-            onChanged: onAppointmentChanged,
-            title: const Text('Lembretes de consultas'),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: crisisAlerts,
-            onChanged: onCrisisChanged,
-            title: const Text('Alertas de crise'),
-          ),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: automaticReports,
-            onChanged: onReportsChanged,
-            title: const Text('Relatórios automáticos'),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ProfessionalSectionTitle(title: 'Notificações'),
+        const SizedBox(height: 10),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: appointmentNotifications,
+          onChanged: onAppointmentChanged,
+          title: const Text('Lembretes de consultas'),
+          subtitle: const Text('Avisos antes dos próximos atendimentos'),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: crisisAlerts,
+          onChanged: onCrisisChanged,
+          title: const Text('Alertas de crise'),
+          subtitle: const Text('Notificações para sinais de atenção'),
+        ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          value: automaticReports,
+          onChanged: onReportsChanged,
+          title: const Text('Relatórios automáticos'),
+          subtitle: const Text('Resumos periódicos de acompanhamento'),
+        ),
+      ],
     );
   }
 }
@@ -545,29 +600,28 @@ class _AppearancePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProfessionalPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const ProfessionalSectionTitle(title: 'Aparência'),
-          const SizedBox(height: 12),
-          ValueListenableBuilder<ThemeMode>(
-            valueListenable: AppThemeController.mode,
-            builder: (context, mode, _) => SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: mode == ThemeMode.dark,
-              onChanged: AppThemeController.setDarkMode,
-              secondary: Icon(
-                mode == ThemeMode.dark
-                    ? Icons.dark_mode_outlined
-                    : Icons.light_mode_outlined,
-                color: AppColors.purple,
-              ),
-              title: const Text('Modo escuro'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const ProfessionalSectionTitle(title: 'Aparência'),
+        const SizedBox(height: 12),
+        ValueListenableBuilder<ThemeMode>(
+          valueListenable: AppThemeController.mode,
+          builder: (context, mode, _) => SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: mode == ThemeMode.dark,
+            onChanged: AppThemeController.setDarkMode,
+            secondary: Icon(
+              mode == ThemeMode.dark
+                  ? Icons.dark_mode_outlined
+                  : Icons.light_mode_outlined,
+              color: Theme.of(context).colorScheme.primary,
             ),
+            title: const Text('Modo escuro'),
+            subtitle: const Text('Reduz o brilho das superfícies'),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -583,24 +637,37 @@ class _SecurityPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ProfessionalPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const ProfessionalSectionTitle(title: 'Segurança'),
-          const SizedBox(height: 18),
-          OutlinedButton.icon(
-            onPressed: onChangePassword,
-            icon: const Icon(Icons.lock_reset_rounded),
-            label: const Text('Alterar senha'),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: onManageDevices,
-            icon: const Icon(Icons.devices_outlined),
-            label: const Text('Gerenciar dispositivos'),
-          ),
-        ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const ProfessionalSectionTitle(title: 'Segurança'),
+        const SizedBox(height: 18),
+        OutlinedButton.icon(
+          onPressed: onChangePassword,
+          icon: const Icon(Icons.lock_reset_rounded),
+          label: const Text('Alterar senha'),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: onManageDevices,
+          icon: const Icon(Icons.devices_outlined),
+          label: const Text('Gerenciar dispositivos'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingsDivider extends StatelessWidget {
+  const _SettingsDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 24),
+      child: Divider(
+        height: 1,
+        color: Theme.of(context).colorScheme.outlineVariant,
       ),
     );
   }

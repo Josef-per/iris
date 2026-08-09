@@ -1,12 +1,14 @@
 {
-    "name": "iris",
-    "short_name": "iris",
+    "name": "Íris",
+    "short_name": "Íris",
+    "lang": "pt-BR",
+    "dir": "ltr",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "background_color": "#FAF9F6",
+    "theme_color": "#462A7E",
+    "description": "Cuidado e acompanhamento para pessoas com transtornos alimentares.",
+    "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
         {

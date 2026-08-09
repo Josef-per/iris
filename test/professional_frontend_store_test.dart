@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
@@ -183,6 +184,150 @@ void main() {
         find.textContaining('Seu cadastro profissional está em análise'),
         findsNothing,
       );
+    });
+
+    testWidgets('lista curta de pacientes começa logo após a barra móvel', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(471, 860);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(Uri.parse('/professional/patients')),
+      );
+      addTearDown(routeController.dispose);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mobileBar = find.byKey(const Key('professional-mobile-bar'));
+      final title = find.text('Meus pacientes');
+      expect(mobileBar, findsOneWidget);
+      expect(title, findsOneWidget);
+      final gap =
+          tester.getTopLeft(title).dy - tester.getBottomLeft(mobileBar).dy;
+      expect(gap, inInclusiveRange(20, 32));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('detalhe do paciente começa junto à barra móvel', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(475, 860);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(
+          Uri.parse('/professional/patients/patient-id?tab=history'),
+        ),
+      );
+      addTearDown(routeController.dispose);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mobileBar = find.byKey(const Key('professional-mobile-bar'));
+      final hero = find.byKey(const Key('professional-patient-hero'));
+      expect(mobileBar, findsOneWidget);
+      expect(hero, findsOneWidget);
+      final gap =
+          tester.getTopLeft(hero).dy - tester.getBottomLeft(mobileBar).dy;
+      expect(gap, inInclusiveRange(0, 1));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('seção clínica unificada preserva rotas das abas', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(Uri.parse('/professional/notes')),
+      );
+      addTearDown(routeController.dispose);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Acompanhamento clínico'), findsOneWidget);
+      expect(routeController.path.location, '/professional/notes');
+      await tester.tap(find.byKey(const Key('clinical-tab-care-plan')));
+      await tester.pumpAndSettle();
+      expect(
+        routeController.path.location,
+        '/professional/patients/patient-id/care-plan',
+      );
+      await tester.tap(find.byTooltip('Adicionar meta'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('professional-text-item')),
+        'Meta preservada entre rotas',
+      );
+      await tester.tap(find.byKey(const Key('professional-text-item-save')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('clinical-tab-notes')));
+      await tester.pumpAndSettle();
+      expect(routeController.path.location, '/professional/notes');
+
+      final restored = await routeController.requestRestore(
+        IrisRoutePath(Uri.parse('/professional/patients/patient-id/care-plan')),
+      );
+      await tester.pumpAndSettle();
+      expect(restored, isTrue);
+      expect(find.text('Meta preservada entre rotas'), findsOneWidget);
+      expect(find.text('Descartar alterações?'), findsNothing);
+
+      final leaveSection = routeController.requestNavigation(
+        '/professional/settings',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Descartar alterações?'), findsOneWidget);
+      await tester.tap(find.text('Continuar editando'));
+      await tester.pumpAndSettle();
+      expect(await leaveSection, isFalse);
+      expect(
+        routeController.path.location,
+        '/professional/patients/patient-id/care-plan',
+      );
+      expect(tester.takeException(), isNull);
     });
   });
 }

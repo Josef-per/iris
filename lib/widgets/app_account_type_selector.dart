@@ -54,54 +54,55 @@ class _AccountTypeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Material(
-      color: selected
-          ? AppColors.lavender.withValues(alpha: dark ? .22 : .4)
-          : Theme.of(context).colorScheme.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: selected
-              ? AppColors.purple
-              : dark
-              ? const Color(0xFF443653)
-              : AppColors.outline,
-          width: selected ? 1.5 : 1,
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: onTap != null,
+      label: label,
+      excludeSemantics: true,
+      child: Material(
+        color: selected ? colors.primaryContainer : colors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppRadius.medium,
+          side: BorderSide(
+            color: selected ? colors.primary : colors.outline,
+            width: selected ? 1.5 : 1,
+          ),
         ),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-          child: Column(
-            children: [
-              Icon(
-                icon,
-                color: selected
-                    ? dark
-                          ? AppColors.lavender
-                          : AppColors.deepPurple
-                    : AppColors.muted,
-              ),
-              const SizedBox(height: 7),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: AppRadius.medium,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+            child: Column(
+              children: [
+                Icon(
+                  icon,
                   color: selected
-                      ? dark
-                            ? AppColors.lavender
-                            : AppColors.ink
-                      : AppColors.muted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w800,
+                      ? colors.onPrimaryContainer
+                      : colors.onSurfaceVariant,
                 ),
-              ),
-            ],
+                const SizedBox(height: 7),
+                SizedBox(
+                  height: 36,
+                  child: Center(
+                    child: Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: TextStyle(
+                        color: selected
+                            ? colors.onPrimaryContainer
+                            : colors.onSurfaceVariant,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

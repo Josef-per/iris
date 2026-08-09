@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_recovery_replay.dart';
@@ -29,24 +30,50 @@ Future<void> main() async {
   runApp(const IrisApp());
 }
 
-class IrisApp extends StatelessWidget {
+class IrisApp extends StatefulWidget {
   const IrisApp({super.key});
+
+  @override
+  State<IrisApp> createState() => _IrisAppState();
+}
+
+class _IrisAppState extends State<IrisApp> {
+  late final IrisRouteController _routeController;
+  late final IrisRouterDelegate _routerDelegate;
+
+  @override
+  void initState() {
+    super.initState();
+    _routeController = IrisRouteController();
+    _routerDelegate = IrisRouterDelegate(
+      controller: _routeController,
+      rootBuilder: (_) => IrisSplashScreen(
+        next: SupabaseConfig.isConfigured
+            ? const AuthGate()
+            : const LoginScreen(),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _routerDelegate.dispose();
+    _routeController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: AppThemeController.mode,
-      builder: (context, themeMode, _) => MaterialApp(
+      builder: (context, themeMode, _) => MaterialApp.router(
         debugShowCheckedModeBanner: false,
         title: 'Íris',
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: themeMode,
-        home: IrisSplashScreen(
-          next: SupabaseConfig.isConfigured
-              ? const AuthGate()
-              : const LoginScreen(),
-        ),
+        routeInformationParser: const IrisRouteInformationParser(),
+        routerDelegate: _routerDelegate,
       ),
     );
   }
