@@ -221,6 +221,44 @@ void main() {
       expect(gap, inInclusiveRange(20, 32));
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('detalhe do paciente começa junto à barra móvel', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(475, 860);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(
+          Uri.parse('/professional/patients/patient-id?tab=history'),
+        ),
+      );
+      addTearDown(routeController.dispose);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mobileBar = find.byKey(const Key('professional-mobile-bar'));
+      final hero = find.byKey(const Key('professional-patient-hero'));
+      expect(mobileBar, findsOneWidget);
+      expect(hero, findsOneWidget);
+      final gap =
+          tester.getTopLeft(hero).dy - tester.getBottomLeft(mobileBar).dy;
+      expect(gap, inInclusiveRange(0, 1));
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 

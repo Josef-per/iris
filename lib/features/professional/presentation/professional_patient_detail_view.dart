@@ -194,6 +194,7 @@ class _PatientHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 700;
     return Container(
+      key: const Key('professional-patient-hero'),
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
         compact ? 20 : 32,
