@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/theme/app_theme.dart';
 
 class AppMoodSelector extends StatelessWidget {
-  final bool selected;
-  final VoidCallback onTap;
-  final String image;
-  final String selectedImage;
-  final String text;
-
   const AppMoodSelector({
     super.key,
     required this.selected,
@@ -16,41 +11,55 @@ class AppMoodSelector extends StatelessWidget {
     required this.text,
   });
 
+  final bool selected;
+  final VoidCallback onTap;
+  final String image;
+  final String selectedImage;
+  final String text;
+
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 56,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
+    final semanticLabel = text.replaceAll('\n', ' ');
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: semanticLabel,
+      child: SizedBox(
+        width: 72,
+        child: Material(
+          color: selected
+              ? AppColors.lavender.withValues(alpha: .42)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 2),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  height: 45,
-                  width: 45,
-                  child: Align(
-                    alignment: Alignment.center,
-                    child: Image.asset(
-                      selected ? selectedImage : image,
-                      fit: BoxFit.contain,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+              child: ExcludeSemantics(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      height: 44,
+                      width: 44,
+                      child: Image.asset(
+                        selected ? selectedImage : image,
+                        fit: BoxFit.contain,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 7),
+                    Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 13,
+                        height: 1.2,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  text,
-                  style: const TextStyle(
-                    color: Color(0xFF28174E),
-                    fontSize: 13,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+              ),
             ),
           ),
         ),

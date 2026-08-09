@@ -180,6 +180,6 @@ class AccountTypeMismatchException implements Exception {
 
   @override
   String toString() {
-    return 'O tipo de conta nao corresponde ao perfil selecionado.';
+    return 'O tipo de conta não corresponde ao perfil selecionado.';
   }
 }

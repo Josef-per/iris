@@ -16,7 +16,7 @@ class SupabaseConfigException implements Exception {
 
   @override
   String toString() {
-    return 'Supabase nao configurado. Inicie o app com '
+    return 'Supabase não configurado. Inicie o app com '
         './scripts/flutter_run.sh ou use --dart-define.';
   }
 }

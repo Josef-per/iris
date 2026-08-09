@@ -12,12 +12,16 @@ class ProfessionalPatientDetailView extends StatefulWidget {
     required this.patient,
     required this.onBack,
     required this.onOpenCarePlan,
+    this.initialTab = 'overview',
+    this.onTabChanged,
   });
 
   final ProfessionalFrontendStore store;
   final ProfessionalPatient patient;
   final VoidCallback onBack;
   final VoidCallback onOpenCarePlan;
+  final String initialTab;
+  final ValueChanged<String>? onTabChanged;
 
   @override
   State<ProfessionalPatientDetailView> createState() =>
@@ -27,8 +31,22 @@ class ProfessionalPatientDetailView extends StatefulWidget {
 class _ProfessionalPatientDetailViewState
     extends State<ProfessionalPatientDetailView> {
   final _noteController = TextEditingController();
-  var _selectedTab = 0;
+  late int _selectedTab;
   var _savingNote = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTab = _tabIndex(widget.initialTab);
+  }
+
+  @override
+  void didUpdateWidget(covariant ProfessionalPatientDetailView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialTab != widget.initialTab) {
+      _selectedTab = _tabIndex(widget.initialTab);
+    }
+  }
 
   @override
   void dispose() {
@@ -104,7 +122,10 @@ class _ProfessionalPatientDetailViewState
               children: [
                 _PatientTabs(
                   selectedIndex: _selectedTab,
-                  onSelected: (index) => setState(() => _selectedTab = index),
+                  onSelected: (index) {
+                    setState(() => _selectedTab = index);
+                    widget.onTabChanged?.call(_tabName(index));
+                  },
                 ),
                 const SizedBox(height: 24),
                 AnimatedSwitcher(
@@ -142,6 +163,22 @@ class _ProfessionalPatientDetailViewState
   }
 }
 
+int _tabIndex(String tab) {
+  return switch (tab) {
+    'history' => 1,
+    'notes' => 2,
+    _ => 0,
+  };
+}
+
+String _tabName(int index) {
+  return switch (index) {
+    1 => 'history',
+    2 => 'notes',
+    _ => 'overview',
+  };
+}
+
 class _PatientHero extends StatelessWidget {
   const _PatientHero({
     required this.patient,
@@ -166,7 +203,9 @@ class _PatientHero extends StatelessWidget {
       ),
       decoration: const BoxDecoration(
         gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(AppRadius.lg),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,7 +281,7 @@ class _PatientHeroInfo extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 '${patient.age} anos · ${patient.diagnosis}',
-                style: const TextStyle(color: AppColors.lavender),
+                style: const TextStyle(color: AppColors.white),
               ),
               const SizedBox(height: 8),
               PatientStatusBadge(status: patient.status),
@@ -273,26 +312,32 @@ class _PatientTabs extends StatelessWidget {
                 padding: EdgeInsets.only(
                   right: index == labels.length - 1 ? 0 : 6,
                 ),
-                child: Material(
-                  color: selectedIndex == index
-                      ? AppColors.purple
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    onTap: () => onSelected(index),
+                child: Semantics(
+                  button: true,
+                  selected: selectedIndex == index,
+                  label: labels[index],
+                  excludeSemantics: true,
+                  child: Material(
+                    color: selectedIndex == index
+                        ? AppColors.purpleAccessible
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(14),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      child: Text(
-                        labels[index],
-                        textAlign: TextAlign.center,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: selectedIndex == index
-                              ? AppColors.white
-                              : AppColors.ink,
-                          fontWeight: FontWeight.w700,
+                    child: InkWell(
+                      onTap: () => onSelected(index),
+                      borderRadius: BorderRadius.circular(14),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        child: Text(
+                          labels[index],
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: selectedIndex == index
+                                ? AppColors.white
+                                : Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
@@ -444,6 +489,7 @@ class _LastCheckInPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semanticColors = AppSemanticColors.of(context);
     return ProfessionalPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,7 +500,7 @@ class _LastCheckInPanel extends StatelessWidget {
             trailing: _RiskBadge(),
           ),
           const SizedBox(height: 22),
-          const Wrap(
+          Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
@@ -462,19 +508,19 @@ class _LastCheckInPanel extends StatelessWidget {
                 icon: Icons.sentiment_satisfied_alt_rounded,
                 label: 'Humor',
                 value: 'Bem',
-                color: AppColors.success,
+                color: semanticColors.success,
               ),
               _CheckInValue(
                 icon: Icons.bedtime_outlined,
                 label: 'Sono',
                 value: '7h 30min',
-                color: Color(0xFF466BC7),
+                color: semanticColors.info,
               ),
               _CheckInValue(
                 icon: Icons.psychology_alt_outlined,
                 label: 'Ansiedade',
                 value: 'Leve',
-                color: Color(0xFFC98A34),
+                color: semanticColors.warning,
               ),
             ],
           ),
@@ -482,7 +528,7 @@ class _LastCheckInPanel extends StatelessWidget {
           Text(
             '“Acordei mais disposta e consegui tomar café da manhã.”',
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.deepPurple,
+              color: Theme.of(context).colorScheme.primary,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -518,7 +564,7 @@ class _RemoteLastCheckInPanel extends StatelessWidget {
               icon: Icons.sentiment_satisfied_alt_rounded,
               label: 'Humor',
               value: patient.mood,
-              color: AppColors.success,
+              color: AppSemanticColors.of(context).success,
             ),
         ],
       ),
@@ -548,7 +594,11 @@ class _ClinicalDataEmptyPanel extends StatelessWidget {
           Center(
             child: Column(
               children: [
-                Icon(icon, size: 36, color: AppColors.purple),
+                Icon(
+                  icon,
+                  size: 36,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(height: 10),
                 Text(message, textAlign: TextAlign.center),
               ],
@@ -565,16 +615,17 @@ class _RiskBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final semanticColors = AppSemanticColors.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: .12),
+        color: semanticColors.successContainer,
         borderRadius: BorderRadius.circular(999),
       ),
-      child: const Text(
+      child: Text(
         'Sem alertas',
         style: TextStyle(
-          color: AppColors.success,
+          color: semanticColors.onSuccessContainer,
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
@@ -730,10 +781,12 @@ class _MedicationRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final success = AppSemanticColors.of(context).success;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.lavender.withValues(alpha: .2),
+        color: colors.surfaceContainerLow,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -741,10 +794,7 @@ class _MedicationRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.medication_outlined,
-                color: AppColors.deepPurple,
-              ),
+              Icon(Icons.medication_outlined, color: colors.primary),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -763,10 +813,7 @@ class _MedicationRow extends StatelessWidget {
               ),
               Text(
                 '${(medication.adherence * 100).round()}%',
-                style: const TextStyle(
-                  color: AppColors.success,
-                  fontWeight: FontWeight.w800,
-                ),
+                style: TextStyle(color: success, fontWeight: FontWeight.w800),
               ),
               PopupMenuButton<String>(
                 enabled: canEdit,
@@ -787,8 +834,8 @@ class _MedicationRow extends StatelessWidget {
             child: LinearProgressIndicator(
               value: medication.adherence,
               minHeight: 7,
-              backgroundColor: AppColors.white,
-              color: AppColors.success,
+              backgroundColor: colors.surfaceContainerHighest,
+              color: success,
             ),
           ),
         ],
@@ -847,6 +894,7 @@ class _FoodProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Column(
       children: [
         Row(
@@ -859,8 +907,8 @@ class _FoodProgress extends StatelessWidget {
             ),
             Text(
               detail,
-              style: const TextStyle(
-                color: AppColors.deepPurple,
+              style: TextStyle(
+                color: colors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -872,8 +920,8 @@ class _FoodProgress extends StatelessWidget {
           child: LinearProgressIndicator(
             value: value,
             minHeight: 9,
-            backgroundColor: AppColors.outline,
-            color: AppColors.purple,
+            backgroundColor: colors.surfaceContainerHighest,
+            color: colors.primary,
           ),
         ),
       ],
@@ -913,6 +961,7 @@ class _RecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = _recordColor(context, record.tone);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
@@ -922,10 +971,10 @@ class _RecordRow extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: record.color.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(13),
+              color: color.withValues(alpha: .12),
+              borderRadius: AppRadius.small,
             ),
-            child: Icon(record.icon, color: record.color, size: 21),
+            child: Icon(record.icon, color: color, size: 21),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -963,6 +1012,17 @@ class _RecordRow extends StatelessWidget {
   }
 }
 
+Color _recordColor(BuildContext context, ProfessionalRecordTone tone) {
+  final colors = Theme.of(context).colorScheme;
+  final semanticColors = AppSemanticColors.of(context);
+  return switch (tone) {
+    ProfessionalRecordTone.brand => colors.primary,
+    ProfessionalRecordTone.success => semanticColors.success,
+    ProfessionalRecordTone.warning => semanticColors.warning,
+    ProfessionalRecordTone.info => semanticColors.info,
+  };
+}
+
 class _HistoryTab extends StatelessWidget {
   const _HistoryTab({super.key, required this.demoMode});
 
@@ -970,6 +1030,7 @@ class _HistoryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     const weeks = [
       ('21–27 jul', 'Bem', '18/21', '92%', 'Sem alertas'),
       ('14–20 jul', 'Mais ou menos', '16/21', '84%', '1 alerta leve'),
@@ -995,8 +1056,8 @@ class _HistoryTab extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.lavender.withValues(alpha: .14),
-                  borderRadius: BorderRadius.circular(14),
+                  color: colors.surfaceContainerHighest,
+                  borderRadius: AppRadius.medium,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
@@ -1013,7 +1074,7 @@ class _HistoryTab extends StatelessWidget {
                         Text(
                           week.$1,
                           style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(color: AppColors.deepPurple),
+                              ?.copyWith(color: colors.onSurface),
                         ),
                         const SizedBox(height: 14),
                         if (compact)
@@ -1129,7 +1190,7 @@ class _NotesTab extends StatelessWidget {
                   margin: const EdgeInsets.only(top: 10),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.lavender.withValues(alpha: .16),
+                    color: Theme.of(context).colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(

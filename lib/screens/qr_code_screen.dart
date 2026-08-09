@@ -239,7 +239,7 @@ class _QrcodeScreenState extends State<QrcodeScreen> {
                         height: 72,
                         decoration: BoxDecoration(
                           color: AppColors.lavender.withValues(alpha: .7),
-                          borderRadius: BorderRadius.circular(22),
+                          borderRadius: AppRadius.large,
                         ),
                         child: const Icon(
                           Icons.qr_code_scanner_rounded,
@@ -351,7 +351,13 @@ class _ScannerView extends StatelessWidget {
           if (isLinking)
             Container(
               color: Colors.black54,
-              child: const Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: Semantics(
+                  liveRegion: true,
+                  label: 'Vinculando profissional',
+                  child: const CircularProgressIndicator(),
+                ),
+              ),
             ),
           if (errorMessage != null)
             Align(
@@ -361,14 +367,14 @@ class _ScannerView extends StatelessWidget {
                 margin: const EdgeInsets.all(24),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFD6D6),
+                  color: Theme.of(context).colorScheme.errorContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   errorMessage!,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFF28174E),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

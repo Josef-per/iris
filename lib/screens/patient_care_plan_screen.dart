@@ -5,9 +5,10 @@ import 'package:iris/features/care_plan/patient_care_plan_repository.dart';
 import 'package:iris/widgets/app_responsive.dart';
 
 class PatientCarePlanScreen extends StatefulWidget {
-  const PatientCarePlanScreen({super.key, this.dataSource});
+  const PatientCarePlanScreen({super.key, this.dataSource, this.onBack});
 
   final PatientCarePlanDataSource? dataSource;
+  final VoidCallback? onBack;
 
   @override
   State<PatientCarePlanScreen> createState() => _PatientCarePlanScreenState();
@@ -45,7 +46,8 @@ class _PatientCarePlanScreenState extends State<PatientCarePlanScreen> {
                   children: [
                     IconButton(
                       tooltip: 'Voltar',
-                      onPressed: () => Navigator.maybePop(context),
+                      onPressed:
+                          widget.onBack ?? () => Navigator.maybePop(context),
                       style: IconButton.styleFrom(
                         foregroundColor: AppColors.white,
                         backgroundColor: AppColors.white.withValues(alpha: .1),
@@ -61,7 +63,7 @@ class _PatientCarePlanScreenState extends State<PatientCarePlanScreen> {
                     const SizedBox(height: 6),
                     const Text(
                       'Orientações compartilhadas pela sua equipe.',
-                      style: TextStyle(color: AppColors.lavender),
+                      style: TextStyle(color: AppColors.white),
                     ),
                   ],
                 ),
@@ -76,11 +78,15 @@ class _PatientCarePlanScreenState extends State<PatientCarePlanScreen> {
                 future: _plansFuture,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
+                    return Center(
                       key: Key('patient-care-plan-loading'),
-                      child: Padding(
-                        padding: EdgeInsets.all(48),
-                        child: CircularProgressIndicator(),
+                      child: Semantics(
+                        liveRegion: true,
+                        label: 'Carregando plano de cuidado',
+                        child: const Padding(
+                          padding: EdgeInsets.all(48),
+                          child: CircularProgressIndicator(),
+                        ),
                       ),
                     );
                   }
@@ -132,19 +138,21 @@ class _CarePlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final semanticColors = AppSemanticColors.of(context);
     return AppSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.favorite_rounded, color: AppColors.deepPurple),
+              Icon(Icons.favorite_rounded, color: colors.primary),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Atualizado em ${_formatDate(plan.updatedAt)}',
-                  style: const TextStyle(
-                    color: AppColors.muted,
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -170,8 +178,8 @@ class _CarePlanCard extends StatelessWidget {
                       ? Icons.check_circle_rounded
                       : Icons.radio_button_unchecked_rounded,
                   color: goal.isCompleted
-                      ? AppColors.success
-                      : AppColors.purple,
+                      ? semanticColors.success
+                      : colors.primary,
                 ),
                 title: Text(goal.description),
               ),
@@ -184,10 +192,7 @@ class _CarePlanCard extends StatelessWidget {
               ListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                leading: const Icon(
-                  Icons.medication_outlined,
-                  color: AppColors.deepPurple,
-                ),
+                leading: Icon(Icons.medication_outlined, color: colors.primary),
                 title: Text(medication.name),
                 subtitle: Text('${medication.dose} · ${medication.frequency}'),
               ),
@@ -202,8 +207,8 @@ class _CarePlanCard extends StatelessWidget {
                 contentPadding: EdgeInsets.zero,
                 leading: CircleAvatar(
                   radius: 13,
-                  backgroundColor: AppColors.lavender,
-                  foregroundColor: AppColors.deepPurple,
+                  backgroundColor: colors.primaryContainer,
+                  foregroundColor: colors.onPrimaryContainer,
                   child: Text('${index + 1}'),
                 ),
                 title: Text(plan.crisisSteps[index]),
@@ -213,11 +218,11 @@ class _CarePlanCard extends StatelessWidget {
               plan.goals.isEmpty &&
               plan.medications.isEmpty &&
               plan.crisisSteps.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 18),
               child: Text(
                 'Este plano ainda não possui orientações cadastradas.',
-                style: TextStyle(color: AppColors.muted),
+                style: TextStyle(color: colors.onSurfaceVariant),
               ),
             ),
         ],
@@ -236,7 +241,7 @@ class _SectionTitle extends StatelessWidget {
     return Text(
       text,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        color: AppColors.ink,
+        color: Theme.of(context).colorScheme.onSurface,
         fontWeight: FontWeight.w800,
       ),
     );
@@ -264,7 +269,7 @@ class _CarePlanMessage extends StatelessWidget {
     return AppSurface(
       child: Column(
         children: [
-          Icon(icon, size: 44, color: AppColors.purple),
+          Icon(icon, size: 44, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 14),
           Text(
             title,
@@ -275,7 +280,7 @@ class _CarePlanMessage extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: AppColors.muted),
+            style: Theme.of(context).textTheme.bodyMedium,
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 18),

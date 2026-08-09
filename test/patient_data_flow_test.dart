@@ -123,6 +123,29 @@ void main() {
     expect(find.text('Regular'), findsOneWidget);
   });
 
+  testWidgets('Home permanece legível na largura de 320 pixels', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 2,
+            moodScore: 4,
+            hasCheckIn: true,
+            hasDiaryEntry: true,
+          ),
+        ),
+      ),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Cuidar de você hoje'), findsOneWidget);
+  });
+
   testWidgets('check-in nao salva respostas neutras implicitas', (
     tester,
   ) async {
@@ -134,7 +157,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final confirm = find.text('Confirmar ->');
+    final confirm = find.byKey(const Key('check-in-submit'));
     await tester.ensureVisible(confirm);
     await tester.tap(confirm);
     await tester.pump();
@@ -157,8 +180,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('check-in-load-retry')), findsOneWidget);
-    expect(find.text('Confirmar ->'), findsNothing);
+    expect(find.byKey(const Key('check-in-submit')), findsNothing);
     expect(repository.createCheckInCalls, 0);
+  });
+
+  testWidgets('check-in adapta os seletores à largura de 320 pixels', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      CheckInDiarioBottomSheet(repository: _EmotionalDataSource(record: null)),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('check-in-submit')), findsOneWidget);
   });
 
   testWidgets('plano compartilhado exibe metas e medicacoes reais', (

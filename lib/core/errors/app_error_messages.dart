@@ -15,7 +15,7 @@ class AppErrorMessages {
     }
 
     if (error is SupabaseConfigException) {
-      return 'Configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY com --dart-define.';
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     }
 
     if (error is AccountTypeMismatchException) {
@@ -37,11 +37,11 @@ class AppErrorMessages {
     }
 
     if (message.contains('codigo qr invalido')) {
-      return 'Codigo QR invalido. Tente escanear novamente ou insira o codigo manualmente.';
+      return 'Código QR inválido. Tente escanear novamente ou insira o código manualmente.';
     }
 
     if (message.contains('profissional nao encontrado')) {
-      return 'Profissional nao encontrado. Confira o QR Code com seu psiquiatra.';
+      return 'Profissional não encontrado. Confira o QR Code com seu psiquiatra.';
     }
 
     return 'Algo deu errado. Tente novamente.';
@@ -55,26 +55,26 @@ class AppErrorMessages {
         message.contains('email rate limit') ||
         message.contains('blocked new email') ||
         message.contains('blocked new emails')) {
-      return 'O Supabase bloqueou novos emails por alguns instantes. Aguarde cerca de 1 minuto e tente novamente. Se a conta ja foi criada, verifique seu email ou sua caixa de spam.';
+      return 'O envio de novos e-mails foi limitado por alguns instantes. Aguarde cerca de 1 minuto e tente novamente. Se a conta já foi criada, verifique seu e-mail e a caixa de spam.';
     }
 
     if (code == 'email_exists' ||
         code == 'user_already_exists' ||
         message.contains('already registered')) {
-      return 'Esse email ja esta cadastrado. Tente entrar com ele.';
+      return 'Esse e-mail já está cadastrado. Tente entrar com ele.';
     }
 
     if (code == 'email_not_confirmed' || message.contains('not confirmed')) {
-      return 'Confirme seu email antes de entrar.';
+      return 'Confirme seu e-mail antes de entrar.';
     }
 
     if (code == 'invalid_credentials' ||
         message.contains('invalid login credentials')) {
-      return 'Email ou senha incorretos.';
+      return 'E-mail ou senha incorretos.';
     }
 
     if (code == 'weak_password' || error is AuthWeakPasswordException) {
-      return 'A senha ainda esta fraca. Use pelo menos 8 caracteres e evite senhas muito simples.';
+      return 'A senha ainda está fraca. Use pelo menos 8 caracteres e evite senhas muito simples.';
     }
 
     if (error.statusCode == '429') {
@@ -82,16 +82,16 @@ class AppErrorMessages {
     }
 
     if (message.contains('signup is disabled')) {
-      return 'Cadastro desativado no Supabase Auth.';
+      return 'Novos cadastros estão temporariamente indisponíveis.';
     }
 
     if (message.contains('database error') ||
         message.contains('saving new user') ||
         code == 'unexpected_failure') {
-      return 'O banco não concluiu o cadastro. Aplique todas as migrations do Supabase e tente novamente.';
+      return 'Não foi possível concluir o cadastro agora. Tente novamente mais tarde.';
     }
 
-    return 'Nao foi possivel autenticar agora. Tente novamente.';
+    return 'Não foi possível autenticar agora. Tente novamente.';
   }
 
   static String _fromDatabase(PostgrestException error) {
@@ -99,24 +99,20 @@ class AppErrorMessages {
     final code = error.code;
 
     if (code == 'PGRST202' && message.contains('iris_bootstrap_current_user')) {
-      return 'O backend do Íris ainda não foi instalado neste projeto '
-          'Supabase. Aplique a migration 0006_professional_backend.sql.';
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     }
 
     if (code == 'PGRST202') {
-      return 'Uma função necessária não foi encontrada no banco. '
-          'Aplique as migrations pendentes do Supabase.';
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     }
 
     if (code == 'PGRST205') {
-      return 'Uma tabela necessária não foi encontrada no banco. '
-          'Aplique as migrations pendentes do Supabase.';
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     }
 
     if (code == '42804' &&
         message.contains('structure of query does not match function result')) {
-      return 'O backend do QR Code está desatualizado. '
-          'Aplique a migration 0007_professional_invite_legacy_text_compat.sql.';
+      return 'Não foi possível validar o QR Code agora. Tente novamente mais tarde.';
     }
 
     if (message.contains('invalid_or_expired_invite') ||
@@ -192,25 +188,25 @@ class AppErrorMessages {
     }
 
     if (code == '42P01') {
-      return 'Tabela do banco nao encontrada. Aplique as migrations do Supabase.';
+      return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     }
 
     if (code == '42501' || message.contains('row-level security')) {
-      return 'Voce nao tem permissao para essa acao. Verifique a sessao e as policies RLS.';
+      return 'Sua conta não tem permissão para esta ação. Entre novamente ou procure o suporte.';
     }
 
     if (code == '23503') {
-      return 'Nao foi possivel encontrar um registro relacionado no banco.';
+      return 'Não foi possível encontrar um registro relacionado.';
     }
 
     if (code == '23505') {
-      return 'Esse registro ja existe.';
+      return 'Esse registro já existe.';
     }
 
     if (code == '23514') {
       return 'Confira os dados informados antes de salvar.';
     }
 
-    return 'Nao foi possivel salvar ou carregar os dados agora.';
+    return 'Não foi possível salvar ou carregar os dados agora.';
   }
 }

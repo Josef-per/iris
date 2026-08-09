@@ -25,11 +25,11 @@ void main() {
       ),
     );
 
-    expect(message, contains('Aplique as migrations'));
+    expect(message, contains('temporariamente indisponível'));
     expect(message, isNot(contains('PostgrestException')));
   });
 
-  test('orienta aplicar backend quando bootstrap nao existe', () {
+  test('oculta detalhes internos quando bootstrap nao existe', () {
     final message = AppErrorMessages.from(
       const PostgrestException(
         message:
@@ -38,11 +38,12 @@ void main() {
       ),
     );
 
-    expect(message, contains('0006_professional_backend.sql'));
+    expect(message, contains('temporariamente indisponível'));
+    expect(message, isNot(contains('migration')));
     expect(message, isNot(contains('PGRST202')));
   });
 
-  test('orienta aplicar migrations quando tabela nao existe no cache', () {
+  test('oculta detalhes internos quando tabela nao existe no cache', () {
     final message = AppErrorMessages.from(
       const PostgrestException(
         message: "Could not find the table 'public.consultas'",
@@ -50,11 +51,11 @@ void main() {
       ),
     );
 
-    expect(message, contains('migrations pendentes'));
+    expect(message, contains('temporariamente indisponível'));
     expect(message, isNot(contains('PGRST205')));
   });
 
-  test('orienta corrigir RPC de QR incompatível com schema legado', () {
+  test('explica indisponibilidade do QR sem expor schema legado', () {
     final message = AppErrorMessages.from(
       const PostgrestException(
         message: 'structure of query does not match function result type',
@@ -62,10 +63,8 @@ void main() {
       ),
     );
 
-    expect(
-      message,
-      contains('0007_professional_invite_legacy_text_compat.sql'),
-    );
+    expect(message, contains('validar o QR Code'));
+    expect(message, isNot(contains('migration')));
     expect(message, isNot(contains('42804')));
   });
 
@@ -78,7 +77,7 @@ void main() {
       ),
     );
 
-    expect(message, contains('migrations do Supabase'));
+    expect(message, contains('concluir o cadastro'));
     expect(message, isNot(contains('AuthApiException')));
   });
 

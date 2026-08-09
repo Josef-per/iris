@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/theme/app_theme.dart';
 
 class AppSymptomOption extends StatelessWidget {
-  final String text;
-  final bool selected;
-  final VoidCallback onTap;
-
   const AppSymptomOption({
     super.key,
     required this.text,
@@ -12,30 +9,44 @@ class AppSymptomOption extends StatelessWidget {
     required this.onTap,
   });
 
+  final String text;
+  final bool selected;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: const Color(0xFF462A7E),
-              size: 22,
-            ),
-
-            const SizedBox(width: 8),
-
-            Expanded(
-              child: Text(
-                text,
-                style: const TextStyle(fontSize: 16, color: Color(0xFF462A7E)),
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: text,
+      child: InkWell(
+        borderRadius: AppRadius.small,
+        onTap: onTap,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 44),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 9),
+            child: ExcludeSemantics(
+              child: Row(
+                children: [
+                  Icon(
+                    selected
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    color: Theme.of(context).colorScheme.primary,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );

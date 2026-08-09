@@ -51,7 +51,7 @@ class AppSurface extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.all(24),
     this.color,
-    this.borderRadius = 24,
+    this.borderRadius = AppRadius.lg,
   });
 
   final Widget child;
@@ -61,22 +61,13 @@ class AppSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final colors = Theme.of(context).colorScheme;
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? Theme.of(context).colorScheme.surface,
+        color: color ?? colors.surface,
         borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(
-          color: isDark ? const Color(0xFF443653) : AppColors.outline,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark ? const Color(0x26000000) : const Color(0x0D28174E),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        border: Border.all(color: colors.outlineVariant),
       ),
       child: child,
     );
@@ -100,7 +91,9 @@ class AppGradientHeader extends StatelessWidget {
       padding: padding,
       decoration: const BoxDecoration(
         gradient: AppColors.brandGradient,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(34)),
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(AppRadius.lg),
+        ),
       ),
       child: child,
     );

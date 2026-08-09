@@ -8,6 +8,7 @@ import 'package:iris/features/professional/presentation/professional_frontend_st
 import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/professional/presentation/professional_notes_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
+import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -101,6 +102,7 @@ void main() {
   testWidgets('adiciona meta ao plano de cuidado', (tester) async {
     final store = await _createStore();
     addTearDown(store.dispose);
+    final dirtyStates = <bool>[];
 
     await pumpScreen(
       tester,
@@ -108,6 +110,7 @@ void main() {
         store: store,
         initialPatient: store.patients.first,
         onOpenPatient: (_) {},
+        onDirtyChanged: dirtyStates.add,
       ),
     );
     await tester.tap(find.byTooltip('Adicionar meta'));
@@ -120,18 +123,76 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Caminhar por 20 minutos'), findsOneWidget);
+    expect(dirtyStates.last, isTrue);
+    await tester.tap(find.widgetWithText(FilledButton, 'Salvar alterações'));
+    await tester.pumpAndSettle();
+    expect(dirtyStates.last, isFalse);
   });
 
   testWidgets('salva dados do perfil profissional', (tester) async {
     final store = await _createStore();
     addTearDown(store.dispose);
+    final dirtyStates = <bool>[];
 
-    await pumpScreen(tester, ProfessionalSettingsView(store: store));
+    await pumpScreen(
+      tester,
+      ProfessionalSettingsView(store: store, onDirtyChanged: dirtyStates.add),
+    );
     await tester.enterText(find.byType(TextFormField).first, 'Júlia Almeida');
+    expect(dirtyStates.last, isTrue);
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
 
     expect(store.settings.name, 'Júlia Almeida');
+    expect(dirtyStates.last, isFalse);
+  });
+
+  testWidgets('dialog bloqueia fechar e voltar durante salvamento', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => FilledButton(
+              onPressed: () => showDialog<void>(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => const ProfessionalResponsiveDialog(
+                  title: 'Operação em andamento',
+                  canClose: false,
+                  content: Text('Conteúdo'),
+                  actions: [],
+                ),
+              ),
+              child: const Text('Abrir bloqueio'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Abrir bloqueio'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Operação em andamento'), findsOneWidget);
+    expect(
+      find.text('Salvando. Aguarde a conclusão para fechar.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byIcon(Icons.close_rounded));
+    await tester.pump();
+    expect(find.text('Operação em andamento'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.text('Operação em andamento'), findsOneWidget);
   });
 }
 

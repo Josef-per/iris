@@ -104,8 +104,21 @@ class _SessionGateState extends State<SessionGate> {
       future: _userTypeFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+          return Scaffold(
+            body: Center(
+              child: Semantics(
+                liveRegion: true,
+                label: 'Carregando sua sessão',
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Carregando sua sessão...'),
+                  ],
+                ),
+              ),
+            ),
           );
         }
 

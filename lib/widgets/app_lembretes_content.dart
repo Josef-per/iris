@@ -1,88 +1,90 @@
 import 'package:flutter/material.dart';
-import 'package:iris/widgets/app_icons_buttons.dart';
-import 'package:iris/widgets/app_switch_lembretes.dart';
+import 'package:iris/core/theme/app_theme.dart';
+
+enum AppReminderMenuAction { edit, delete }
 
 class AppLembretesContent extends StatelessWidget {
-  final Color gradientIconColor1;
-  final Color gradientIconColor2;
-  final String iconPath;
-  final String textName;
-  final String textTime;
-  final bool isActive;
-  final ValueChanged<bool> onSwitchChanged;
-
   const AppLembretesContent({
     super.key,
-    required this.gradientIconColor1,
-    required this.gradientIconColor2,
-    required this.iconPath,
+    required this.icon,
+    required this.categoryLabel,
     required this.textName,
     required this.textTime,
     required this.isActive,
     required this.onSwitchChanged,
+    required this.onEdit,
+    required this.onDelete,
   });
+
+  final IconData icon;
+  final String categoryLabel;
+  final String textName;
+  final String textTime;
+  final bool isActive;
+  final ValueChanged<bool> onSwitchChanged;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFFFFF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE5DFEB)),
-      ),
+    final theme = Theme.of(context);
 
-      width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 72),
-
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Semantics(
+      container: true,
+      label: '$categoryLabel: $textName, às $textTime',
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 14, 8, 14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+        ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            //icone custom para cada tipo
             Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [gradientIconColor1, gradientIconColor2],
-                ),
-                borderRadius: BorderRadius.circular(14),
-              ),
               width: 44,
               height: 44,
-              child: Image.asset(iconPath, width: 25, height: 25),
+              decoration: BoxDecoration(
+                color: AppColors.lavender.withValues(alpha: .55),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: theme.colorScheme.primary, size: 24),
             ),
-
             const SizedBox(width: 12),
-
-            //Nome e horário
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     textName,
-                    style: const TextStyle(
-                      color: Color(0xFF000000),
-                      fontSize: 16,
+                    style: theme.textTheme.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    textTime,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.primary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-
-                  const SizedBox(height: 2),
-
+                  const SizedBox(height: 6),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Image.asset(
-                        'assets/icons/Time_purple.png',
-                        width: 10,
-                        height: 10,
+                      Text(
+                        isActive ? 'Ativo' : 'Pausado',
+                        style: theme.textTheme.bodyMedium,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        textTime,
-                        style: const TextStyle(
-                          color: Color(0xFF8D80C2),
-                          fontSize: 12,
+                      Semantics(
+                        label: '${isActive ? 'Pausar' : 'Ativar'} $textName',
+                        child: Switch(
+                          value: isActive,
+                          onChanged: onSwitchChanged,
                         ),
                       ),
                     ],
@@ -90,17 +92,42 @@ class AppLembretesContent extends StatelessWidget {
                 ],
               ),
             ),
-
-            AppSwitchLembretes(value: isActive, onChanged: onSwitchChanged),
-
-            const SizedBox(width: 8),
-
-            //btn lixo
-            AppIconsButtons(
-              onTap: () {},
-              width: 20,
-              height: 20,
-              iconPath: 'assets/icons/Lixeira_red.png',
+            PopupMenuButton<AppReminderMenuAction>(
+              tooltip: 'Mais ações para $textName',
+              constraints: const BoxConstraints(minWidth: 180),
+              onSelected: (action) {
+                switch (action) {
+                  case AppReminderMenuAction.edit:
+                    onEdit();
+                  case AppReminderMenuAction.delete:
+                    onDelete();
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: AppReminderMenuAction.edit,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.edit_outlined),
+                    title: Text('Editar'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: AppReminderMenuAction.delete,
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.delete_outline_rounded,
+                      color: theme.colorScheme.error,
+                    ),
+                    title: Text(
+                      'Excluir',
+                      style: TextStyle(color: theme.colorScheme.error),
+                    ),
+                  ),
+                ),
+              ],
+              icon: const Icon(Icons.more_vert_rounded),
             ),
           ],
         ),

@@ -26,6 +26,7 @@ class ProfessionalPatientsView extends StatefulWidget {
 
 class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
   final _searchController = TextEditingController();
+  final _busyPatientIds = <String>{};
   _PatientFilter _filter = _PatientFilter.all;
   var _refreshing = false;
 
@@ -73,13 +74,16 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                     onPressed: _refreshing ? null : _refresh,
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.white,
-                      disabledForegroundColor: Colors.white70,
+                      disabledForegroundColor: AppColors.white,
                       side: const BorderSide(color: AppColors.white),
                     ),
                     icon: _refreshing
                         ? const SizedBox.square(
                             dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.white,
+                            ),
                           )
                         : const Icon(Icons.refresh_rounded),
                     label: Text(_refreshing ? 'Atualizando...' : 'Atualizar'),
@@ -96,24 +100,7 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
                   ),
                 FilledButton.icon(
                   key: const Key('professional-add-patient'),
-                  onPressed: !_canManage
-                      ? null
-                      : () async {
-                          if (widget.store.isConnected) {
-                            widget.onInvitePatient();
-                            return;
-                          }
-                          final saved = await showProfessionalPatientForm(
-                            context,
-                            widget.store,
-                          );
-                          if (!saved || !context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Paciente adicionado.'),
-                            ),
-                          );
-                        },
+                  onPressed: !_canManage ? null : _addPatient,
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.white,
                     foregroundColor: AppColors.deepPurple,
@@ -136,114 +123,110 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
             paddingTop: 22,
             child: Column(
               children: [
-                ProfessionalPanel(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      TextField(
-                        controller: _searchController,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          hintText: 'Buscar paciente...',
-                          prefixIcon: const Icon(Icons.search_rounded),
-                          suffixIcon: _searchController.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Limpar busca',
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {});
-                                  },
-                                  icon: const Icon(Icons.close_rounded),
-                                ),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final wide = constraints.maxWidth >= 760;
+                    final search = TextField(
+                      controller: _searchController,
+                      onChanged: (_) => setState(() {}),
+                      decoration: InputDecoration(
+                        hintText: 'Buscar por nome ou diagnóstico',
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        suffixIcon: _searchController.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Limpar busca',
+                                onPressed: () {
+                                  _searchController.clear();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                      ),
+                    );
+                    final filters = Wrap(
+                      spacing: AppSpacing.xs,
+                      runSpacing: AppSpacing.xs,
+                      children: [
+                        _FilterButton(
+                          label: 'Todos',
+                          selected: _filter == _PatientFilter.all,
+                          onTap: () =>
+                              setState(() => _filter = _PatientFilter.all),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      LayoutBuilder(
-                        builder: (context, constraints) {
-                          final compact = constraints.maxWidth < 520;
-                          final segments = [
-                            _FilterButton(
-                              label: 'Todos',
-                              selected: _filter == _PatientFilter.all,
-                              onTap: () =>
-                                  setState(() => _filter = _PatientFilter.all),
-                            ),
-                            _FilterButton(
-                              label: 'Ativos',
-                              selected: _filter == _PatientFilter.active,
-                              onTap: () => setState(
-                                () => _filter = _PatientFilter.active,
-                              ),
-                            ),
-                            _FilterButton(
-                              label: 'Inativos',
-                              selected: _filter == _PatientFilter.inactive,
-                              onTap: () => setState(
-                                () => _filter = _PatientFilter.inactive,
-                              ),
-                            ),
-                          ];
-                          if (compact) {
-                            return Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: segments,
-                            );
-                          }
-                          return Row(
-                            children: [
-                              for (var i = 0; i < segments.length; i++) ...[
-                                Expanded(child: segments[i]),
-                                if (i < segments.length - 1)
-                                  const SizedBox(width: 8),
-                              ],
-                            ],
-                          );
-                        },
-                      ),
-                    ],
-                  ),
+                        _FilterButton(
+                          label: 'Ativos',
+                          selected: _filter == _PatientFilter.active,
+                          onTap: () =>
+                              setState(() => _filter = _PatientFilter.active),
+                        ),
+                        _FilterButton(
+                          label: 'Inativos',
+                          selected: _filter == _PatientFilter.inactive,
+                          onTap: () =>
+                              setState(() => _filter = _PatientFilter.inactive),
+                        ),
+                      ],
+                    );
+                    if (!wide) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          search,
+                          const SizedBox(height: AppSpacing.sm),
+                          filters,
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        Expanded(child: search),
+                        const SizedBox(width: AppSpacing.md),
+                        filters,
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 24),
                 if (patients.isEmpty)
                   _NoPatientsFound(
+                    filtered:
+                        _filter != _PatientFilter.all ||
+                        _searchController.text.trim().isNotEmpty,
                     canInvite:
                         widget.store.isConnected &&
                         _canManage &&
                         widget.store.patients.isEmpty &&
                         _searchController.text.trim().isEmpty,
+                    canCreate:
+                        !widget.store.isConnected &&
+                        _canManage &&
+                        widget.store.patients.isEmpty,
                     onInvite: widget.onInvitePatient,
+                    onCreate: _addPatient,
+                    onReset: _clearFilters,
                   )
                 else
-                  ...patients.map(
-                    (patient) => Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: _PatientCard(
-                        patient: patient,
-                        onTap: () => widget.onOpenPatient(patient),
-                        onEdit: () => showProfessionalPatientForm(
-                          context,
-                          widget.store,
-                          patient: patient,
-                        ),
-                        onToggleStatus: () async {
-                          try {
-                            await widget.store.updatePatient(
-                              patient.copyWith(
-                                status: patient.status == PatientStatus.active
-                                    ? PatientStatus.inactive
-                                    : PatientStatus.active,
-                              ),
-                            );
-                          } catch (error) {
-                            if (context.mounted) {
-                              showProfessionalOperationError(context, error);
-                            }
-                          }
-                        },
-                      ),
-                    ),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 820;
+                      return ProfessionalListSurface(
+                        children: [
+                          if (wide) const _PatientListHeader(),
+                          ...patients.map(
+                            (patient) => _PatientRow(
+                              patient: patient,
+                              compact: !wide,
+                              busy: _busyPatientIds.contains(patient.id),
+                              onTap: () => widget.onOpenPatient(patient),
+                              onEdit: () => _editPatient(patient),
+                              onToggleStatus: () =>
+                                  _togglePatientStatus(patient),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
               ],
             ),
@@ -263,6 +246,65 @@ class _ProfessionalPatientsViewState extends State<ProfessionalPatientsView> {
       if (mounted) setState(() => _refreshing = false);
     }
   }
+
+  void _clearFilters() {
+    _searchController.clear();
+    setState(() => _filter = _PatientFilter.all);
+  }
+
+  Future<void> _addPatient() async {
+    if (widget.store.isConnected) {
+      widget.onInvitePatient();
+      return;
+    }
+    final saved = await showProfessionalPatientForm(context, widget.store);
+    if (!saved || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Paciente adicionado.')));
+  }
+
+  Future<void> _editPatient(ProfessionalPatient patient) async {
+    final saved = await showProfessionalPatientForm(
+      context,
+      widget.store,
+      patient: patient,
+    );
+    if (!saved || !mounted) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(const SnackBar(content: Text('Paciente atualizado.')));
+  }
+
+  Future<void> _togglePatientStatus(ProfessionalPatient patient) async {
+    if (_busyPatientIds.contains(patient.id)) return;
+    setState(() => _busyPatientIds.add(patient.id));
+    try {
+      await widget.store.updatePatient(
+        patient.copyWith(
+          status: patient.status == PatientStatus.active
+              ? PatientStatus.inactive
+              : PatientStatus.active,
+        ),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              patient.status == PatientStatus.active
+                  ? 'Acompanhamento inativado.'
+                  : 'Acompanhamento ativado.',
+            ),
+          ),
+        );
+    } catch (error) {
+      if (mounted) showProfessionalOperationError(context, error);
+    } finally {
+      if (mounted) setState(() => _busyPatientIds.remove(patient.id));
+    }
+  }
 }
 
 class _FilterButton extends StatelessWidget {
@@ -278,24 +320,24 @@ class _FilterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? AppColors.purple
-          : AppColors.outline.withValues(alpha: .62),
-      borderRadius: BorderRadius.circular(999),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 11),
-          child: Center(
-            child: Text(
-              label,
-              style: TextStyle(
-                color: selected ? AppColors.white : AppColors.ink,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+    final colors = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: AppSize.minimumTapTarget),
+        child: FilterChip(
+          label: Text(label),
+          selected: selected,
+          onSelected: (_) => onTap(),
+          showCheckmark: false,
+          backgroundColor: colors.surfaceContainerHighest,
+          selectedColor: colors.primaryContainer,
+          labelStyle: TextStyle(
+            color: selected
+                ? colors.onPrimaryContainer
+                : colors.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -303,122 +345,191 @@ class _FilterButton extends StatelessWidget {
   }
 }
 
-class _PatientCard extends StatelessWidget {
-  const _PatientCard({
+class _PatientListHeader extends StatelessWidget {
+  const _PatientListHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.labelMedium;
+    return Semantics(
+      header: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.lg,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Expanded(flex: 4, child: Text('Paciente', style: style)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(flex: 3, child: Text('Diagnóstico', style: style)),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(flex: 2, child: Text('Último registro', style: style)),
+            const SizedBox(width: AppSpacing.md),
+            SizedBox(width: 190, child: Text('Estado', style: style)),
+            const SizedBox(width: AppSize.minimumTapTarget),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PatientRow extends StatelessWidget {
+  const _PatientRow({
     required this.patient,
+    required this.compact,
+    required this.busy,
     required this.onTap,
     required this.onEdit,
     required this.onToggleStatus,
   });
 
   final ProfessionalPatient patient;
+  final bool compact;
+  final bool busy;
   final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onToggleStatus;
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 600;
-    final info = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          patient.name,
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(color: AppColors.deepPurple),
-        ),
-        const SizedBox(height: 5),
-        Wrap(
-          spacing: 8,
-          runSpacing: 3,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text(
-              '${patient.age} anos',
-              style: const TextStyle(color: AppColors.deepPurple),
-            ),
-            const Text('•', style: TextStyle(color: AppColors.purple)),
-            Text(
-              patient.diagnosis,
-              style: const TextStyle(color: AppColors.deepPurple),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.schedule_rounded,
-              size: 15,
-              color: AppColors.purple,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              'Último registro: ${patient.lastActivity.toLowerCase()}',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppColors.purple,
-                fontSize: 12,
+    final theme = Theme.of(context);
+    final content = compact
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PatientAvatar(patient: patient, size: 48),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(patient.name, style: theme.textTheme.titleMedium),
+                        const SizedBox(height: AppSpacing.xxs),
+                        Text(
+                          '${patient.age} anos · ${patient.diagnosis}',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  _PatientActions(
+                    patient: patient,
+                    busy: busy,
+                    onEdit: onEdit,
+                    onToggleStatus: onToggleStatus,
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
-      ],
-    );
-
-    return ProfessionalPanel(
-      onTap: onTap,
-      padding: EdgeInsets.all(compact ? 16 : 20),
-      child: compact
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+              const SizedBox(height: AppSpacing.sm),
+              Wrap(
+                spacing: AppSpacing.xs,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _MoodBadge(mood: patient.mood),
+                  PatientStatusBadge(status: patient.status),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.schedule_rounded,
+                        size: 16,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xxs),
+                      Text(
+                        patient.lastActivity,
+                        style: theme.textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          )
+        : Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Row(
                   children: [
-                    PatientAvatar(patient: patient, size: 58),
-                    const SizedBox(width: 14),
-                    Expanded(child: info),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    _MoodBadge(mood: patient.mood),
-                    const SizedBox(width: 8),
-                    PatientStatusBadge(status: patient.status),
-                    const Spacer(),
-                    _PatientActions(
-                      patient: patient,
-                      onEdit: onEdit,
-                      onToggleStatus: onToggleStatus,
+                    PatientAvatar(patient: patient, size: 48),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            patient.name,
+                            style: theme.textTheme.titleMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            '${patient.age} anos',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ],
-            )
-          : Row(
-              children: [
-                PatientAvatar(patient: patient, size: 72),
-                const SizedBox(width: 18),
-                Expanded(child: info),
-                const SizedBox(width: 20),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  patient.diagnosis,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  patient.lastActivity,
+                  style: theme.textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              SizedBox(
+                width: 190,
+                child: Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
                   children: [
                     _MoodBadge(mood: patient.mood),
-                    const SizedBox(height: 10),
                     PatientStatusBadge(status: patient.status),
                   ],
                 ),
-                const SizedBox(width: 16),
-                _PatientActions(
-                  patient: patient,
-                  onEdit: onEdit,
-                  onToggleStatus: onToggleStatus,
-                ),
-              ],
-            ),
+              ),
+              _PatientActions(
+                patient: patient,
+                busy: busy,
+                onEdit: onEdit,
+                onToggleStatus: onToggleStatus,
+              ),
+            ],
+          );
+
+    return Semantics(
+      button: true,
+      label: 'Abrir paciente ${patient.name}',
+      child: InkWell(
+        onTap: busy ? null : onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: compact ? AppSpacing.md : AppSpacing.lg,
+            vertical: AppSpacing.md,
+          ),
+          child: content,
+        ),
+      ),
     );
   }
 }
@@ -428,16 +539,27 @@ enum _PatientAction { edit, toggleStatus }
 class _PatientActions extends StatelessWidget {
   const _PatientActions({
     required this.patient,
+    required this.busy,
     required this.onEdit,
     required this.onToggleStatus,
   });
 
   final ProfessionalPatient patient;
+  final bool busy;
   final VoidCallback onEdit;
   final VoidCallback onToggleStatus;
 
   @override
   Widget build(BuildContext context) {
+    if (busy) {
+      return const SizedBox.square(
+        dimension: AppSize.minimumTapTarget,
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
     return PopupMenuButton<_PatientAction>(
       tooltip: 'Ações do paciente',
       onSelected: (action) {
@@ -472,7 +594,10 @@ class _PatientActions extends StatelessWidget {
           ),
         ),
       ],
-      icon: const Icon(Icons.more_vert_rounded, color: AppColors.muted),
+      icon: Icon(
+        Icons.more_vert_rounded,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
     );
   }
 }
@@ -485,16 +610,23 @@ class _MoodBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final positive = mood == 'Bem' || mood == 'Muito bem';
-    final color = positive
-        ? const Color(0xFF3EAF6E)
+    final colors = Theme.of(context).colorScheme;
+    final semantic = AppSemanticColors.of(context);
+    final background = positive
+        ? semantic.successContainer
         : mood == 'Mal'
-        ? AppColors.danger
-        : const Color(0xFFC98A34);
+        ? colors.errorContainer
+        : semantic.warningContainer;
+    final foreground = positive
+        ? semantic.onSuccessContainer
+        : mood == 'Mal'
+        ? colors.onErrorContainer
+        : semantic.onWarningContainer;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: .12),
-        borderRadius: BorderRadius.circular(999),
+        color: background,
+        borderRadius: AppRadius.pill,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -506,13 +638,13 @@ class _MoodBadge extends StatelessWidget {
                 ? Icons.sentiment_dissatisfied_rounded
                 : Icons.sentiment_neutral_rounded,
             size: 16,
-            color: color,
+            color: foreground,
           ),
           const SizedBox(width: 5),
           Text(
             mood,
             style: TextStyle(
-              color: color,
+              color: foreground,
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),
@@ -524,49 +656,59 @@ class _MoodBadge extends StatelessWidget {
 }
 
 class _NoPatientsFound extends StatelessWidget {
-  const _NoPatientsFound({required this.canInvite, required this.onInvite});
+  const _NoPatientsFound({
+    required this.filtered,
+    required this.canInvite,
+    required this.canCreate,
+    required this.onInvite,
+    required this.onCreate,
+    required this.onReset,
+  });
 
+  final bool filtered;
   final bool canInvite;
+  final bool canCreate;
   final VoidCallback onInvite;
+  final VoidCallback onCreate;
+  final VoidCallback onReset;
 
   @override
   Widget build(BuildContext context) {
-    return ProfessionalPanel(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 42),
-        child: Column(
-          children: [
-            const Icon(
-              Icons.person_search_outlined,
-              size: 48,
-              color: AppColors.purple,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              canInvite
-                  ? 'Nenhum paciente vinculado.'
-                  : 'Nenhum paciente encontrado.',
-              style: const TextStyle(
-                color: AppColors.ink,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (canInvite) ...[
-              const SizedBox(height: 8),
-              const Text(
-                'Gere um QR Code para o paciente concluir o vínculo.',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 18),
-              FilledButton.icon(
-                onPressed: onInvite,
-                icon: const Icon(Icons.qr_code_rounded),
-                label: const Text('Gerar QR Code'),
-              ),
-            ],
-          ],
-        ),
-      ),
+    return ProfessionalEmptyState(
+      icon: filtered
+          ? Icons.person_search_outlined
+          : Icons.people_outline_rounded,
+      title: filtered
+          ? 'Nenhum resultado com estes filtros'
+          : canInvite
+          ? 'Nenhum paciente vinculado'
+          : 'Nenhum paciente cadastrado',
+      message: filtered
+          ? 'Altere a busca ou limpe os filtros para ver todos os pacientes.'
+          : canInvite
+          ? 'Gere um QR Code para o paciente concluir o vínculo.'
+          : canCreate
+          ? 'Cadastre o primeiro paciente para iniciar o acompanhamento.'
+          : 'Os pacientes disponíveis aparecerão aqui.',
+      action: filtered
+          ? FilledButton.icon(
+              onPressed: onReset,
+              icon: const Icon(Icons.filter_alt_off_outlined),
+              label: const Text('Limpar filtros'),
+            )
+          : canInvite
+          ? FilledButton.icon(
+              onPressed: onInvite,
+              icon: const Icon(Icons.qr_code_rounded),
+              label: const Text('Gerar QR Code'),
+            )
+          : canCreate
+          ? FilledButton.icon(
+              onPressed: onCreate,
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              label: const Text('Novo paciente'),
+            )
+          : null,
     );
   }
 }

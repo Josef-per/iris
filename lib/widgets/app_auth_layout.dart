@@ -24,19 +24,32 @@ class AppAuthLayout extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
+              final compact = constraints.maxWidth < 420;
+              final veryCompact = constraints.maxWidth < 360;
               return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: 28),
+                padding: EdgeInsets.symmetric(vertical: compact ? 16 : 28),
                 child: AppResponsive(
                   maxWidth: 1120,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: veryCompact
+                        ? 16
+                        : compact
+                        ? 20
+                        : 32,
+                  ),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 112,
+                      minHeight: constraints.maxHeight - (compact ? 32 : 56),
                     ),
                     child: wide
                         ? Row(
                             children: [
                               Expanded(
-                                child: _Brand(title: title, subtitle: subtitle),
+                                child: _Brand(
+                                  title: title,
+                                  subtitle: subtitle,
+                                  compact: false,
+                                ),
                               ),
                               const SizedBox(width: 72),
                               Expanded(child: AppSurface(child: child)),
@@ -44,13 +57,20 @@ class AppAuthLayout extends StatelessWidget {
                           )
                         : Column(
                             children: [
-                              _Brand(title: title, subtitle: subtitle),
-                              const SizedBox(height: 32),
+                              _Brand(
+                                title: title,
+                                subtitle: subtitle,
+                                compact: compact,
+                              ),
+                              SizedBox(height: compact ? 20 : 32),
                               ConstrainedBox(
                                 constraints: const BoxConstraints(
                                   maxWidth: 520,
                                 ),
-                                child: AppSurface(child: child),
+                                child: AppSurface(
+                                  padding: EdgeInsets.all(compact ? 20 : 24),
+                                  child: child,
+                                ),
                               ),
                             ],
                           ),
@@ -66,10 +86,15 @@ class AppAuthLayout extends StatelessWidget {
 }
 
 class _Brand extends StatelessWidget {
-  const _Brand({required this.title, required this.subtitle});
+  const _Brand({
+    required this.title,
+    required this.subtitle,
+    required this.compact,
+  });
 
   final String title;
   final String subtitle;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -81,23 +106,26 @@ class _Brand extends StatelessWidget {
         children: [
           SvgPicture.asset(
             'assets/images/Login.svg',
-            width: 250,
-            height: 120,
+            width: compact ? 190 : 250,
+            height: compact ? 82 : 120,
             fit: BoxFit.contain,
+            semanticsLabel: 'Íris',
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: compact ? 14 : 24),
           Text(
             title,
-            style: Theme.of(
-              context,
-            ).textTheme.displaySmall?.copyWith(color: AppColors.white),
+            style: Theme.of(context).textTheme.displaySmall?.copyWith(
+              color: AppColors.white,
+              fontSize: compact ? 30 : null,
+            ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: compact ? 8 : 12),
           Text(
             subtitle,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyLarge?.copyWith(color: AppColors.lavender),
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: AppColors.white,
+              fontSize: compact ? 14 : null,
+            ),
           ),
         ],
       ),

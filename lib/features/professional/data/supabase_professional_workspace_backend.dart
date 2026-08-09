@@ -307,7 +307,7 @@ class SupabaseProfessionalWorkspaceBackend
                 icon: diary.isEmpty
                     ? Icons.favorite_outline_rounded
                     : Icons.auto_stories_outlined,
-                color: const Color(0xFF7D6AC6),
+                tone: ProfessionalRecordTone.brand,
               ),
             ),
           );
@@ -345,7 +345,7 @@ class SupabaseProfessionalWorkspaceBackend
                     : descriptionParts.join(' · '),
                 time: _relativeDateTime(recordedAt, now),
                 icon: Icons.restaurant_rounded,
-                color: const Color(0xFF3D7A55),
+                tone: ProfessionalRecordTone.success,
               ),
             ),
           );
