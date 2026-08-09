@@ -17,10 +17,11 @@ class AppBottomSheet extends StatelessWidget {
       child: Align(
         alignment: Alignment.bottomCenter,
         child: FractionallySizedBox(
-          heightFactor: isCompact ? .94 : .88,
+          heightFactor: isCompact ? 1 : .88,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 840),
             child: Material(
+              key: const Key('app-bottom-sheet-surface'),
               color: Theme.of(context).scaffoldBackgroundColor,
               clipBehavior: Clip.antiAlias,
               shape: const RoundedRectangleBorder(
@@ -31,16 +32,34 @@ class AppBottomSheet extends StatelessWidget {
               child: SafeArea(
                 top: false,
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     SizedBox(
                       height: 52,
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          tooltip: 'Fechar',
-                          onPressed: () => Navigator.maybePop(context),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            key: const Key('app-bottom-sheet-drag-handle'),
+                            width: 44,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant
+                                  .withValues(alpha: .4),
+                              borderRadius: AppRadius.pill,
+                            ),
+                          ),
+                          Positioned(
+                            right: 4,
+                            child: IconButton(
+                              tooltip: 'Fechar',
+                              onPressed: () => Navigator.maybePop(context),
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     Expanded(

@@ -196,6 +196,14 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('check-in-submit')), findsOneWidget);
+    final surface = find.byKey(const Key('app-bottom-sheet-surface'));
+    expect(tester.getTopLeft(surface).dy, 0);
+    expect(tester.getSize(surface).height, 700);
+    expect(
+      find.byKey(const Key('app-bottom-sheet-drag-handle')),
+      findsOneWidget,
+    );
+    expect(tester.getCenter(find.byTooltip('Fechar')).dx, greaterThan(270));
   });
 
   testWidgets('plano compartilhado exibe metas e medicacoes reais', (
