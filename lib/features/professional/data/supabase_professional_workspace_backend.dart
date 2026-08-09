@@ -40,27 +40,36 @@ class SupabaseProfessionalWorkspaceBackend
       );
     }
 
-    final professionalId = await _resolveProfessionalId();
+    final professionalId = await _runWorkspaceQuery(
+      'resolver-profissional',
+      _resolveProfessionalId,
+    );
     final ownData = await Future.wait<Object?>([
-      _client
-          .from(DatabaseTables.profissionais)
-          .select(
-            'id, user_id, especialidade, registro_profissional, biografia, '
-            'telefone, clinica, endereco_clinica, iniciais_avatar, '
-            'notificacoes_consultas, alertas_crise, relatorios_automaticos, '
-            'credenciamento_status',
-          )
-          .eq('id', professionalId)
-          .limit(1)
-          .maybeSingle(),
-      _client
-          .from(DatabaseTables.perfis)
-          .select(
-            'user_id, nome_completo, nome_social, telefone, data_nascimento',
-          )
-          .eq('user_id', authUser.id)
-          .limit(1)
-          .maybeSingle(),
+      _runWorkspaceQuery(
+        'dados-profissionais',
+        () => _client
+            .from(DatabaseTables.profissionais)
+            .select(
+              'id, user_id, especialidade, registro_profissional, biografia, '
+              'telefone, clinica, endereco_clinica, iniciais_avatar, '
+              'notificacoes_consultas, alertas_crise, relatorios_automaticos, '
+              'credenciamento_status',
+            )
+            .eq('id', professionalId)
+            .limit(1)
+            .maybeSingle(),
+      ),
+      _runWorkspaceQuery(
+        'perfil-profissional',
+        () => _client
+            .from(DatabaseTables.perfis)
+            .select(
+              'user_id, nome_completo, nome_social, telefone, data_nascimento',
+            )
+            .eq('user_id', authUser.id)
+            .limit(1)
+            .maybeSingle(),
+      ),
     ]);
 
     final professionalRow = _asNullableRow(ownData[0]);
@@ -94,19 +103,22 @@ class SupabaseProfessionalWorkspaceBackend
       );
     }
 
-    final linkRows = await _paginateRows(
-      (from, to) async => _client
-          .from(DatabaseTables.pacienteProfissional)
-          .select(
-            'id, paciente_id, status, diagnostico, humor_atual, '
-            'ultimo_registro, criado_em, atualizado_em',
-          )
-          .eq('profissional_id', professionalId)
-          .eq('autorizacao_status', 'ativo')
-          .order('criado_em', ascending: false)
-          .order('id', ascending: false)
-          .range(from, to)
-          .count(CountOption.exact),
+    final linkRows = await _runWorkspaceQuery(
+      'vinculos-paciente-profissional',
+      () => _paginateRows(
+        (from, to) async => _client
+            .from(DatabaseTables.pacienteProfissional)
+            .select(
+              'id, paciente_id, status, diagnostico, humor_atual, '
+              'ultimo_registro, criado_em, atualizado_em',
+            )
+            .eq('profissional_id', professionalId)
+            .eq('autorizacao_status', 'ativo')
+            .order('criado_em', ascending: false)
+            .order('id', ascending: false)
+            .range(from, to)
+            .count(CountOption.exact),
+      ),
     );
 
     if (linkRows.isEmpty) {
@@ -142,12 +154,21 @@ class SupabaseProfessionalWorkspaceBackend
     final nextMonth = DateTime(now.year, now.month + 1);
 
     final workspaceData = await Future.wait<Object?>([
-      _patientRows(patientIds),
-      _appointmentRows(activeLinkIds, from: monthStart),
-      _noteRows(activeLinkIds),
-      _planRows(activeLinkIds),
-      _emotionalRows(activePatientIds),
-      _foodRows(activePatientIds),
+      _runWorkspaceQuery('pacientes', () => _patientRows(patientIds)),
+      _runWorkspaceQuery(
+        'consultas',
+        () => _appointmentRows(activeLinkIds, from: monthStart),
+      ),
+      _runWorkspaceQuery('anotacoes-clinicas', () => _noteRows(activeLinkIds)),
+      _runWorkspaceQuery('planos-de-cuidado', () => _planRows(activeLinkIds)),
+      _runWorkspaceQuery(
+        'registros-emocionais',
+        () => _emotionalRows(activePatientIds),
+      ),
+      _runWorkspaceQuery(
+        'registros-alimentares',
+        () => _foodRows(activePatientIds),
+      ),
     ]);
 
     final patientRows = _asRows(workspaceData[0]);
@@ -177,10 +198,10 @@ class SupabaseProfessionalWorkspaceBackend
         .toList(growable: false);
 
     final relatedData = await Future.wait<Object?>([
-      _profileRows(userIds),
-      _userRows(userIds),
-      _goalRows(planIds),
-      _medicationRows(planIds),
+      _runWorkspaceQuery('perfis-dos-pacientes', () => _profileRows(userIds)),
+      _runWorkspaceQuery('usuarios-dos-pacientes', () => _userRows(userIds)),
+      _runWorkspaceQuery('metas-de-cuidado', () => _goalRows(planIds)),
+      _runWorkspaceQuery('medicacoes-do-plano', () => _medicationRows(planIds)),
     ]);
 
     final profilesByUser = {
@@ -748,7 +769,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _patientRows(List<String> ids) {
-    return _chunkedRows(
+    return loadProfessionalWorkspaceRowsByChunks(
       ids,
       (chunk, from, to) async => _client
           .from(DatabaseTables.pacientes)
@@ -765,7 +786,11 @@ class SupabaseProfessionalWorkspaceBackend
     required DateTime from,
     DateTime? until,
   }) async {
-    final rows = await _chunkedRows(linkIds, (chunk, pageFrom, pageTo) async {
+    final rows = await loadProfessionalWorkspaceRowsByChunks(linkIds, (
+      chunk,
+      pageFrom,
+      pageTo,
+    ) async {
       var query = _client
           .from(DatabaseTables.consultas)
           .select(
@@ -789,7 +814,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _noteRows(List<String> linkIds) async {
-    final rows = await _chunkedRows(
+    final rows = await loadProfessionalWorkspaceRowsByChunks(
       linkIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.anotacoesClinicas)
@@ -810,7 +835,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _planRows(List<String> linkIds) {
-    return _chunkedRows(
+    return loadProfessionalWorkspaceRowsByChunks(
       linkIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.planosCuidado)
@@ -828,7 +853,7 @@ class SupabaseProfessionalWorkspaceBackend
   Future<List<Map<String, dynamic>>> _emotionalRows(
     List<String> patientIds,
   ) async {
-    final rows = await _chunkedRows(
+    final rows = await loadProfessionalWorkspaceRowsByChunks(
       patientIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.registrosEmocionais)
@@ -851,7 +876,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _foodRows(List<String> patientIds) async {
-    final rows = await _chunkedRows(
+    final rows = await loadProfessionalWorkspaceRowsByChunks(
       patientIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.registrosAlimentares)
@@ -873,7 +898,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _profileRows(List<String> userIds) {
-    return _chunkedRows(
+    return loadProfessionalWorkspaceRowsByChunks(
       userIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.perfis)
@@ -888,7 +913,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _userRows(List<String> userIds) {
-    return _chunkedRows(
+    return loadProfessionalWorkspaceRowsByChunks(
       userIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.usuarios)
@@ -901,7 +926,7 @@ class SupabaseProfessionalWorkspaceBackend
   }
 
   Future<List<Map<String, dynamic>>> _goalRows(List<String> planIds) async {
-    final rows = await _chunkedRows(
+    final rows = await loadProfessionalWorkspaceRowsByChunks(
       planIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.metasCuidado)
@@ -919,7 +944,7 @@ class SupabaseProfessionalWorkspaceBackend
   Future<List<Map<String, dynamic>>> _medicationRows(
     List<String> planIds,
   ) async {
-    final rows = await _chunkedRows(
+    final rows = await loadProfessionalWorkspaceRowsByChunks(
       planIds,
       (chunk, from, to) async => _client
           .from(DatabaseTables.medicacoesPlano)
@@ -1097,12 +1122,27 @@ typedef _PageLoader =
       int from,
       int to,
     );
-typedef _ChunkPageLoader =
+typedef ProfessionalWorkspaceChunkPageLoader =
     Future<PostgrestResponse<List<Map<String, dynamic>>>> Function(
       List<String> ids,
       int from,
       int to,
     );
+
+Future<T> _runWorkspaceQuery<T>(
+  String step,
+  Future<T> Function() operation,
+) async {
+  try {
+    return await operation();
+  } catch (error) {
+    debugPrint(
+      '[ProfessionalWorkspace] etapa "$step" falhou '
+      '(${error.runtimeType}): $error',
+    );
+    rethrow;
+  }
+}
 
 Future<List<Map<String, dynamic>>> _paginateRows(_PageLoader loadPage) async {
   final rows = <Map<String, dynamic>>[];
@@ -1120,11 +1160,15 @@ Future<List<Map<String, dynamic>>> _paginateRows(_PageLoader loadPage) async {
   return rows;
 }
 
-Future<List<Map<String, dynamic>>> _chunkedRows(
+/// Loads rows in filter-sized chunks and always returns a mutable collection.
+///
+/// An empty filter is a valid workspace state, such as a newly linked patient
+/// without a care plan. Callers may sort the returned rows unconditionally.
+Future<List<Map<String, dynamic>>> loadProfessionalWorkspaceRowsByChunks(
   List<String> ids,
-  _ChunkPageLoader loadPage,
+  ProfessionalWorkspaceChunkPageLoader loadPage,
 ) async {
-  if (ids.isEmpty) return const [];
+  if (ids.isEmpty) return <Map<String, dynamic>>[];
   final rows = <Map<String, dynamic>>[];
   final uniqueIds = ids.toSet().toList(growable: false);
   for (var start = 0; start < uniqueIds.length; start += _filterChunkSize) {

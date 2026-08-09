@@ -1,9 +1,30 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
+import 'package:iris/screens/professional_home_screen.dart';
 
 void main() {
   group('ProfessionalFrontendStore conectado', () {
+    test('mantem mutavel a lista vazia de dados relacionados', () async {
+      var loaderCalls = 0;
+      final rows = await loadProfessionalWorkspaceRowsByChunks(const [], (
+        _,
+        _,
+        _,
+      ) async {
+        loaderCalls++;
+        throw StateError('O loader não deve ser chamado sem IDs.');
+      });
+
+      rows.sort((_, _) => 0);
+
+      expect(rows, isEmpty);
+      expect(loaderCalls, 0);
+    });
+
     test('carrega workspace vazio sem recorrer aos mocks', () async {
       final backend = _FakeProfessionalBackend();
       final store = ProfessionalFrontendStore.connected(backend);
@@ -138,6 +159,31 @@ void main() {
         expect(store.settings.email, 'email-atual@example.com');
       },
     );
+
+    testWidgets('nao mostra credenciamento pendente quando a carga falha', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final backend = _FakeProfessionalBackend()
+        ..loadError = StateError('offline');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: ProfessionalHomeScreen(backend: backend),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Não foi possível carregar seus dados'), findsOneWidget);
+      expect(
+        find.textContaining('Seu cadastro profissional está em análise'),
+        findsNothing,
+      );
+    });
   });
 }
 
