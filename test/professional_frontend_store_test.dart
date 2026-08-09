@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/professional/data/supabase_professional_workspace_backend.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
@@ -183,6 +184,42 @@ void main() {
         find.textContaining('Seu cadastro profissional está em análise'),
         findsNothing,
       );
+    });
+
+    testWidgets('lista curta de pacientes começa logo após a barra móvel', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(471, 860);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(Uri.parse('/professional/patients')),
+      );
+      addTearDown(routeController.dispose);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final mobileBar = find.byKey(const Key('professional-mobile-bar'));
+      final title = find.text('Meus pacientes');
+      expect(mobileBar, findsOneWidget);
+      expect(title, findsOneWidget);
+      final gap =
+          tester.getTopLeft(title).dy - tester.getBottomLeft(mobileBar).dy;
+      expect(gap, inInclusiveRange(20, 32));
+      expect(tester.takeException(), isNull);
     });
   });
 }

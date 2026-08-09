@@ -547,6 +547,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
                       } else {
                         content = AnimatedSwitcher(
                           duration: const Duration(milliseconds: 180),
+                          layoutBuilder: (currentChild, previousChildren) =>
+                              Stack(
+                                alignment: Alignment.topCenter,
+                                children: [...previousChildren, ?currentChild],
+                              ),
                           child: KeyedSubtree(
                             key: ValueKey(
                               '${_destination.name}-${_detailPatient?.id ?? 'list'}',
@@ -1250,6 +1255,7 @@ class _MobileProfessionalBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
+      key: const Key('professional-mobile-bar'),
       color: Theme.of(context).colorScheme.surface,
       elevation: 1,
       child: SafeArea(
