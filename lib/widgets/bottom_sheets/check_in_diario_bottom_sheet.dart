@@ -251,6 +251,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 AppCheckInCard(
                   title: 'Como você se sentiu hoje no geral?',
                   child: _SelectorGrid(
+                    key: const Key('check-in-mood-options'),
                     options: _moodOptions,
                     selectedIndex: selectedMood,
                     onSelected: _selectMood,
@@ -260,6 +261,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 AppCheckInCard(
                   title: 'Como você avaliaria sua alimentação hoje?',
                   child: _SelectorGrid(
+                    key: const Key('check-in-food-options'),
                     options: _foodOptions,
                     selectedIndex: selectedFood,
                     onSelected: _selectFood,
@@ -332,6 +334,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
 
 class _SelectorGrid extends StatelessWidget {
   const _SelectorGrid({
+    super.key,
     required this.options,
     required this.selectedIndex,
     required this.onSelected,
@@ -343,20 +346,45 @@ class _SelectorGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      alignment: WrapAlignment.center,
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (var index = 0; index < options.length; index++)
-          AppMoodSelector(
-            selected: selectedIndex == index,
-            onTap: () => onSelected(index),
-            image: options[index].image,
-            selectedImage: options[index].selectedImage,
-            text: options[index].label,
-          ),
-      ],
+    const preferredItemWidth = 72.0;
+    const minimumItemWidth = 44.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final spacing = constraints.maxWidth >= 392 ? 8.0 : 4.0;
+        final spacingWidth = spacing * (options.length - 1);
+        final fittedItemWidth =
+            (constraints.maxWidth - spacingWidth) / options.length;
+        final itemWidth = fittedItemWidth.clamp(
+          minimumItemWidth,
+          preferredItemWidth,
+        );
+        final selectorRow = Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var index = 0; index < options.length; index++) ...[
+              if (index > 0) SizedBox(width: spacing),
+              AppMoodSelector(
+                width: itemWidth,
+                selected: selectedIndex == index,
+                onTap: () => onSelected(index),
+                image: options[index].image,
+                selectedImage: options[index].selectedImage,
+                text: options[index].label,
+              ),
+            ],
+          ],
+        );
+        final requiredWidth =
+            (minimumItemWidth * options.length) + spacingWidth;
+        if (constraints.maxWidth < requiredWidth) {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: selectorRow,
+          );
+        }
+        return Center(child: selectorRow);
+      },
     );
   }
 }

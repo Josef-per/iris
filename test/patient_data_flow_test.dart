@@ -11,6 +11,7 @@ import 'package:iris/features/food/food_record_repository.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
+import 'package:iris/widgets/app_mood_selector.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 
 void main() {
@@ -204,6 +205,22 @@ void main() {
       findsOneWidget,
     );
     expect(tester.getCenter(find.byTooltip('Fechar')).dx, greaterThan(270));
+
+    for (final gridKey in const [
+      Key('check-in-mood-options'),
+      Key('check-in-food-options'),
+    ]) {
+      final selectors = find.descendant(
+        of: find.byKey(gridKey),
+        matching: find.byType(AppMoodSelector),
+      );
+      expect(selectors, findsNWidgets(5));
+      final topPositions = [
+        for (var index = 0; index < 5; index++)
+          tester.getTopLeft(selectors.at(index)).dy,
+      ];
+      expect(topPositions.toSet(), hasLength(1));
+    }
   });
 
   testWidgets('plano compartilhado exibe metas e medicacoes reais', (
