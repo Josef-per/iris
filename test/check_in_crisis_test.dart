@@ -58,15 +58,25 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('humor muito mal abre o diálogo de apoio antes de fechar', (
+  Finder inMoodGrid(String label) => find.descendant(
+    of: find.byKey(const Key('check-in-mood-options')),
+    matching: find.text(label),
+  );
+
+  Finder inFoodGrid(String label) => find.descendant(
+    of: find.byKey(const Key('check-in-food-options')),
+    matching: find.text(label),
+  );
+
+  testWidgets('humor muito difícil abre o diálogo de apoio antes de fechar', (
     tester,
   ) async {
     final dataSource = _EmotionalDataSource(record: null);
     final resultFuture = await openCheckInSheet(tester, dataSource: dataSource);
 
-    await tester.tap(find.text('Muito\nmal').last);
+    await tester.tap(inMoodGrid('Muito\ndifícil'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Muito\nruim').last);
+    await tester.tap(inFoodGrid('Muito\ndifícil'));
     await tester.pumpAndSettle();
     await submitCheckIn(tester);
 
@@ -78,7 +88,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('check-in-support-dialog')), findsNothing);
-    expect(find.text('Check-in diário salvo.'), findsOneWidget);
+    expect(find.text('Registro do dia salvo.'), findsOneWidget);
     expect(await resultFuture, isTrue);
     expect(tester.takeException(), isNull);
   });
@@ -87,9 +97,9 @@ void main() {
     final dataSource = _EmotionalDataSource(record: null);
     await openCheckInSheet(tester, dataSource: dataSource);
 
-    await tester.tap(find.text('Bem').last);
+    await tester.tap(inMoodGrid('Bem'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Boa').last);
+    await tester.tap(inFoodGrid('Tranquila'));
     await tester.pumpAndSettle();
 
     final desmaio = find.text('Desmaio');
@@ -108,14 +118,14 @@ void main() {
     final dataSource = _EmotionalDataSource(record: null);
     final resultFuture = await openCheckInSheet(tester, dataSource: dataSource);
 
-    await tester.tap(find.text('Bem').last);
+    await tester.tap(inMoodGrid('Bem'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Boa').last);
+    await tester.tap(inFoodGrid('Tranquila'));
     await tester.pumpAndSettle();
     await submitCheckIn(tester);
 
     expect(find.byKey(const Key('check-in-support-dialog')), findsNothing);
-    expect(find.text('Check-in diário salvo.'), findsOneWidget);
+    expect(find.text('Registro do dia salvo.'), findsOneWidget);
     expect(await resultFuture, isTrue);
     expect(tester.takeException(), isNull);
   });

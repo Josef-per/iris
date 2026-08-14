@@ -176,7 +176,7 @@ class AppErrorMessages {
 
     if (message.contains('invalid_mood_score') ||
         message.contains('invalid_food_score')) {
-      return 'Selecione respostas válidas para concluir o check-in.';
+      return 'Selecione respostas válidas para concluir o registro do dia.';
     }
 
     if (message.contains('invalid_credential_status')) {

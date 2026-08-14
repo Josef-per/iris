@@ -481,13 +481,13 @@ class _RegistroAlimentarBottomSheetState
                 ),
                 const SizedBox(height: 16),
                 Semantics(
-                  label: 'Nível de fome',
+                  label: 'Quanta fome você sentiu',
                   value: '$_hungerLevel de 10',
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
-                          'Nível de fome',
+                          'Quanta fome você sentiu?',
                           style: theme.textTheme.titleMedium,
                         ),
                       ),
@@ -527,7 +527,7 @@ class _RegistroAlimentarBottomSheetState
                 const SizedBox(height: 8),
                 _LabeledField(
                   controller: _feelingController,
-                  label: 'Como você se sentiu depois?',
+                  label: 'Como você se sentiu depois da refeição?',
                   hint: 'Opcional',
                   maxLines: 2,
                   maxLength: 400,

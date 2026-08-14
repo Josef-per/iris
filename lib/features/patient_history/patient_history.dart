@@ -107,9 +107,9 @@ class PatientHistoryRepository implements PatientHistoryDataSource {
     return PatientHistoryEntry(
       kind: PatientHistoryKind.emotional,
       moment: recordedAt,
-      title: diary.isEmpty ? 'Check-in emocional' : 'Diário emocional',
+      title: diary.isEmpty ? 'Registro do dia' : 'Diário emocional',
       description: descriptionParts.isEmpty
-          ? 'Check-in registrado'
+          ? 'Registro do dia salvo'
           : descriptionParts.join(' · '),
       icon: diary.isEmpty
           ? Icons.favorite_outline_rounded

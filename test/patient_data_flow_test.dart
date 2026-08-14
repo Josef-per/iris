@@ -35,7 +35,7 @@ void main() {
 
     expect(summary.mealCount, 3);
     expect(summary.moodLabel, 'Bem');
-    expect(summary.checkInLabel, 'Feito');
+    expect(summary.checkInLabel, 'Concluído');
     expect(summary.hasDiaryEntry, isTrue);
   });
 
@@ -49,7 +49,7 @@ void main() {
 
     expect(summary.mealCount, 0);
     expect(summary.moodLabel, 'Sem registro');
-    expect(summary.checkInLabel, 'Pendente');
+    expect(summary.checkInLabel, 'Aguardando você');
     expect(summary.hasDiaryEntry, isFalse);
   });
 
@@ -105,7 +105,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Muito feliz'), findsOneWidget);
-    expect(find.text('Feito'), findsOneWidget);
+    expect(find.text('Concluído'), findsOneWidget);
     expect(find.text('3/4'), findsNothing);
     expect(find.text('1/2'), findsNothing);
   });
@@ -166,7 +166,7 @@ void main() {
 
     expect(repository.createCheckInCalls, 0);
     expect(
-      find.text('Selecione como você se sentiu e avalie a alimentação.'),
+      find.text('Selecione como você se sentiu e como foi sua alimentação.'),
       findsOneWidget,
     );
   });

@@ -35,8 +35,8 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     'Muito feliz',
     'Bem',
     'Regular',
-    'Mal',
-    'Muito mal',
+    'Difícil',
+    'Muito difícil',
   ];
 
   static const _moodOptions = [
@@ -56,12 +56,12 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
       selectedImage: 'assets/icons/MaisOuMenos_color.png',
     ),
     _SelectorOption(
-      label: 'Mal',
+      label: 'Difícil',
       image: 'assets/icons/Mal_white.png',
       selectedImage: 'assets/icons/Mal_color.png',
     ),
     _SelectorOption(
-      label: 'Muito\nmal',
+      label: 'Muito\ndifícil',
       image: 'assets/icons/MuitoMal_white.png',
       selectedImage: 'assets/icons/MuitoMal_color.png',
     ),
@@ -69,27 +69,27 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
 
   static const _foodOptions = [
     _SelectorOption(
-      label: 'Muito\nboa',
+      label: 'Muito\ntranquila',
       image: 'assets/icons/MuitoFeliz_white.png',
       selectedImage: 'assets/icons/MuitoFeliz_color.png',
     ),
     _SelectorOption(
-      label: 'Boa',
+      label: 'Tranquila',
       image: 'assets/icons/Bem_white.png',
       selectedImage: 'assets/icons/Bem_color.png',
     ),
     _SelectorOption(
-      label: 'Mais ou\nmenos',
+      label: 'Neutra',
       image: 'assets/icons/MaisOuMenos_white.png',
       selectedImage: 'assets/icons/MaisOuMenos_color.png',
     ),
     _SelectorOption(
-      label: 'Ruim',
+      label: 'Difícil',
       image: 'assets/icons/Mal_white.png',
       selectedImage: 'assets/icons/Mal_color.png',
     ),
     _SelectorOption(
-      label: 'Muito\nruim',
+      label: 'Muito\ndifícil',
       image: 'assets/icons/MuitoMal_white.png',
       selectedImage: 'assets/icons/MuitoMal_color.png',
     ),
@@ -151,7 +151,8 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     FocusScope.of(context).unfocus();
     if (selectedMood == null || selectedFood == null) {
       setState(() {
-        _errorMessage = 'Selecione como você se sentiu e avalie a alimentação.';
+        _errorMessage =
+            'Selecione como você se sentiu e como foi sua alimentação.';
       });
       return;
     }
@@ -189,7 +190,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
 
       navigator.pop(true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Check-in diário salvo.')),
+        const SnackBar(content: Text('Registro do dia salvo.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -258,7 +259,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 Semantics(
                   header: true,
                   child: Text(
-                    'Check-in diário',
+                    'Registro do dia',
                     style: theme.textTheme.headlineMedium,
                   ),
                 ),
@@ -279,7 +280,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 16),
                 AppCheckInCard(
-                  title: 'Como você avaliaria sua alimentação hoje?',
+                  title: 'Como você se sentiu com sua alimentação hoje?',
                   child: _SelectorGrid(
                     key: const Key('check-in-food-options'),
                     options: _foodOptions,
@@ -289,7 +290,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 16),
                 AppSymptomsCard(
-                  title: 'Quais sintomas emocionais você apresentou hoje?',
+                  title: 'Marque o que você sentiu hoje',
                   symptoms: PatientSymptoms.emotional
                       .map((symptom) => symptom.label)
                       .toList(growable: false),
@@ -304,7 +305,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 16),
                 AppSymptomsCard(
-                  title: 'Quais sintomas físicos você apresentou hoje?',
+                  title: 'Marque os sinais que você notou no seu corpo',
                   symptoms: PatientSymptoms.physical
                       .map((symptom) => symptom.label)
                       .toList(growable: false),
@@ -428,7 +429,7 @@ class _SheetLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       liveRegion: true,
-      label: 'Carregando o check-in de hoje',
+      label: 'Carregando o registro do dia',
       child: const SizedBox(
         height: 320,
         child: Center(child: CircularProgressIndicator()),
@@ -461,7 +462,7 @@ class _CheckInLoadError extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Não foi possível carregar o check-in',
+                'Não foi possível carregar o registro do dia',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleLarge,
               ),
@@ -502,8 +503,8 @@ class _SupportDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Seu check-in foi salvo e poderá ser visto pela sua equipe de '
-              'cuidado. Enquanto isso, tente:',
+              'Seu registro do dia foi salvo e poderá ser visto pela sua '
+              'equipe de cuidado. Enquanto isso, tente:',
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 12),

@@ -109,7 +109,7 @@ class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
                       icon: Icons.history_rounded,
                       title: 'Nenhum registro ainda',
                       message:
-                          'Seus check-ins, diários emocionais e refeições aparecerão aqui.',
+                          'Seus registros do dia, diários emocionais e refeições aparecerão aqui.',
                     );
                   }
 

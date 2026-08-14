@@ -51,7 +51,7 @@ void main() {
         PatientHistoryEntry(
           kind: PatientHistoryKind.emotional,
           moment: older,
-          title: 'Check-in emocional',
+          title: 'Registro do dia',
           description: 'Bem-estar: 2/5',
           icon: Icons.favorite_outline_rounded,
         ),
@@ -62,7 +62,7 @@ void main() {
     expect(find.text('Ontem'), findsOneWidget);
     expect(find.text('Diário emocional'), findsOneWidget);
     expect(find.text('Almoço'), findsOneWidget);
-    expect(find.text('Check-in emocional'), findsOneWidget);
+    expect(find.text('Registro do dia'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

@@ -98,7 +98,7 @@ class _DiarioEmocionalBottomSheetState
       builder: (dialogContext) => AlertDialog(
         title: const Text('Limpar diário de hoje?'),
         content: const Text(
-          'O texto salvo hoje será apagado. O check-in e os sintomas registrados são mantidos.',
+          'O texto salvo hoje será apagado. O registro do dia e os sintomas marcados são mantidos.',
         ),
         actions: [
           TextButton(
@@ -176,7 +176,7 @@ class _DiarioEmocionalBottomSheetState
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Você pode escrever livremente. Este campo é obrigatório.',
+                    'Você pode escrever livremente, do seu jeito.',
                     style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),

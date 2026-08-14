@@ -247,8 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           _ActionCard(
                             width: width,
                             icon: Icons.fact_check_outlined,
-                            title: 'Check-in diário',
-                            subtitle: 'Faça uma pausa e avalie o seu dia.',
+                            title: 'Registro do dia',
+                            subtitle:
+                                'Faça uma pausa e perceba como você está.',
                             onTap: () => _openBottomSheet(
                               const CheckInDiarioBottomSheet(),
                             ),
@@ -488,7 +489,7 @@ class _TodayStatusCards extends StatelessWidget {
                 key: const Key('patient-today-check-in'),
                 icon: Icons.fact_check_outlined,
                 value: values[2],
-                label: 'Check-in',
+                label: 'Registro do dia',
               ),
             ),
           ],
