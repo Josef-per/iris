@@ -38,7 +38,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>Precisamos da camera para escanear o QR Code do seu psiquiatra.</string>
+	<string>Usamos a câmera para fotografar suas refeições e escanear o QR Code do seu psiquiatra.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

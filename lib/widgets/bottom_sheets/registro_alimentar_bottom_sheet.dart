@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/food/meal_image_picker.dart';
 import 'package:iris/features/food/food_record_repository.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class RegistroAlimentarBottomSheet extends StatefulWidget {
-  const RegistroAlimentarBottomSheet({super.key, this.repository});
+  const RegistroAlimentarBottomSheet({
+    super.key,
+    this.repository,
+    this.imagePicker,
+  });
 
   final FoodRecordDataSource? repository;
+  final MealImagePicker? imagePicker;
 
   @override
   State<RegistroAlimentarBottomSheet> createState() =>
@@ -21,15 +27,56 @@ class _RegistroAlimentarBottomSheetState
   final _feelingController = TextEditingController();
   final _observationsController = TextEditingController();
   late final FoodRecordDataSource _repository;
+  late final MealImagePicker _imagePicker;
 
   bool _isLoading = false;
+  bool _isPickingImage = false;
   int _hungerLevel = 5;
   String? _errorMessage;
+  String? _imageErrorMessage;
+  MealImage? _mealImage;
 
   @override
   void initState() {
     super.initState();
     _repository = widget.repository ?? FoodRecordRepository();
+    _imagePicker = widget.imagePicker ?? DeviceMealImagePicker();
+    if (_imagePicker.isSupported) _restoreInterruptedImageCapture();
+  }
+
+  Future<void> _restoreInterruptedImageCapture() async {
+    try {
+      final image = await _imagePicker.retrieveLostPhoto();
+      if (!mounted || image == null) return;
+      setState(() => _mealImage = image);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _imageErrorMessage =
+            'Não foi possível recuperar a foto tirada anteriormente.';
+      });
+    }
+  }
+
+  Future<void> _takeMealPhoto() async {
+    setState(() {
+      _isPickingImage = true;
+      _imageErrorMessage = null;
+    });
+
+    try {
+      final image = await _imagePicker.takePhoto();
+      if (!mounted || image == null) return;
+      setState(() => _mealImage = image);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _imageErrorMessage =
+            'Não foi possível acessar a câmera. Verifique a permissão e tente novamente.';
+      });
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
   }
 
   @override
@@ -104,6 +151,83 @@ class _RegistroAlimentarBottomSheetState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  if (_imagePicker.isSupported) ...[
+                    Text(
+                      'Foto da refeição (opcional)',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 12),
+                    if (_mealImage == null)
+                      OutlinedButton.icon(
+                        key: const Key('food-record-take-photo'),
+                        onPressed: _isLoading || _isPickingImage
+                            ? null
+                            : _takeMealPhoto,
+                        icon: _isPickingImage
+                            ? const SizedBox.square(
+                                dimension: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.camera_alt_outlined),
+                        label: Text(
+                          _isPickingImage ? 'Abrindo câmera...' : 'Tirar foto',
+                        ),
+                      )
+                    else ...[
+                      Semantics(
+                        image: true,
+                        label: 'Foto selecionada da refeição',
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: AspectRatio(
+                            aspectRatio: 16 / 9,
+                            child: Image.memory(
+                              _mealImage!.bytes,
+                              key: const Key('food-record-photo-preview'),
+                              fit: BoxFit.cover,
+                              gaplessPlayback: true,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            key: const Key('food-record-replace-photo'),
+                            onPressed: _isLoading || _isPickingImage
+                                ? null
+                                : _takeMealPhoto,
+                            icon: const Icon(Icons.camera_alt_outlined),
+                            label: const Text('Trocar foto'),
+                          ),
+                          TextButton.icon(
+                            key: const Key('food-record-remove-photo'),
+                            onPressed: _isLoading || _isPickingImage
+                                ? null
+                                : () => setState(() => _mealImage = null),
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            label: const Text('Remover'),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (_imageErrorMessage != null) ...[
+                      const SizedBox(height: 8),
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          _imageErrorMessage!,
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 20),
+                  ],
                   _LabeledField(
                     controller: _descriptionController,
                     label: 'O que você comeu?',
@@ -190,7 +314,7 @@ class _RegistroAlimentarBottomSheetState
               alignment: Alignment.centerRight,
               child: FilledButton.icon(
                 key: const Key('food-record-submit'),
-                onPressed: _isLoading ? null : _submit,
+                onPressed: _isLoading || _isPickingImage ? null : _submit,
                 icon: _isLoading
                     ? const SizedBox.square(
                         dimension: 18,
