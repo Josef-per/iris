@@ -1,0 +1,311 @@
+import 'package:flutter/material.dart';
+import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/core/time/local_day.dart';
+import 'package:iris/features/patient_history/patient_history.dart';
+import 'package:iris/widgets/app_responsive.dart';
+
+class PatientHistoryScreen extends StatefulWidget {
+  const PatientHistoryScreen({super.key, this.dataSource, this.onBack});
+
+  final PatientHistoryDataSource? dataSource;
+  final VoidCallback? onBack;
+
+  @override
+  State<PatientHistoryScreen> createState() => _PatientHistoryScreenState();
+}
+
+class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
+  late final PatientHistoryDataSource _dataSource;
+  late Future<List<PatientHistoryEntry>> _historyFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _dataSource = widget.dataSource ?? PatientHistoryRepository();
+    _historyFuture = _dataSource.loadHistory();
+  }
+
+  void _reload() {
+    setState(() {
+      _historyFuture = _dataSource.loadHistory();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: AppGradientHeader(
+              child: AppResponsive(
+                maxWidth: 760,
+                padding: EdgeInsets.zero,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    IconButton(
+                      tooltip: 'Voltar',
+                      onPressed:
+                          widget.onBack ?? () => Navigator.maybePop(context),
+                      style: IconButton.styleFrom(
+                        foregroundColor: AppColors.white,
+                        backgroundColor: AppColors.white.withValues(alpha: .1),
+                      ),
+                      icon: const Icon(Icons.arrow_back_rounded),
+                    ),
+                    const SizedBox(height: 22),
+                    Text(
+                      'Meu histórico',
+                      style: Theme.of(context).textTheme.headlineMedium
+                          ?.copyWith(color: AppColors.white),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Seus registros de humor, emoções e alimentação.',
+                      style: TextStyle(color: AppColors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: AppResponsive(
+              maxWidth: 760,
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
+              child: FutureBuilder<List<PatientHistoryEntry>>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(
+                      key: const Key('patient-history-loading'),
+                      child: Semantics(
+                        liveRegion: true,
+                        label: 'Carregando histórico',
+                        child: const Padding(
+                          padding: EdgeInsets.all(48),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return _HistoryMessage(
+                      key: const Key('patient-history-error'),
+                      icon: Icons.cloud_off_rounded,
+                      title: 'Não foi possível carregar o histórico',
+                      message: 'Verifique sua conexão e tente novamente.',
+                      actionLabel: 'Tentar novamente',
+                      onAction: _reload,
+                    );
+                  }
+
+                  final entries =
+                      snapshot.data ?? const <PatientHistoryEntry>[];
+                  if (entries.isEmpty) {
+                    return const _HistoryMessage(
+                      key: Key('patient-history-empty'),
+                      icon: Icons.history_rounded,
+                      title: 'Nenhum registro ainda',
+                      message:
+                          'Seus check-ins, diários emocionais e refeições aparecerão aqui.',
+                    );
+                  }
+
+                  return _HistoryTimeline(entries: entries);
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryTimeline extends StatelessWidget {
+  const _HistoryTimeline({required this.entries});
+
+  final List<PatientHistoryEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final sorted = List<PatientHistoryEntry>.of(entries)
+      ..sort((a, b) => b.moment.compareTo(a.moment));
+    final children = <Widget>[];
+    String? currentDay;
+
+    for (var index = 0; index < sorted.length; index++) {
+      final entry = sorted[index];
+      final day = LocalDay.key(entry.moment);
+      if (day != currentDay) {
+        currentDay = day;
+        children.add(_DayHeader(label: _dayLabel(entry.moment, now)));
+      }
+      children.add(_HistoryCard(entry: entry));
+      children.add(const SizedBox(height: 10));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
+  }
+}
+
+class _DayHeader extends StatelessWidget {
+  const _DayHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 10),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryCard extends StatelessWidget {
+  const _HistoryCard({required this.entry});
+
+  final PatientHistoryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AppSurface(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.lavender.withValues(alpha: .55),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(entry.icon, color: theme.colorScheme.primary, size: 24),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        entry.title,
+                        style: theme.textTheme.titleMedium,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      _formatTime(entry.moment.toLocal()),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(entry.description, style: theme.textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HistoryMessage extends StatelessWidget {
+  const _HistoryMessage({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return AppSurface(
+      child: Column(
+        children: [
+          Icon(icon, size: 44, color: Theme.of(context).colorScheme.primary),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: onAction,
+              icon: const Icon(Icons.refresh_rounded),
+              label: Text(actionLabel!),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+String _dayLabel(DateTime moment, DateTime now) {
+  final day = moment.toLocal();
+  final today = now.toLocal();
+  final isToday =
+      day.year == today.year &&
+      day.month == today.month &&
+      day.day == today.day;
+  if (isToday) {
+    return 'Hoje';
+  }
+
+  final yesterday = today.subtract(const Duration(days: 1));
+  final isYesterday =
+      day.year == yesterday.year &&
+      day.month == yesterday.month &&
+      day.day == yesterday.day;
+  if (isYesterday) {
+    return 'Ontem';
+  }
+
+  final dayPart = day.day.toString().padLeft(2, '0');
+  final monthPart = day.month.toString().padLeft(2, '0');
+  return '$dayPart/$monthPart/${day.year}';
+}
+
+String _formatTime(DateTime moment) {
+  final hour = moment.hour.toString().padLeft(2, '0');
+  final minute = moment.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
+}

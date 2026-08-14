@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/reminders/reminder_repository.dart';
 import 'package:iris/widgets/app_lembretes_content.dart';
 import 'package:iris/widgets/app_reminder_form.dart';
 import 'package:iris/widgets/app_responsive.dart';
 
 class LembretesScreen extends StatefulWidget {
-  const LembretesScreen({super.key, this.onBack});
+  const LembretesScreen({super.key, this.dataSource, this.onBack});
 
+  final ReminderDataSource? dataSource;
   final VoidCallback? onBack;
 
   @override
@@ -14,48 +17,44 @@ class LembretesScreen extends StatefulWidget {
 }
 
 class _LembretesScreenState extends State<LembretesScreen> {
-  final List<_PatientReminder> _reminders = [
-    const _PatientReminder(
-      id: 1,
-      type: AppReminderType.meal,
-      title: 'Café da manhã',
-      time: TimeOfDay(hour: 8, minute: 0),
-      isActive: true,
-    ),
-    const _PatientReminder(
-      id: 2,
-      type: AppReminderType.medication,
-      title: 'Vitamina D',
-      time: TimeOfDay(hour: 9, minute: 0),
-      isActive: true,
-    ),
-  ];
+  late final ReminderDataSource _dataSource;
+  late Future<List<PatientReminder>> _remindersFuture;
 
   bool _showForm = false;
-  int? _editingId;
-  int _nextId = 3;
-  AppReminderType _newReminderType = AppReminderType.meal;
+  String? _editingId;
+  PatientReminderType _newReminderType = PatientReminderType.refeicao;
 
-  _PatientReminder? get _editingReminder {
-    if (_editingId == null) return null;
-    for (final reminder in _reminders) {
-      if (reminder.id == _editingId) return reminder;
-    }
-    return null;
+  PatientReminder? _editingReminder;
+
+  @override
+  void initState() {
+    super.initState();
+    _dataSource = widget.dataSource ?? ReminderRepository();
+    _remindersFuture = _dataSource.listCurrentUserReminders();
   }
 
-  void _openCreate([AppReminderType type = AppReminderType.meal]) {
+  Future<void> _reload() async {
+    setState(() {
+      _remindersFuture = _dataSource.listCurrentUserReminders();
+    });
+    await _remindersFuture;
+  }
+
+  void _openCreate([PatientReminderType type = PatientReminderType.refeicao]) {
     setState(() {
       _showForm = true;
       _editingId = null;
+      _editingReminder = null;
       _newReminderType = type;
     });
   }
 
-  void _openEdit(_PatientReminder reminder) {
+  void _openEdit(PatientReminder reminder) {
     setState(() {
       _showForm = true;
       _editingId = reminder.id;
+      _editingReminder = reminder;
+      _newReminderType = reminder.type;
     });
   }
 
@@ -63,77 +62,70 @@ class _LembretesScreenState extends State<LembretesScreen> {
     setState(() {
       _showForm = false;
       _editingId = null;
+      _editingReminder = null;
     });
   }
 
-  void _saveReminder(AppReminderDraft draft) {
-    final editingIndex = _editingId == null
-        ? -1
-        : _reminders.indexWhere((item) => item.id == _editingId);
+  Future<void> _saveReminder(AppReminderDraft draft) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final isEditing = _editingId != null;
+    final type = _toPatientType(draft.type);
 
-    setState(() {
-      if (editingIndex == -1) {
-        _reminders.add(
-          _PatientReminder(
-            id: _nextId++,
-            type: draft.type,
-            title: draft.title,
-            time: draft.time,
-            isActive: true,
-          ),
+    try {
+      if (isEditing) {
+        await _dataSource.updateReminder(
+          id: _editingId!,
+          type: type,
+          title: draft.title,
+          time: draft.time,
         );
       } else {
-        final current = _reminders[editingIndex];
-        _reminders[editingIndex] = current.copyWith(
-          type: draft.type,
+        await _dataSource.createReminder(
+          type: type,
           title: draft.title,
           time: draft.time,
         );
       }
-      _showForm = false;
-      _editingId = null;
-      _sortReminders();
-    });
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            editingIndex == -1
-                ? 'Lembrete adicionado nesta sessão.'
-                : 'Lembrete atualizado nesta sessão.',
+      if (!mounted) return;
+      _closeForm();
+      await _reload();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text(
+              isEditing ? 'Lembrete atualizado.' : 'Lembrete adicionado.',
+            ),
           ),
-        ),
-      );
+        );
+    } catch (error) {
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
   }
 
-  void _sortReminders() {
-    _reminders.sort((a, b) {
-      final typeOrder = a.type.index.compareTo(b.type.index);
-      if (typeOrder != 0) return typeOrder;
-      return _minutes(a.time).compareTo(_minutes(b.time));
-    });
+  Future<void> _toggleReminder(PatientReminder reminder, bool value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _dataSource.setReminderActive(id: reminder.id, isActive: value);
+      if (!mounted) return;
+      await _reload();
+    } catch (error) {
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
   }
 
-  int _minutes(TimeOfDay time) => time.hour * 60 + time.minute;
-
-  void _toggleReminder(_PatientReminder reminder, bool value) {
-    final index = _reminders.indexWhere((item) => item.id == reminder.id);
-    if (index == -1) return;
-    setState(() {
-      _reminders[index] = reminder.copyWith(isActive: value);
-    });
-  }
-
-  Future<void> _confirmDelete(_PatientReminder reminder) async {
+  Future<void> _confirmDelete(PatientReminder reminder) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Excluir lembrete?'),
-        content: Text(
-          'O lembrete “${reminder.title}” será removido desta sessão.',
-        ),
+        content: Text('O lembrete “${reminder.title}” será removido.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -149,39 +141,56 @@ class _LembretesScreenState extends State<LembretesScreen> {
     );
 
     if (confirmed != true || !mounted) return;
-    final previousIndex = _reminders.indexOf(reminder);
-    setState(() => _reminders.remove(reminder));
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: const Text('Lembrete excluído.'),
-          action: SnackBarAction(
-            label: 'Desfazer',
-            onPressed: () {
-              if (!mounted) return;
-              setState(() {
-                final index = previousIndex.clamp(0, _reminders.length);
-                _reminders.insert(index, reminder);
-              });
-            },
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _dataSource.deleteReminder(reminder.id);
+      if (!mounted) return;
+      await _reload();
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Lembrete excluído.'),
+            action: SnackBarAction(
+              label: 'Desfazer',
+              onPressed: () async {
+                try {
+                  await _dataSource.createReminder(
+                    type: reminder.type,
+                    title: reminder.title,
+                    time: reminder.time,
+                    isActive: reminder.isActive,
+                  );
+                  if (!mounted) return;
+                  await _reload();
+                } catch (_) {
+                  // O lembrete original não pode ser recriado; a lista segue
+                  // como está após a exclusão.
+                }
+              },
+            ),
           ),
-        ),
-      );
+        );
+    } catch (error) {
+      if (!mounted) return;
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
   }
+
+  PatientReminderType _toPatientType(AppReminderType type) => switch (type) {
+    AppReminderType.meal => PatientReminderType.refeicao,
+    AppReminderType.medication => PatientReminderType.medicamento,
+  };
+
+  AppReminderType _toAppType(PatientReminderType type) => switch (type) {
+    PatientReminderType.refeicao => AppReminderType.meal,
+    PatientReminderType.medicamento => AppReminderType.medication,
+  };
 
   @override
   Widget build(BuildContext context) {
-    final semanticColors = AppSemanticColors.of(context);
-    final meals = _reminders
-        .where((item) => item.type == AppReminderType.meal)
-        .toList(growable: false);
-    final medications = _reminders
-        .where((item) => item.type == AppReminderType.medication)
-        .toList(growable: false);
-    final editing = _editingReminder;
-
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -243,80 +252,124 @@ class _LembretesScreenState extends State<LembretesScreen> {
             child: AppResponsive(
               maxWidth: 860,
               padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: semanticColors.infoContainer,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline_rounded,
-                          color: semanticColors.onInfoContainer,
-                          size: 20,
+              child: FutureBuilder<List<PatientReminder>>(
+                future: _remindersFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(
+                      key: const Key('reminders-loading'),
+                      child: Semantics(
+                        liveRegion: true,
+                        label: 'Carregando lembretes',
+                        child: const Padding(
+                          padding: EdgeInsets.all(48),
+                          child: CircularProgressIndicator(),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Nesta versão, as alterações ficam disponíveis apenas enquanto esta tela estiver aberta.',
-                            style: TextStyle(
-                              color: semanticColors.onInfoContainer,
-                              height: 1.4,
-                            ),
+                      ),
+                    );
+                  }
+                  if (snapshot.hasError) {
+                    return AppSurface(
+                      key: const Key('reminders-error'),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.cloud_off_rounded,
+                            size: 44,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: !_showForm
-                        ? const SizedBox.shrink(
-                            key: ValueKey('closed-reminder-form'),
-                          )
-                        : Padding(
-                            key: ValueKey(_editingId ?? 'new-reminder'),
-                            padding: const EdgeInsets.only(top: 20),
-                            child: AppReminderForm(
-                              initialType: _newReminderType,
-                              initialValue: editing == null
-                                  ? null
-                                  : AppReminderDraft(
-                                      type: editing.type,
-                                      title: editing.title,
-                                      time: editing.time,
-                                    ),
-                              onCancel: _closeForm,
-                              onSubmit: _saveReminder,
-                            ),
+                          const SizedBox(height: 14),
+                          Text(
+                            'Não foi possível carregar os lembretes',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.titleLarge,
                           ),
-                  ),
-                  const SizedBox(height: 32),
-                  _ReminderSection(
-                    title: 'Refeições',
-                    icon: Icons.restaurant_rounded,
-                    reminders: meals,
-                    onAdd: () => _openCreate(AppReminderType.meal),
-                    onToggle: _toggleReminder,
-                    onEdit: _openEdit,
-                    onDelete: _confirmDelete,
-                  ),
-                  const SizedBox(height: 36),
-                  _ReminderSection(
-                    title: 'Medicamentos',
-                    icon: Icons.medication_rounded,
-                    reminders: medications,
-                    onAdd: () => _openCreate(AppReminderType.medication),
-                    onToggle: _toggleReminder,
-                    onEdit: _openEdit,
-                    onDelete: _confirmDelete,
-                  ),
-                ],
+                          const SizedBox(height: 8),
+                          Text(
+                            AppErrorMessages.from(snapshot.error!),
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 18),
+                          FilledButton.icon(
+                            key: const Key('reminders-retry'),
+                            onPressed: () {
+                              setState(() {
+                                _remindersFuture = _dataSource
+                                    .listCurrentUserReminders();
+                              });
+                            },
+                            icon: const Icon(Icons.refresh_rounded),
+                            label: const Text('Tentar novamente'),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  final reminders = snapshot.data ?? const <PatientReminder>[];
+                  final meals = reminders
+                      .where(
+                        (item) => item.type == PatientReminderType.refeicao,
+                      )
+                      .toList(growable: false);
+                  final medications = reminders
+                      .where(
+                        (item) => item.type == PatientReminderType.medicamento,
+                      )
+                      .toList(growable: false);
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: !_showForm
+                            ? const SizedBox.shrink(
+                                key: ValueKey('closed-reminder-form'),
+                              )
+                            : Padding(
+                                key: ValueKey(_editingId ?? 'new-reminder'),
+                                padding: const EdgeInsets.only(bottom: 28),
+                                child: AppReminderForm(
+                                  initialType: _toAppType(_newReminderType),
+                                  initialValue: _editingReminder == null
+                                      ? null
+                                      : AppReminderDraft(
+                                          type: _toAppType(
+                                            _editingReminder!.type,
+                                          ),
+                                          title: _editingReminder!.title,
+                                          time: _editingReminder!.time,
+                                        ),
+                                  onCancel: _closeForm,
+                                  onSubmit: _saveReminder,
+                                ),
+                              ),
+                      ),
+                      _ReminderSection(
+                        title: 'Refeições',
+                        icon: Icons.restaurant_rounded,
+                        reminders: meals,
+                        onAdd: () => _openCreate(PatientReminderType.refeicao),
+                        onToggle: _toggleReminder,
+                        onEdit: _openEdit,
+                        onDelete: _confirmDelete,
+                      ),
+                      const SizedBox(height: 36),
+                      _ReminderSection(
+                        title: 'Medicamentos',
+                        icon: Icons.medication_rounded,
+                        reminders: medications,
+                        onAdd: () =>
+                            _openCreate(PatientReminderType.medicamento),
+                        onToggle: _toggleReminder,
+                        onEdit: _openEdit,
+                        onDelete: _confirmDelete,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
@@ -339,11 +392,11 @@ class _ReminderSection extends StatelessWidget {
 
   final String title;
   final IconData icon;
-  final List<_PatientReminder> reminders;
+  final List<PatientReminder> reminders;
   final VoidCallback onAdd;
-  final void Function(_PatientReminder, bool) onToggle;
-  final ValueChanged<_PatientReminder> onEdit;
-  final ValueChanged<_PatientReminder> onDelete;
+  final void Function(PatientReminder, bool) onToggle;
+  final ValueChanged<PatientReminder> onEdit;
+  final ValueChanged<PatientReminder> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -393,7 +446,9 @@ class _ReminderSection extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: AppLembretesContent(
                 key: ValueKey('reminder-${reminder.id}'),
-                icon: reminder.type.icon,
+                icon: reminder.type == PatientReminderType.refeicao
+                    ? Icons.restaurant_rounded
+                    : Icons.medication_rounded,
                 categoryLabel: reminder.type.label,
                 textName: reminder.title,
                 textTime: reminder.time.format(context),
@@ -405,37 +460,6 @@ class _ReminderSection extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _PatientReminder {
-  const _PatientReminder({
-    required this.id,
-    required this.type,
-    required this.title,
-    required this.time,
-    required this.isActive,
-  });
-
-  final int id;
-  final AppReminderType type;
-  final String title;
-  final TimeOfDay time;
-  final bool isActive;
-
-  _PatientReminder copyWith({
-    AppReminderType? type,
-    String? title,
-    TimeOfDay? time,
-    bool? isActive,
-  }) {
-    return _PatientReminder(
-      id: id,
-      type: type ?? this.type,
-      title: title ?? this.title,
-      time: time ?? this.time,
-      isActive: isActive ?? this.isActive,
     );
   }
 }

@@ -51,6 +51,11 @@ run_sql /workspace/supabase/migrations/0008_clinical_data_integrity.sql
 run_sql /workspace/supabase/migrations/0008_clinical_data_integrity.sql
 run_sql /workspace/supabase/tests/professional_backend_smoke.sql
 run_sql /workspace/supabase/tests/professional_backend_flow.sql
+# A migration de melhorias do diario tambem deve convergir com seguranca em
+# bancos onde parte das alteracoes ja tenha sido aplicada manualmente.
+run_sql /workspace/supabase/migrations/0009_patient_journal_improvements.sql
+run_sql /workspace/supabase/migrations/0009_patient_journal_improvements.sql
 run_sql /workspace/supabase/tests/clinical_data_integrity.sql
+run_sql /workspace/supabase/tests/patient_journal_improvements.sql
 
 echo "Migrations e fluxo profissional validados."

@@ -7,6 +7,7 @@ import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
 import 'package:iris/screens/lembretes_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
+import 'package:iris/screens/patient_history_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
@@ -18,11 +19,13 @@ class HomeScreen extends StatefulWidget {
     this.todayDataSource,
     this.onOpenReminders,
     this.onOpenCarePlan,
+    this.onOpenHistory,
   });
 
   final PatientTodayDataSource? todayDataSource;
   final VoidCallback? onOpenReminders;
   final VoidCallback? onOpenCarePlan;
+  final VoidCallback? onOpenHistory;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -100,6 +103,23 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const PatientCarePlanScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.history_rounded),
+                title: const Text('Meu histórico'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (widget.onOpenHistory case final callback?) {
+                    callback();
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PatientHistoryScreen(),
                       ),
                     );
                   }
