@@ -18,13 +18,19 @@ class PatientCarePlanRepository implements PatientCarePlanDataSource {
 
   @override
   Future<List<PatientCarePlan>> listSharedPlans() async {
+    // O plano de cuidado é único por paciente: um único vínculo autorizado
+    // está ativo por vez. Bancos legados podem manter vínculos duplicados,
+    // cada um com o próprio plano; retorna apenas o mais recente para não
+    // duplicar as orientações exibidas ao paciente.
     final planRows = await _client
         .from(DatabaseTables.planosCuidado)
         .select(
           'id, orientacoes, passos_crise, compartilhar_paciente, atualizado_em',
         )
         .eq('compartilhar_paciente', true)
-        .order('atualizado_em', ascending: false);
+        .order('atualizado_em', ascending: false)
+        .order('id', ascending: false)
+        .limit(1);
 
     if (planRows.isEmpty) {
       return [];

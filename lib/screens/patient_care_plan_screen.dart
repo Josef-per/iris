@@ -112,15 +112,17 @@ class _PatientCarePlanScreenState extends State<PatientCarePlanScreen> {
                     );
                   }
 
-                  return Column(
-                    children: [
-                      for (var index = 0; index < plans.length; index++) ...[
-                        _CarePlanCard(plan: plans[index]),
-                        if (index != plans.length - 1)
-                          const SizedBox(height: 18),
-                      ],
-                    ],
-                  );
+                  // O plano de cuidado é único: mesmo que a fonte devolva
+                  // várias linhas (vínculos legados duplicados), mantém apenas
+                  // o mais recente para não duplicar as orientações.
+                  var latest = plans.first;
+                  for (final plan in plans.skip(1)) {
+                    if (plan.updatedAt.isAfter(latest.updatedAt)) {
+                      latest = plan;
+                    }
+                  }
+
+                  return _CarePlanCard(plan: latest);
                 },
               ),
             ),
