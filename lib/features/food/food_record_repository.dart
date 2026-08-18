@@ -1,5 +1,6 @@
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
+import 'package:iris/features/food/meal_image_picker.dart';
 import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/features/users/user_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -13,6 +14,7 @@ class FoodRecord {
     this.hungerLevel,
     this.feelingAfter,
     this.observations,
+    this.photoPath,
   });
 
   final String id;
@@ -21,6 +23,7 @@ class FoodRecord {
   final int? hungerLevel;
   final String? feelingAfter;
   final String? observations;
+  final String? photoPath;
   final DateTime mealTime;
 
   factory FoodRecord.fromMap(Map<String, dynamic> map) {
@@ -38,6 +41,7 @@ class FoodRecord {
       hungerLevel: _integer(map['nivel_fome']),
       feelingAfter: _nullableString(map['sentimento_depois']),
       observations: _nullableString(map['observacoes']),
+      photoPath: _nullableString(map['foto_url']),
       mealTime: mealTime,
     );
   }
@@ -55,17 +59,34 @@ class FoodRecord {
   }
 }
 
+class FoodRecordSaveResult {
+  const FoodRecordSaveResult({this.photoIssue});
+
+  final FoodRecordPhotoIssue? photoIssue;
+
+  bool get hasPhotoIssue => photoIssue != null;
+}
+
+enum FoodRecordPhotoIssue { uploadFailed, previousPhotoCleanupFailed }
+
+class FoodRecordDeleteResult {
+  const FoodRecordDeleteResult({this.photoCleanupFailed = false});
+
+  final bool photoCleanupFailed;
+}
+
 abstract interface class FoodRecordDataSource {
-  Future<void> createRecord({
+  Future<FoodRecordSaveResult> createRecord({
     required String description,
     required int hungerLevel,
     MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   });
 
-  Future<void> updateRecord({
+  Future<FoodRecordSaveResult> updateRecord({
     required String id,
     required String description,
     required int hungerLevel,
@@ -73,9 +94,10 @@ abstract interface class FoodRecordDataSource {
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   });
 
-  Future<void> deleteRecord(String id);
+  Future<FoodRecordDeleteResult> deleteRecord(String id);
 
   Future<int> countRecordsForLocalDay(DateTime day);
 
@@ -95,17 +117,20 @@ class FoodRecordRepository implements FoodRecordDataSource {
   final UserRepository _users;
   final DateTime Function() _clock;
 
+  static const _photoBucket = 'registro-alimentar';
+
   SupabaseClient get _client =>
       _clientOverride ?? SupabaseClientProvider.client;
 
   @override
-  Future<void> createRecord({
+  Future<FoodRecordSaveResult> createRecord({
     required String description,
     required int hungerLevel,
     MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   }) async {
     final values = _validatedValues(
       description: description,
@@ -117,14 +142,31 @@ class FoodRecordRepository implements FoodRecordDataSource {
     );
     final pacienteId = await _users.getOrCreateCurrentPatientId();
 
-    await _client.from(DatabaseTables.registrosAlimentares).insert({
-      'paciente_id': pacienteId,
-      ...values,
-    });
+    if (photo == null) {
+      await _client.from(DatabaseTables.registrosAlimentares).insert({
+        'paciente_id': pacienteId,
+        ...values,
+      });
+      return const FoodRecordSaveResult();
+    }
+
+    final created = await _client
+        .from(DatabaseTables.registrosAlimentares)
+        .insert({'paciente_id': pacienteId, ...values})
+        .select('id')
+        .single();
+    final recordId = created['id']?.toString();
+    if (recordId == null || recordId.isEmpty) {
+      throw const FormatException(
+        'Registro alimentar salvo sem identificador.',
+      );
+    }
+
+    return _savePhoto(recordId: recordId, photo: photo);
   }
 
   @override
-  Future<void> updateRecord({
+  Future<FoodRecordSaveResult> updateRecord({
     required String id,
     required String description,
     required int hungerLevel,
@@ -132,6 +174,7 @@ class FoodRecordRepository implements FoodRecordDataSource {
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   }) async {
     final values = _validatedValues(
       description: description,
@@ -142,18 +185,140 @@ class FoodRecordRepository implements FoodRecordDataSource {
       mealTime: mealTime,
     );
 
+    if (photo == null) {
+      await _client
+          .from(DatabaseTables.registrosAlimentares)
+          .update(values)
+          .eq('id', id);
+      return const FoodRecordSaveResult();
+    }
+
+    final existing = await _client
+        .from(DatabaseTables.registrosAlimentares)
+        .select('foto_url')
+        .eq('id', id)
+        .single();
+    final previousPhotoPath = _emptyToNull(existing['foto_url']?.toString());
+
     await _client
         .from(DatabaseTables.registrosAlimentares)
         .update(values)
         .eq('id', id);
+
+    final result = await _savePhoto(recordId: id, photo: photo);
+    if (result.hasPhotoIssue) return result;
+
+    if (previousPhotoPath == null) return result;
+    try {
+      await _client.storage.from(_photoBucket).remove([previousPhotoPath]);
+      return result;
+    } catch (_) {
+      return const FoodRecordSaveResult(
+        photoIssue: FoodRecordPhotoIssue.previousPhotoCleanupFailed,
+      );
+    }
   }
 
   @override
-  Future<void> deleteRecord(String id) async {
+  Future<FoodRecordDeleteResult> deleteRecord(String id) async {
+    final existing = await _client
+        .from(DatabaseTables.registrosAlimentares)
+        .select('foto_url')
+        .eq('id', id)
+        .maybeSingle();
+    final photoPath = _emptyToNull(existing?['foto_url']?.toString());
+
     await _client
         .from(DatabaseTables.registrosAlimentares)
         .delete()
         .eq('id', id);
+
+    if (photoPath == null) return const FoodRecordDeleteResult();
+
+    try {
+      await _client.storage.from(_photoBucket).remove([photoPath]);
+      return const FoodRecordDeleteResult();
+    } catch (_) {
+      return const FoodRecordDeleteResult(photoCleanupFailed: true);
+    }
+  }
+
+  Future<FoodRecordSaveResult> _savePhoto({
+    required String recordId,
+    required MealImage photo,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) {
+      return const FoodRecordSaveResult(
+        photoIssue: FoodRecordPhotoIssue.uploadFailed,
+      );
+    }
+
+    final extension = _photoExtension(photo);
+    final path =
+        '$userId/$recordId/${_clock().microsecondsSinceEpoch}.$extension';
+    var uploaded = false;
+
+    try {
+      await _client.storage
+          .from(_photoBucket)
+          .uploadBinary(
+            path,
+            photo.bytes,
+            fileOptions: FileOptions(
+              contentType: _photoContentType(photo, extension),
+              upsert: false,
+            ),
+          );
+      uploaded = true;
+
+      await _client
+          .from(DatabaseTables.registrosAlimentares)
+          .update({'foto_url': path})
+          .eq('id', recordId);
+      return const FoodRecordSaveResult();
+    } catch (_) {
+      if (uploaded) {
+        try {
+          await _client.storage.from(_photoBucket).remove([path]);
+        } catch (_) {
+          // A foto sem referência será removida em uma rotina de manutenção.
+        }
+      }
+      return const FoodRecordSaveResult(
+        photoIssue: FoodRecordPhotoIssue.uploadFailed,
+      );
+    }
+  }
+
+  String _photoExtension(MealImage photo) {
+    final fileName = photo.fileName.trim();
+    final separator = fileName.lastIndexOf('.');
+    if (separator >= 0 && separator < fileName.length - 1) {
+      final extension = fileName.substring(separator + 1).toLowerCase();
+      if (RegExp(r'^[a-z0-9]{1,10}$').hasMatch(extension)) {
+        return extension;
+      }
+    }
+
+    return switch (photo.mimeType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      'image/heic' => 'heic',
+      _ => 'jpg',
+    };
+  }
+
+  String _photoContentType(MealImage photo, String extension) {
+    final mimeType = photo.mimeType;
+    if (mimeType != null && mimeType.startsWith('image/')) return mimeType;
+
+    return switch (extension) {
+      'png' => 'image/png',
+      'webp' => 'image/webp',
+      'heic' => 'image/heic',
+      _ => 'image/jpeg',
+    };
   }
 
   Map<String, dynamic> _validatedValues({
@@ -219,7 +384,7 @@ class FoodRecordRepository implements FoodRecordDataSource {
 
   static const _recordColumns =
       'id, horario_refeicao, tipo_refeicao, descricao_refeicao, '
-      'nivel_fome, sentimento_depois, observacoes';
+      'nivel_fome, sentimento_depois, observacoes, foto_url';
 
   String? _emptyToNull(String? value) {
     final cleanValue = value?.trim();

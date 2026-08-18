@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/food/meal_image_picker.dart';
 import 'package:iris/features/food/food_record_repository.dart';
 import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
@@ -8,9 +9,14 @@ import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 enum _FoodSheetView { list, form }
 
 class RegistroAlimentarBottomSheet extends StatefulWidget {
-  const RegistroAlimentarBottomSheet({super.key, this.repository});
+  const RegistroAlimentarBottomSheet({
+    super.key,
+    this.repository,
+    this.imagePicker,
+  });
 
   final FoodRecordDataSource? repository;
+  final MealImagePicker? imagePicker;
 
   @override
   State<RegistroAlimentarBottomSheet> createState() =>
@@ -24,16 +30,20 @@ class _RegistroAlimentarBottomSheetState
   final _feelingController = TextEditingController();
   final _observationsController = TextEditingController();
   late final FoodRecordDataSource _repository;
+  late final MealImagePicker _imagePicker;
 
   _FoodSheetView _view = _FoodSheetView.list;
   List<FoodRecord> _records = const [];
   FoodRecord? _editing;
 
   bool _isLoading = false;
+  bool _isPickingImage = false;
   bool _isLoadingTodayRecords = true;
   bool _changed = false;
   String? _loadErrorMessage;
   String? _errorMessage;
+  String? _imageErrorMessage;
+  MealImage? _mealImage;
 
   MealType? _mealType;
   int _hungerLevel = 5;
@@ -43,7 +53,62 @@ class _RegistroAlimentarBottomSheetState
   void initState() {
     super.initState();
     _repository = widget.repository ?? FoodRecordRepository();
+    _imagePicker = widget.imagePicker ?? DeviceMealImagePicker();
+    if (_imagePicker.isSupported) _restoreInterruptedImageCapture();
     _loadTodayRecords();
+  }
+
+  Future<void> _restoreInterruptedImageCapture() async {
+    try {
+      final image = await _imagePicker.retrieveLostPhoto();
+      if (!mounted || image == null) return;
+      setState(() => _mealImage = image);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _imageErrorMessage =
+            'Não foi possível recuperar a foto tirada anteriormente.';
+      });
+    }
+  }
+
+  Future<void> _takeMealPhoto() async {
+    await _pickMealImage(
+      pickImage: _imagePicker.takePhoto,
+      errorMessage:
+          'Não foi possível acessar a câmera. Verifique a permissão e tente novamente.',
+    );
+  }
+
+  Future<void> _chooseMealPhoto() async {
+    await _pickMealImage(
+      pickImage: _imagePicker.chooseFromGallery,
+      errorMessage:
+          'Não foi possível acessar a galeria. Verifique a permissão e tente novamente.',
+    );
+  }
+
+  Future<void> _pickMealImage({
+    required Future<MealImage?> Function() pickImage,
+    required String errorMessage,
+  }) async {
+    setState(() {
+      _isPickingImage = true;
+      _imageErrorMessage = null;
+    });
+
+    try {
+      final image = await pickImage();
+      if (!mounted || image == null) return;
+      setState(() => _mealImage = image);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _imageErrorMessage = errorMessage;
+      });
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
   }
 
   @override
@@ -107,6 +172,8 @@ class _RegistroAlimentarBottomSheetState
       _hungerLevel = 5;
       _mealTime = _nowTime();
       _errorMessage = null;
+      _imageErrorMessage = null;
+      _mealImage = null;
       _view = _FoodSheetView.form;
     });
   }
@@ -121,6 +188,8 @@ class _RegistroAlimentarBottomSheetState
       _hungerLevel = record.hungerLevel ?? 5;
       _mealTime = TimeOfDay.fromDateTime(record.mealTime.toLocal());
       _errorMessage = null;
+      _imageErrorMessage = null;
+      _mealImage = null;
       _view = _FoodSheetView.form;
     });
   }
@@ -168,19 +237,21 @@ class _RegistroAlimentarBottomSheetState
     final messenger = ScaffoldMessenger.of(context);
     final editingId = _editing?.id;
     final mealTime = _todayAt(_mealTime);
+    late final FoodRecordSaveResult saveResult;
 
     try {
       if (editingId == null) {
-        await _repository.createRecord(
+        saveResult = await _repository.createRecord(
           description: _descriptionController.text,
           hungerLevel: _hungerLevel,
           mealType: _mealType,
           feelingAfter: _feelingController.text,
           observations: _observationsController.text,
           mealTime: mealTime,
+          photo: _mealImage,
         );
       } else {
-        await _repository.updateRecord(
+        saveResult = await _repository.updateRecord(
           id: editingId,
           description: _descriptionController.text,
           hungerLevel: _hungerLevel,
@@ -188,6 +259,7 @@ class _RegistroAlimentarBottomSheetState
           feelingAfter: _feelingController.text,
           observations: _observationsController.text,
           mealTime: mealTime,
+          photo: _mealImage,
         );
       }
 
@@ -200,11 +272,7 @@ class _RegistroAlimentarBottomSheetState
       });
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            editingId == null
-                ? 'Registro alimentar salvo.'
-                : 'Registro alimentar atualizado.',
-          ),
+          content: Text(_saveMessage(editingId: editingId, result: saveResult)),
         ),
       );
     } catch (error) {
@@ -242,12 +310,18 @@ class _RegistroAlimentarBottomSheetState
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _repository.deleteRecord(record.id);
+      final deleteResult = await _repository.deleteRecord(record.id);
       await _refreshRecords();
       if (!mounted) return;
       setState(() => _changed = true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Registro alimentar excluído.')),
+        SnackBar(
+          content: Text(
+            deleteResult.photoCleanupFailed
+                ? 'Registro alimentar excluído, mas a foto não pôde ser removida.'
+                : 'Registro alimentar excluído.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -373,7 +447,7 @@ class _RegistroAlimentarBottomSheetState
               IconButton(
                 tooltip: 'Voltar',
                 key: const Key('food-record-back'),
-                onPressed: _isLoading ? null : _backToList,
+                onPressed: _isLoading || _isPickingImage ? null : _backToList,
                 icon: const Icon(Icons.arrow_back_rounded),
               ),
               const SizedBox(width: 8),
@@ -470,6 +544,114 @@ class _RegistroAlimentarBottomSheetState
                   ),
                 ),
                 const SizedBox(height: 20),
+                if (_imagePicker.isSupported) ...[
+                  Text(
+                    'Foto da refeição (opcional)',
+                    style: theme.textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  if (_mealImage == null)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        FilledButton.icon(
+                          key: const Key('food-record-take-photo'),
+                          onPressed: _isLoading || _isPickingImage
+                              ? null
+                              : _takeMealPhoto,
+                          icon: _isPickingImage
+                              ? SizedBox.square(
+                                  dimension: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: theme.colorScheme.onPrimary,
+                                  ),
+                                )
+                              : const Icon(Icons.camera_alt_outlined),
+                          label: Text(
+                            _isPickingImage
+                                ? 'Abrindo câmera...'
+                                : 'Tirar foto',
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(
+                          key: const Key('food-record-choose-photo'),
+                          onPressed: _isLoading || _isPickingImage
+                              ? null
+                              : _chooseMealPhoto,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: theme.colorScheme.secondary,
+                            foregroundColor: theme.colorScheme.onSecondary,
+                          ),
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('Escolher da galeria'),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    Semantics(
+                      image: true,
+                      label: 'Foto selecionada da refeição',
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: AspectRatio(
+                          aspectRatio: 16 / 9,
+                          child: Image.memory(
+                            _mealImage!.bytes,
+                            key: const Key('food-record-photo-preview'),
+                            fit: BoxFit.cover,
+                            gaplessPlayback: true,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          key: const Key('food-record-replace-photo'),
+                          onPressed: _isLoading || _isPickingImage
+                              ? null
+                              : _takeMealPhoto,
+                          icon: const Icon(Icons.camera_alt_outlined),
+                          label: const Text('Trocar foto'),
+                        ),
+                        OutlinedButton.icon(
+                          key: const Key(
+                            'food-record-replace-photo-from-gallery',
+                          ),
+                          onPressed: _isLoading || _isPickingImage
+                              ? null
+                              : _chooseMealPhoto,
+                          icon: const Icon(Icons.photo_library_outlined),
+                          label: const Text('Escolher da galeria'),
+                        ),
+                        TextButton.icon(
+                          key: const Key('food-record-remove-photo'),
+                          onPressed: _isLoading || _isPickingImage
+                              ? null
+                              : () => setState(() => _mealImage = null),
+                          icon: const Icon(Icons.delete_outline_rounded),
+                          label: const Text('Remover'),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (_imageErrorMessage != null) ...[
+                    const SizedBox(height: 8),
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        _imageErrorMessage!,
+                        style: TextStyle(color: theme.colorScheme.error),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                ],
                 _LabeledField(
                   controller: _descriptionController,
                   label: 'O que você comeu?',
@@ -563,7 +745,7 @@ class _RegistroAlimentarBottomSheetState
             children: [
               Expanded(
                 child: OutlinedButton(
-                  onPressed: _isLoading ? null : _backToList,
+                  onPressed: _isLoading || _isPickingImage ? null : _backToList,
                   child: const Text('Cancelar'),
                 ),
               ),
@@ -571,7 +753,7 @@ class _RegistroAlimentarBottomSheetState
               Expanded(
                 child: FilledButton.icon(
                   key: const Key('food-record-submit'),
-                  onPressed: _isLoading ? null : _submit,
+                  onPressed: _isLoading || _isPickingImage ? null : _submit,
                   icon: _isLoading
                       ? const SizedBox.square(
                           dimension: 18,
@@ -593,6 +775,20 @@ class _RegistroAlimentarBottomSheetState
       return 'Descreva a refeição.';
     }
     return null;
+  }
+
+  String _saveMessage({
+    required String? editingId,
+    required FoodRecordSaveResult result,
+  }) {
+    final action = editingId == null ? 'salvo' : 'atualizado';
+    return switch (result.photoIssue) {
+      null => 'Registro alimentar $action.',
+      FoodRecordPhotoIssue.uploadFailed =>
+        'Registro alimentar $action, mas não foi possível salvar a foto.',
+      FoodRecordPhotoIssue.previousPhotoCleanupFailed =>
+        'Registro alimentar $action, mas a foto anterior não pôde ser removida.',
+    };
   }
 }
 
