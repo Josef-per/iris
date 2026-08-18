@@ -8,6 +8,7 @@ import 'package:iris/features/emotional_diary/emotional_diary_entry.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
 import 'package:iris/features/emotional_diary/patient_symptoms.dart';
 import 'package:iris/features/food/food_record_repository.dart';
+import 'package:iris/features/food/meal_image_picker.dart';
 import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/screens/home_screen.dart';
@@ -323,17 +324,18 @@ class _FoodDataSource implements FoodRecordDataSource {
   Future<int> countRecordsForLocalDay(DateTime day) async => count;
 
   @override
-  Future<void> createRecord({
+  Future<FoodRecordSaveResult> createRecord({
     required String description,
     required int hungerLevel,
     MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
-  }) async {}
+    MealImage? photo,
+  }) async => const FoodRecordSaveResult();
 
   @override
-  Future<void> updateRecord({
+  Future<FoodRecordSaveResult> updateRecord({
     required String id,
     required String description,
     required int hungerLevel,
@@ -341,10 +343,12 @@ class _FoodDataSource implements FoodRecordDataSource {
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
-  }) async {}
+    MealImage? photo,
+  }) async => const FoodRecordSaveResult();
 
   @override
-  Future<void> deleteRecord(String id) async {}
+  Future<FoodRecordDeleteResult> deleteRecord(String id) async =>
+      const FoodRecordDeleteResult();
 
   @override
   Future<List<FoodRecord>> listRecordsForLocalDay(DateTime day) async => [];

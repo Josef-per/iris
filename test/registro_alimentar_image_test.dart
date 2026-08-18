@@ -61,6 +61,35 @@ void main() {
     await tester.pump();
 
     expect(repository.createRecordCalls, 1);
+    expect(repository.lastPhoto, isNull);
+  });
+
+  testWidgets('encaminha a foto selecionada ao repositório ao salvar', (
+    tester,
+  ) async {
+    final photo = _testImage('registro.png');
+    final repository = _FakeFoodRecordDataSource();
+    await _pumpForm(
+      tester,
+      repository: repository,
+      imagePicker: _FakeMealImagePicker([photo]),
+    );
+    await tester.tap(find.byKey(const Key('food-record-add')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('food-record-take-photo')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('food-record-description-field')),
+      'Almoço com foto',
+    );
+    final submit = find.byKey(const Key('food-record-submit'));
+    await tester.ensureVisible(submit);
+    await tester.tap(submit);
+    await tester.pumpAndSettle();
+
+    expect(repository.createRecordCalls, 1);
+    expect(repository.lastPhoto, same(photo));
   });
 
   testWidgets('permite escolher e substituir a foto pela galeria', (
@@ -157,24 +186,28 @@ class _FakeMealImagePicker implements MealImagePicker {
 
 class _FakeFoodRecordDataSource implements FoodRecordDataSource {
   int createRecordCalls = 0;
+  MealImage? lastPhoto;
 
   @override
   Future<int> countRecordsForLocalDay(DateTime day) async => 0;
 
   @override
-  Future<void> createRecord({
+  Future<FoodRecordSaveResult> createRecord({
     required String description,
     required int hungerLevel,
     MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   }) async {
     createRecordCalls += 1;
+    lastPhoto = photo;
+    return const FoodRecordSaveResult();
   }
 
   @override
-  Future<void> updateRecord({
+  Future<FoodRecordSaveResult> updateRecord({
     required String id,
     required String description,
     required int hungerLevel,
@@ -182,10 +215,12 @@ class _FakeFoodRecordDataSource implements FoodRecordDataSource {
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
-  }) async {}
+    MealImage? photo,
+  }) async => const FoodRecordSaveResult();
 
   @override
-  Future<void> deleteRecord(String id) async {}
+  Future<FoodRecordDeleteResult> deleteRecord(String id) async =>
+      const FoodRecordDeleteResult();
 
   @override
   Future<List<FoodRecord>> listRecordsForLocalDay(DateTime day) async => [];

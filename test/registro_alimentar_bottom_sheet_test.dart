@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/food/food_record_repository.dart';
+import 'package:iris/features/food/meal_image_picker.dart';
 import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/widgets/bottom_sheets/registro_alimentar_bottom_sheet.dart';
 
@@ -254,13 +255,14 @@ class _FoodDataSource implements FoodRecordDataSource {
   Future<int> countRecordsForLocalDay(DateTime day) async => records.length;
 
   @override
-  Future<void> createRecord({
+  Future<FoodRecordSaveResult> createRecord({
     required String description,
     required int hungerLevel,
     MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   }) async {
     records.add(
       FoodRecord(
@@ -273,10 +275,11 @@ class _FoodDataSource implements FoodRecordDataSource {
         mealTime: mealTime ?? DateTime.now(),
       ),
     );
+    return const FoodRecordSaveResult();
   }
 
   @override
-  Future<void> updateRecord({
+  Future<FoodRecordSaveResult> updateRecord({
     required String id,
     required String description,
     required int hungerLevel,
@@ -284,6 +287,7 @@ class _FoodDataSource implements FoodRecordDataSource {
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
+    MealImage? photo,
   }) async {
     final index = records.indexWhere((record) => record.id == id);
     records[index] = FoodRecord(
@@ -295,10 +299,12 @@ class _FoodDataSource implements FoodRecordDataSource {
       observations: observations,
       mealTime: mealTime ?? records[index].mealTime,
     );
+    return const FoodRecordSaveResult();
   }
 
   @override
-  Future<void> deleteRecord(String id) async {
+  Future<FoodRecordDeleteResult> deleteRecord(String id) async {
     records.removeWhere((record) => record.id == id);
+    return const FoodRecordDeleteResult();
   }
 }

@@ -237,19 +237,21 @@ class _RegistroAlimentarBottomSheetState
     final messenger = ScaffoldMessenger.of(context);
     final editingId = _editing?.id;
     final mealTime = _todayAt(_mealTime);
+    late final FoodRecordSaveResult saveResult;
 
     try {
       if (editingId == null) {
-        await _repository.createRecord(
+        saveResult = await _repository.createRecord(
           description: _descriptionController.text,
           hungerLevel: _hungerLevel,
           mealType: _mealType,
           feelingAfter: _feelingController.text,
           observations: _observationsController.text,
           mealTime: mealTime,
+          photo: _mealImage,
         );
       } else {
-        await _repository.updateRecord(
+        saveResult = await _repository.updateRecord(
           id: editingId,
           description: _descriptionController.text,
           hungerLevel: _hungerLevel,
@@ -257,6 +259,7 @@ class _RegistroAlimentarBottomSheetState
           feelingAfter: _feelingController.text,
           observations: _observationsController.text,
           mealTime: mealTime,
+          photo: _mealImage,
         );
       }
 
@@ -269,11 +272,7 @@ class _RegistroAlimentarBottomSheetState
       });
       messenger.showSnackBar(
         SnackBar(
-          content: Text(
-            editingId == null
-                ? 'Registro alimentar salvo.'
-                : 'Registro alimentar atualizado.',
-          ),
+          content: Text(_saveMessage(editingId: editingId, result: saveResult)),
         ),
       );
     } catch (error) {
@@ -311,12 +310,18 @@ class _RegistroAlimentarBottomSheetState
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _repository.deleteRecord(record.id);
+      final deleteResult = await _repository.deleteRecord(record.id);
       await _refreshRecords();
       if (!mounted) return;
       setState(() => _changed = true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Registro alimentar excluído.')),
+        SnackBar(
+          content: Text(
+            deleteResult.photoCleanupFailed
+                ? 'Registro alimentar excluído, mas a foto não pôde ser removida.'
+                : 'Registro alimentar excluído.',
+          ),
+        ),
       );
     } catch (error) {
       if (!mounted) return;
@@ -770,6 +775,20 @@ class _RegistroAlimentarBottomSheetState
       return 'Descreva a refeição.';
     }
     return null;
+  }
+
+  String _saveMessage({
+    required String? editingId,
+    required FoodRecordSaveResult result,
+  }) {
+    final action = editingId == null ? 'salvo' : 'atualizado';
+    return switch (result.photoIssue) {
+      null => 'Registro alimentar $action.',
+      FoodRecordPhotoIssue.uploadFailed =>
+        'Registro alimentar $action, mas não foi possível salvar a foto.',
+      FoodRecordPhotoIssue.previousPhotoCleanupFailed =>
+        'Registro alimentar $action, mas a foto anterior não pôde ser removida.',
+    };
   }
 }
 
