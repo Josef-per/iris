@@ -14,6 +14,8 @@ abstract interface class MealImagePicker {
 
   Future<MealImage?> takePhoto();
 
+  Future<MealImage?> chooseFromGallery();
+
   Future<MealImage?> retrieveLostPhoto();
 }
 
@@ -34,6 +36,18 @@ class DeviceMealImagePicker implements MealImagePicker {
     final file = await _picker.pickImage(
       source: ImageSource.camera,
       preferredCameraDevice: CameraDevice.rear,
+      imageQuality: 85,
+      maxWidth: 1600,
+      requestFullMetadata: false,
+    );
+
+    return file == null ? null : _readImage(file);
+  }
+
+  @override
+  Future<MealImage?> chooseFromGallery() async {
+    final file = await _picker.pickImage(
+      source: ImageSource.gallery,
       imageQuality: 85,
       maxWidth: 1600,
       requestFullMetadata: false,

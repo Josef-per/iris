@@ -3,7 +3,7 @@
 do $$
 begin
   if to_regprocedure(
-    'public.iris_upsert_daily_emotional_record(date,text,text,text,integer,integer,text[],text[])'
+    'public.iris_upsert_daily_emotional_record(date,text,text,text,integer,integer,text[],text[],boolean)'
   ) is null then
     raise exception 'RPC de upsert emocional diario ausente';
   end if;

@@ -34,9 +34,9 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
   static const _moodLabels = [
     'Muito feliz',
     'Bem',
-    'Mais ou menos',
-    'Mal',
-    'Muito mal',
+    'Regular',
+    'Difícil',
+    'Muito difícil',
   ];
 
   static const _moodOptions = [
@@ -51,17 +51,17 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
       selectedImage: 'assets/icons/Bem_color.png',
     ),
     _SelectorOption(
-      label: 'Mais ou\nmenos',
+      label: 'Regular',
       image: 'assets/icons/MaisOuMenos_white.png',
       selectedImage: 'assets/icons/MaisOuMenos_color.png',
     ),
     _SelectorOption(
-      label: 'Mal',
+      label: 'Difícil',
       image: 'assets/icons/Mal_white.png',
       selectedImage: 'assets/icons/Mal_color.png',
     ),
     _SelectorOption(
-      label: 'Muito\nmal',
+      label: 'Muito\ndifícil',
       image: 'assets/icons/MuitoMal_white.png',
       selectedImage: 'assets/icons/MuitoMal_color.png',
     ),
@@ -69,27 +69,27 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
 
   static const _foodOptions = [
     _SelectorOption(
-      label: 'Muito\nboa',
+      label: 'Muito\ntranquila',
       image: 'assets/icons/MuitoFeliz_white.png',
       selectedImage: 'assets/icons/MuitoFeliz_color.png',
     ),
     _SelectorOption(
-      label: 'Boa',
+      label: 'Tranquila',
       image: 'assets/icons/Bem_white.png',
       selectedImage: 'assets/icons/Bem_color.png',
     ),
     _SelectorOption(
-      label: 'Mais ou\nmenos',
+      label: 'Neutra',
       image: 'assets/icons/MaisOuMenos_white.png',
       selectedImage: 'assets/icons/MaisOuMenos_color.png',
     ),
     _SelectorOption(
-      label: 'Ruim',
+      label: 'Difícil',
       image: 'assets/icons/Mal_white.png',
       selectedImage: 'assets/icons/Mal_color.png',
     ),
     _SelectorOption(
-      label: 'Muito\nruim',
+      label: 'Muito\ndifícil',
       image: 'assets/icons/MuitoMal_white.png',
       selectedImage: 'assets/icons/MuitoMal_color.png',
     ),
@@ -151,7 +151,8 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     FocusScope.of(context).unfocus();
     if (selectedMood == null || selectedFood == null) {
       setState(() {
-        _errorMessage = 'Selecione como você se sentiu e avalie a alimentação.';
+        _errorMessage =
+            'Selecione como você se sentiu e como foi sua alimentação.';
       });
       return;
     }
@@ -165,20 +166,31 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     final messenger = ScaffoldMessenger.of(context);
     final moodIndex = selectedMood!;
     final foodIndex = selectedFood!;
+    final comoSentiu = _selectorIndexToScore(moodIndex);
+    final avaliacaoAlimentacao = _selectorIndexToScore(foodIndex);
 
     try {
       await _repository.createCheckIn(
         humor: _moodLabels[moodIndex],
-        comoSentiu: _selectorIndexToScore(moodIndex),
-        avaliacaoAlimentacao: _selectorIndexToScore(foodIndex),
+        comoSentiu: comoSentiu,
+        avaliacaoAlimentacao: avaliacaoAlimentacao,
         sintomasEmocionaisHoje: mentalSymptoms.toList(growable: false),
         sintomasFisicosHoje: physicalSymptoms.toList(growable: false),
       );
       if (!mounted) return;
+      setState(() => _isLoading = false);
+
+      if (_needsSupport(comoSentiu, avaliacaoAlimentacao)) {
+        await showDialog<void>(
+          context: context,
+          builder: (_) => const _SupportDialog(),
+        );
+        if (!mounted) return;
+      }
 
       navigator.pop(true);
       messenger.showSnackBar(
-        const SnackBar(content: Text('Check-in diário salvo.')),
+        const SnackBar(content: Text('Registro do dia salvo.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -186,6 +198,15 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  bool _needsSupport(int comoSentiu, int avaliacaoAlimentacao) {
+    if (comoSentiu <= 2 || avaliacaoAlimentacao <= 2) {
+      return true;
+    }
+    const criticalCodes = {'vomito_autoinduzido', 'compulsao', 'desmaio'};
+    return mentalSymptoms.any(criticalCodes.contains) ||
+        physicalSymptoms.any(criticalCodes.contains);
   }
 
   int _selectorIndexToScore(int index) => 5 - index;
@@ -238,7 +259,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 Semantics(
                   header: true,
                   child: Text(
-                    'Check-in diário',
+                    'Registro do dia',
                     style: theme.textTheme.headlineMedium,
                   ),
                 ),
@@ -259,7 +280,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 16),
                 AppCheckInCard(
-                  title: 'Como você avaliaria sua alimentação hoje?',
+                  title: 'Como você se sentiu com sua alimentação hoje?',
                   child: _SelectorGrid(
                     key: const Key('check-in-food-options'),
                     options: _foodOptions,
@@ -269,7 +290,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 16),
                 AppSymptomsCard(
-                  title: 'Quais sintomas emocionais você apresentou hoje?',
+                  title: 'Marque o que você sentiu hoje',
                   symptoms: PatientSymptoms.emotional
                       .map((symptom) => symptom.label)
                       .toList(growable: false),
@@ -284,7 +305,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 16),
                 AppSymptomsCard(
-                  title: 'Quais sintomas físicos você apresentou hoje?',
+                  title: 'Marque os sinais que você notou no seu corpo',
                   symptoms: PatientSymptoms.physical
                       .map((symptom) => symptom.label)
                       .toList(growable: false),
@@ -408,7 +429,7 @@ class _SheetLoading extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       liveRegion: true,
-      label: 'Carregando o check-in de hoje',
+      label: 'Carregando o registro do dia',
       child: const SizedBox(
         height: 320,
         child: Center(child: CircularProgressIndicator()),
@@ -441,7 +462,7 @@ class _CheckInLoadError extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               Text(
-                'Não foi possível carregar o check-in',
+                'Não foi possível carregar o registro do dia',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleLarge,
               ),
@@ -462,6 +483,82 @@ class _CheckInLoadError extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SupportDialog extends StatelessWidget {
+  const _SupportDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AlertDialog(
+      key: const Key('check-in-support-dialog'),
+      icon: const Icon(Icons.favorite_rounded, color: AppColors.deepPurple),
+      title: const Text('Você não está sozinho(a)'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Seu registro do dia foi salvo e poderá ser visto pela sua '
+              'equipe de cuidado. Enquanto isso, tente:',
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            const _SupportTip(
+              icon: Icons.air_rounded,
+              text: 'Respirar devagar: inspire contando até 4 e solte até 6.',
+            ),
+            const SizedBox(height: 10),
+            const _SupportTip(
+              icon: Icons.people_alt_outlined,
+              text: 'Acionar alguém da sua rede de apoio.',
+            ),
+            const SizedBox(height: 10),
+            const _SupportTip(
+              icon: Icons.support_agent_rounded,
+              text: 'Procurar sua equipe de cuidado se o mal-estar persistir.',
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Se houver risco imediato à sua segurança, ligue para o SAMU '
+              '(192) ou para o CVV (188).',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        FilledButton(
+          key: const Key('check-in-support-close'),
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Entendi'),
+        ),
+      ],
+    );
+  }
+}
+
+class _SupportTip extends StatelessWidget {
+  const _SupportTip({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: AppColors.deepPurple),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text)),
+      ],
     );
   }
 }

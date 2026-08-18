@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 abstract interface class EmotionalDiaryDataSource {
   Future<void> createDiaryEntry({required String content});
 
+  Future<void> clearDiaryEntry();
+
   Future<void> createCheckIn({
     required int comoSentiu,
     required int avaliacaoAlimentacao,
@@ -52,6 +54,11 @@ class EmotionalDiaryRepository implements EmotionalDiaryDataSource {
   }
 
   @override
+  Future<void> clearDiaryEntry() async {
+    await _upsertTodayRecord({'p_limpar_diario': true});
+  }
+
+  @override
   Future<void> createCheckIn({
     required int comoSentiu,
     required int avaliacaoAlimentacao,
@@ -83,7 +90,7 @@ class EmotionalDiaryRepository implements EmotionalDiaryDataSource {
       return null;
     }
 
-    return _findTodayRecord(pacienteId, columns: '*', now: _clock());
+    return _findTodayRecord(pacienteId, now: _clock());
   }
 
   Future<void> _upsertTodayRecord(Map<String, dynamic> values) async {
@@ -101,18 +108,21 @@ class EmotionalDiaryRepository implements EmotionalDiaryDataSource {
 
   Future<Map<String, dynamic>?> _findTodayRecord(
     String pacienteId, {
-    required String columns,
     required DateTime now,
   }) {
     return _client
         .from(DatabaseTables.registrosEmocionais)
-        .select(columns)
+        .select(_todayColumns)
         .eq('paciente_id', pacienteId)
         .eq('data_local', LocalDay.key(now))
         .order('data_registro', ascending: false)
         .limit(1)
         .maybeSingle();
   }
+
+  static const _todayColumns =
+      'id, data_local, diario_emocional, humor, como_sentiu, '
+      'avaliacao_alimentacao, sintomas_emocionais_hoje, sintomas_fisicos_hoje';
 
   @override
   Future<List<EmotionalDiaryEntry>> listCurrentUserEntries() async {

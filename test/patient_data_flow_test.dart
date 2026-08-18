@@ -8,6 +8,7 @@ import 'package:iris/features/emotional_diary/emotional_diary_entry.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
 import 'package:iris/features/emotional_diary/patient_symptoms.dart';
 import 'package:iris/features/food/food_record_repository.dart';
+import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
@@ -34,7 +35,7 @@ void main() {
 
     expect(summary.mealCount, 3);
     expect(summary.moodLabel, 'Bem');
-    expect(summary.checkInLabel, 'Feito');
+    expect(summary.checkInLabel, 'Concluído');
     expect(summary.hasDiaryEntry, isTrue);
   });
 
@@ -48,7 +49,7 @@ void main() {
 
     expect(summary.mealCount, 0);
     expect(summary.moodLabel, 'Sem registro');
-    expect(summary.checkInLabel, 'Pendente');
+    expect(summary.checkInLabel, 'Aguardando você');
     expect(summary.hasDiaryEntry, isFalse);
   });
 
@@ -104,7 +105,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Muito feliz'), findsOneWidget);
-    expect(find.text('Feito'), findsOneWidget);
+    expect(find.text('Concluído'), findsOneWidget);
     expect(find.text('3/4'), findsNothing);
     expect(find.text('1/2'), findsNothing);
   });
@@ -165,7 +166,7 @@ void main() {
 
     expect(repository.createCheckInCalls, 0);
     expect(
-      find.text('Selecione como você se sentiu e avalie a alimentação.'),
+      find.text('Selecione como você se sentiu e como foi sua alimentação.'),
       findsOneWidget,
     );
   });
@@ -325,10 +326,28 @@ class _FoodDataSource implements FoodRecordDataSource {
   Future<void> createRecord({
     required String description,
     required int hungerLevel,
+    MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
   }) async {}
+
+  @override
+  Future<void> updateRecord({
+    required String id,
+    required String description,
+    required int hungerLevel,
+    MealType? mealType,
+    String? feelingAfter,
+    String? observations,
+    DateTime? mealTime,
+  }) async {}
+
+  @override
+  Future<void> deleteRecord(String id) async {}
+
+  @override
+  Future<List<FoodRecord>> listRecordsForLocalDay(DateTime day) async => [];
 }
 
 class _EmotionalDataSource implements EmotionalDiaryDataSource {
@@ -351,6 +370,9 @@ class _EmotionalDataSource implements EmotionalDiaryDataSource {
 
   @override
   Future<void> createDiaryEntry({required String content}) async {}
+
+  @override
+  Future<void> clearDiaryEntry() async {}
 
   @override
   Future<Map<String, dynamic>?> getTodayRecord() async {

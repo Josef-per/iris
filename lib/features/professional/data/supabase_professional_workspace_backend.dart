@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:iris/features/emotional_diary/patient_symptoms.dart';
+import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/users/user_repository.dart';
@@ -324,10 +325,12 @@ class SupabaseProfessionalWorkspaceBackend
         ifAbsent: () => recordedAt,
       );
       final meal = _string(row['descricao_refeicao']).trim();
+      final mealType = MealType.labelOf(row['tipo_refeicao']);
       final hunger = _integer(row['nivel_fome']);
       final feeling = _string(row['sentimento_depois']).trim();
       final observations = _string(row['observacoes']).trim();
       final descriptionParts = <String>[
+        if (mealType != 'Refeição') mealType,
         if (meal.isNotEmpty) meal,
         if (hunger != null) 'Fome: $hunger/10',
         if (feeling.isNotEmpty) feeling,
@@ -881,8 +884,8 @@ class SupabaseProfessionalWorkspaceBackend
       (chunk, from, to) async => _client
           .from(DatabaseTables.registrosAlimentares)
           .select(
-            'id, paciente_id, horario_refeicao, descricao_refeicao, '
-            'nivel_fome, sentimento_depois, observacoes',
+            'id, paciente_id, horario_refeicao, tipo_refeicao, '
+            'descricao_refeicao, nivel_fome, sentimento_depois, observacoes',
           )
           .inFilter('paciente_id', chunk)
           .order('horario_refeicao', ascending: false)

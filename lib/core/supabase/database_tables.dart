@@ -12,6 +12,7 @@ class DatabaseTables {
   static const metasCuidado = 'metas_cuidado';
   static const medicacoesPlano = 'medicacoes_plano';
   static const convitesVinculoProfissional = 'convites_vinculo_profissional';
+  static const lembretes = 'lembretes';
 }
 
 class PatientProfessionalStatus {

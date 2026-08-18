@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
@@ -21,6 +22,7 @@ class _DiarioEmocionalBottomSheetState
 
   bool _isLoading = false;
   bool _isLoadingTodayRecord = true;
+  bool _hasSavedContent = false;
   String? _loadErrorMessage;
   String? _errorMessage;
 
@@ -48,6 +50,9 @@ class _DiarioEmocionalBottomSheetState
       if (!mounted) return;
 
       final content = record?['diario_emocional']?.toString();
+      setState(() {
+        _hasSavedContent = content != null && content.trim().isNotEmpty;
+      });
       if (content != null && content.trim().isNotEmpty) {
         _contentController.text = content;
       }
@@ -78,6 +83,52 @@ class _DiarioEmocionalBottomSheetState
       navigator.pop(true);
       messenger.showSnackBar(
         const SnackBar(content: Text('Diário emocional salvo.')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _errorMessage = AppErrorMessages.from(error));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _clearDiary() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Limpar diário de hoje?'),
+        content: const Text(
+          'O texto salvo hoje será apagado. O registro do dia e os sintomas marcados são mantidos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Limpar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await _repository.clearDiaryEntry();
+      if (!mounted) return;
+
+      navigator.pop(true);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Diário emocional limpo.')),
       );
     } catch (error) {
       if (!mounted) return;
@@ -125,7 +176,7 @@ class _DiarioEmocionalBottomSheetState
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Você pode escrever livremente. Este campo é obrigatório.',
+                    'Você pode escrever livremente, do seu jeito.',
                     style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
@@ -149,6 +200,14 @@ class _DiarioEmocionalBottomSheetState
                       controller: _contentController,
                       minLines: 6,
                       maxLines: 10,
+                      maxLength: 4000,
+                      buildCounter:
+                          (
+                            _, {
+                            required currentLength,
+                            required isFocused,
+                            required maxLength,
+                          }) => null,
                       textCapitalization: TextCapitalization.sentences,
                       validator: _validateContent,
                       decoration: const InputDecoration(
@@ -156,6 +215,21 @@ class _DiarioEmocionalBottomSheetState
                         alignLabelWithHint: true,
                       ),
                     ),
+                  if (_hasSavedContent) ...[
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        key: const Key('emotional-diary-clear'),
+                        onPressed: _isLoading ? null : _clearDiary,
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.danger,
+                        ),
+                        icon: const Icon(Icons.delete_outline_rounded),
+                        label: const Text('Limpar diário de hoje'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

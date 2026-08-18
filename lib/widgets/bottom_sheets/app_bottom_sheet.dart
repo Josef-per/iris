@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 
 class AppBottomSheet extends StatelessWidget {
-  const AppBottomSheet({super.key, required this.child});
+  const AppBottomSheet({super.key, required this.child, this.onClose});
 
   final Widget child;
+
+  /// Chamado quando o usuário fecha o sheet pelo botão fechar. Quando omitido,
+  /// o sheet apenas é fechado.
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +59,8 @@ class AppBottomSheet extends StatelessWidget {
                             right: 4,
                             child: IconButton(
                               tooltip: 'Fechar',
-                              onPressed: () => Navigator.maybePop(context),
+                              onPressed:
+                                  onClose ?? () => Navigator.maybePop(context),
                               icon: const Icon(Icons.close_rounded),
                             ),
                           ),

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/food/food_record_repository.dart';
 import 'package:iris/features/food/meal_image_picker.dart';
+import 'package:iris/features/food/meal_type.dart';
 import 'package:iris/widgets/bottom_sheets/registro_alimentar_bottom_sheet.dart';
 
 void main() {
@@ -17,6 +18,8 @@ void main() {
     ]);
 
     await _pumpForm(tester, imagePicker: picker);
+    await tester.tap(find.byKey(const Key('food-record-add')));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const Key('food-record-take-photo')));
     await tester.pumpAndSettle();
@@ -45,14 +48,49 @@ void main() {
       repository: repository,
       imagePicker: _FakeMealImagePicker(const []),
     );
+    await tester.tap(find.byKey(const Key('food-record-add')));
+    await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextFormField).first, 'Almoço');
+    await tester.enterText(
+      find.byKey(const Key('food-record-description-field')),
+      'Almoço',
+    );
     final submit = find.byKey(const Key('food-record-submit'));
     await tester.ensureVisible(submit);
     await tester.tap(submit);
     await tester.pump();
 
     expect(repository.createRecordCalls, 1);
+  });
+
+  testWidgets('permite escolher e substituir a foto pela galeria', (
+    tester,
+  ) async {
+    final picker = _FakeMealImagePicker(
+      const [],
+      galleryImages: [
+        _testImage('galeria-inicial.png'),
+        _testImage('galeria-substituida.png'),
+      ],
+    );
+
+    await _pumpForm(tester, imagePicker: picker);
+    await tester.tap(find.byKey(const Key('food-record-add')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('food-record-choose-photo')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('food-record-photo-preview')), findsOneWidget);
+    expect(picker.chooseFromGalleryCalls, 1);
+
+    await tester.tap(
+      find.byKey(const Key('food-record-replace-photo-from-gallery')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('food-record-photo-preview')), findsOneWidget);
+    expect(picker.chooseFromGalleryCalls, 2);
   });
 }
 
@@ -89,10 +127,12 @@ MealImage _testImage(String fileName) {
 }
 
 class _FakeMealImagePicker implements MealImagePicker {
-  _FakeMealImagePicker(this.images);
+  _FakeMealImagePicker(this.images, {this.galleryImages = const []});
 
   final List<MealImage> images;
+  final List<MealImage> galleryImages;
   int takePhotoCalls = 0;
+  int chooseFromGalleryCalls = 0;
 
   @override
   bool get isSupported => true;
@@ -106,6 +146,13 @@ class _FakeMealImagePicker implements MealImagePicker {
     takePhotoCalls += 1;
     return index < images.length ? images[index] : null;
   }
+
+  @override
+  Future<MealImage?> chooseFromGallery() async {
+    final index = chooseFromGalleryCalls;
+    chooseFromGalleryCalls += 1;
+    return index < galleryImages.length ? galleryImages[index] : null;
+  }
 }
 
 class _FakeFoodRecordDataSource implements FoodRecordDataSource {
@@ -118,10 +165,28 @@ class _FakeFoodRecordDataSource implements FoodRecordDataSource {
   Future<void> createRecord({
     required String description,
     required int hungerLevel,
+    MealType? mealType,
     String? feelingAfter,
     String? observations,
     DateTime? mealTime,
   }) async {
     createRecordCalls += 1;
   }
+
+  @override
+  Future<void> updateRecord({
+    required String id,
+    required String description,
+    required int hungerLevel,
+    MealType? mealType,
+    String? feelingAfter,
+    String? observations,
+    DateTime? mealTime,
+  }) async {}
+
+  @override
+  Future<void> deleteRecord(String id) async {}
+
+  @override
+  Future<List<FoodRecord>> listRecordsForLocalDay(DateTime day) async => [];
 }

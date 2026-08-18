@@ -22,12 +22,12 @@ class PatientTodaySummary {
     5 => 'Muito feliz',
     4 => 'Bem',
     3 => 'Regular',
-    2 => 'Mal',
-    1 => 'Muito mal',
+    2 => 'Difícil',
+    1 => 'Muito difícil',
     _ => 'Sem registro',
   };
 
-  String get checkInLabel => hasCheckIn ? 'Feito' : 'Pendente';
+  String get checkInLabel => hasCheckIn ? 'Concluído' : 'Aguardando você';
 }
 
 class PatientTodayRepository implements PatientTodayDataSource {
