@@ -167,11 +167,11 @@ não apareçam por inteiro para o paciente.
 
 | Exercício | Necessidade | Duração | Mecânica interativa | Encerramento |
 |---|---|---:|---|---|
-| Ancorar no presente | Redirecionar a atenção para o ambiente | 2 min | Notar cor, forma, som e um ponto de apoio, sempre com alternativa de pular | Ensinar o atalho “ver, ouvir ou apoiar-se” para repetir apenas uma parte da prática |
-| Perceber e nomear | Observar uma experiência sem tentar resolvê-la | 3 min | Selecionar uma palavra aproximada e, opcionalmente, completar “Agora há ___ em mim” | Conectar nomeação a uma continuação concreta: retomar uma tarefa pequena ou pedir companhia |
-| Dar espaço ao pensamento | Notar pensamento como pensamento | 3 min | Escrever opcionalmente uma versão curta, usar “Estou notando o pensamento de que…” e escolher uma direção de dois minutos | Repetir o roteiro de distanciamento e escolher um gesto; buscar ajuda humana diante de risco |
-| Falar comigo como com alguém querido | Usar um tom menos duro e identificar um cuidado possível | 3 min | Escolher uma frase realista, adaptá-la para si e apontar um cuidado pequeno | Converter gentileza em uma pergunta prática: diminuir, pausar, pedir ou adiar |
-| Próximo passo seguro | Transformar uma necessidade em ação clara e voluntária | 2 min | Identificar o tipo de apoio e escolher um passo específico que caiba em poucos minutos | Tornar o passo observável e oferecer uma versão ainda menor se ele não couber |
+| Ancorar no presente | Recuperar orientação no agora | 2 min | Guiar olhar, som, ponto de apoio e três fatos do momento; a pessoa marca apenas que experimentou | Deixar o atalho “olhar, escutar ou apoiar-se” para repetir uma única parte da prática |
+| Perceber e nomear | Dar nome aproximado e refocar | 3 min | Guiar observação, etiqueta provisória e a frase “há ___ em mim e também há ___ ao meu redor” | Retomar o roteiro “notar, nomear e refocar” em uma tarefa mínima |
+| Dar espaço ao pensamento | Sair do piloto automático de um pensamento | 3 min | Guiar a frase “estou tendo o pensamento”, dar nome à história, criar distância e agir por dois minutos | Repetir a sequência sem discutir o pensamento; buscar ajuda humana diante de risco |
+| Falar comigo como com alguém querido | Trocar autocrítica por cuidado concreto | 3 min | Guiar o reconhecimento da regra dura, uma frase útil e um cuidado observável para dez minutos | Usar “qual é o cuidado possível agora?” para diminuir, pausar, pedir ou adiar |
+| Próximo passo seguro | Sair da paralisia com uma ação ajustável | 2 min | Guiar a necessidade, um plano de cinco minutos e uma versão ainda menor do primeiro movimento | Levar somente o primeiro movimento e ajustar ou buscar companhia se necessário |
 
 Os conceitos são inspirados nas técnicas de grounding, perceber/nomear,
 desprender-se de pensamentos difíceis, agir segundo valores e gentileza consigo
@@ -205,10 +205,10 @@ Cada exercício usa de três a seis telas:
 ### Usar da inspiração do Duolingo
 
 - microlições;
-- cards tocáveis;
-- ordenar ou relacionar itens simples;
+- uma ação concreta por tela, com linguagem de convite e não de prova;
+- card de prática com “Fiz no meu ritmo”, que registra apenas a passagem de etapa;
 - progresso visível;
-- feedback imediato e acolhedor;
+- feedback imediato e acolhedor sobre a técnica, não sobre desempenho;
 - retomada do ponto atual durante a sessão;
 - sensação de descoberta de novas ferramentas.
 
@@ -220,6 +220,7 @@ Cada exercício usa de três a seis telas:
 - sons de erro, vermelho/verde como julgamento emocional;
 - confete quando a pessoa relata sofrimento;
 - “acertar” uma emoção;
+- sequência de perguntas para a pessoa provar que entendeu ou “responder certo”;
 - métricas de calorias, macros, peso ou “comida boa/ruim”;
 - avatar cujo corpo muda com desempenho;
 - ajuda de emergência bloqueada por progresso.

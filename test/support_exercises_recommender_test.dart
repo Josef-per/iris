@@ -115,10 +115,7 @@ void main() {
             id: 'respiratorio',
             tags: const {ExerciseSafetyTag.breathingFocus},
           ),
-          catalogExercise(
-            id: 'seguro',
-            minutes: 1,
-          ),
+          catalogExercise(id: 'seguro', minutes: 1),
         ],
       );
       const context = RecommendationContext(
@@ -150,9 +147,7 @@ void main() {
 
     test('catálogo filtrado vazio usa fallback estático seguro', () {
       final recommender = MockExerciseRecommender(
-        exercises: [
-          catalogExercise(id: 'unica', minutes: 10),
-        ],
+        exercises: [catalogExercise(id: 'unica', minutes: 10)],
       );
       const context = RecommendationContext(
         need: SupportNeed.present,
@@ -174,27 +169,23 @@ void main() {
         format: SupportFormat.interactive,
       );
 
-      expect(
-        () => recommender.recommend(context),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => recommender.recommend(context), throwsA(isA<StateError>()));
     });
 
-    test('catálogo real tem cinco práticas e pelo menos três tipos de '
-        'interação', () {
+    test('catálogo real conduz práticas guiadas, sem respostas certas', () {
       final exercises = MockExerciseCatalog.exercises;
 
       expect(exercises.length, greaterThanOrEqualTo(5));
-      final interactionTypes = exercises
+      final guidedSteps = exercises
           .expand((exercise) => exercise.steps)
-          .map((step) => step.type)
-          .toSet();
-      expect(interactionTypes.length, greaterThanOrEqualTo(3));
+          .where((step) => step.type == ExerciseStepType.guidedPractice);
+      expect(guidedSteps.length, greaterThanOrEqualTo(15));
 
       final ids = exercises.map((exercise) => exercise.id).toSet();
       expect(ids.length, exercises.length, reason: 'ids únicos');
       for (final exercise in exercises) {
         expect(exercise.steps.length, inInclusiveRange(3, 6));
+        expect(exercise.steps.first.type, ExerciseStepType.guidedPractice);
         expect(exercise.author, isNotEmpty);
         expect(exercise.clinicalReviewer, isNotEmpty);
         expect(exercise.nextReviewDate, isNotEmpty);

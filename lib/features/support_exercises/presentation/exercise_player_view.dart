@@ -48,9 +48,7 @@ class _ExercisePlayerViewState extends State<ExercisePlayerView> {
   TextEditingController _controllerFor(int index) {
     return _textControllers.putIfAbsent(
       index,
-      () => TextEditingController(
-        text: _session.answers[index]?.first ?? '',
-      ),
+      () => TextEditingController(text: _session.answers[index]?.first ?? ''),
     );
   }
 
@@ -86,8 +84,10 @@ class _ExercisePlayerViewState extends State<ExercisePlayerView> {
     final values = _session.answers[_stepIndex];
     if (values == null) return false;
     return switch (_step.type) {
-      ExerciseStepType.textReflection =>
-        values.any((value) => value.trim().isNotEmpty),
+      ExerciseStepType.guidedPractice => values?.isNotEmpty ?? false,
+      ExerciseStepType.textReflection => values.any(
+        (value) => value.trim().isNotEmpty,
+      ),
       _ => values.isNotEmpty,
     };
   }
@@ -155,6 +155,38 @@ class _ExercisePlayerViewState extends State<ExercisePlayerView> {
   }
 
   List<Widget> get _stepContent => switch (_step.type) {
+    ExerciseStepType.guidedPractice => [
+      Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainer,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Experimente agora',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _step.guidance ?? _step.prompt,
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              key: const Key('exercise-practice-complete'),
+              onPressed: _hasAnswer
+                  ? null
+                  : () => _answer(const <String>['praticado']),
+              icon: const Icon(Icons.check_rounded),
+              label: Text(_step.completionLabel),
+            ),
+          ],
+        ),
+      ),
+    ],
     ExerciseStepType.singleChoice => [
       for (final option in _step.options)
         Padding(
@@ -176,10 +208,9 @@ class _ExercisePlayerViewState extends State<ExercisePlayerView> {
             label: option,
             selected: _session.answers[_stepIndex]?.contains(option) ?? false,
             onTap: () {
-              final selected =
-                  List<String>.of(
-                    _session.answers[_stepIndex] ?? const <String>[],
-                  );
+              final selected = List<String>.of(
+                _session.answers[_stepIndex] ?? const <String>[],
+              );
               if (selected.contains(option)) {
                 selected.remove(option);
               } else {
@@ -198,18 +229,14 @@ class _ExercisePlayerViewState extends State<ExercisePlayerView> {
         maxLines: 6,
         textCapitalization: TextCapitalization.sentences,
         onChanged: (value) => _answer([value]),
-        decoration: const InputDecoration(
-          hintText: 'Escreva no seu ritmo…',
-        ),
+        decoration: const InputDecoration(hintText: 'Escreva no seu ritmo…'),
       ),
     ],
     ExerciseStepType.closing => [
       Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Theme.of(
-            context,
-          ).colorScheme.surfaceContainer,
+          color: Theme.of(context).colorScheme.surfaceContainer,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Text(

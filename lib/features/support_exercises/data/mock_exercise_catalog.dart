@@ -4,80 +4,61 @@ import 'package:iris/features/support_exercises/domain/recommendation_context.da
 
 /// Catálogo fictício do protótipo.
 ///
-/// Os roteiros são escritos pela equipe do protótipo e não copiam material
-/// licenciado; a fonte conceitual está registrada em cada item. Nada aqui é
-/// prontuário e nada é persistido.
+/// Cada roteiro conduz uma prática. Os botões servem apenas para a pessoa
+/// marcar que a experimentou no próprio ritmo — não há respostas certas nem
+/// tentativa de medir se ela "melhorou". Nada é persistido.
 abstract final class MockExerciseCatalog {
   static const List<Exercise> exercises = <Exercise>[
     Exercise(
       id: 'anchor-present',
       title: 'Ancorar no presente',
-      goal:
-          'Redirecionar a atenção para o ambiente, sem precisar resolver o que sente.',
+      goal: 'Usar o ambiente para recuperar um pouco de orientação no agora.',
       durationMinutes: 2,
       supportedFormats: {SupportFormat.interactive, SupportFormat.audio},
       needs: [SupportNeed.present, SupportNeed.notSure],
       steps: <ExerciseStep>[
         ExerciseStep(
-          type: ExerciseStepType.multiChoice,
-          prompt:
-              'Sem pressa, procure três detalhes no ambiente: uma cor, uma linha e algo que não se move. Marque os que encontrou.',
-          options: <String>[
-            'Uma cor',
-            'Uma linha, borda ou forma',
-            'Algo parado',
-            'Outro detalhe',
-          ],
-          feedback: 'Você acabou de trazer a atenção para o que está aqui.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Comece olhando para algo estável ao seu redor.',
+          guidance:
+              'Mantenha os olhos abertos, se isso for confortável. Escolha um objeto comum e acompanhe devagar seu contorno, uma cor e uma parte clara ou escura. Não precisa achar nada especial.',
+          feedback:
+              'O ambiente continua aqui, mesmo quando o momento está intenso.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.multiChoice,
-          prompt:
-              'Agora, apenas escute por alguns segundos. Que tipo de som você percebe?',
-          options: <String>[
-            'Um som perto de mim',
-            'Um som mais distante',
-            'Quase nenhum som',
-            'Prefiro não prestar atenção aos sons',
-          ],
-          feedback: 'Notar um som já é suficiente; não existe resposta certa.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Agora acrescente um som ao que você está percebendo.',
+          guidance:
+              'Sem procurar muito, note um som perto ou longe. Se os sons incomodarem, volte apenas para o objeto que estava olhando. A prática pode ser ajustada ao que é tolerável hoje.',
+          feedback: 'Você pode escolher para onde dirigir a atenção.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.multiChoice,
-          prompt:
-              'Sem mudar nada no corpo, note um ponto de apoio que está disponível agora.',
-          options: <String>[
-            'Meus pés no chão',
-            'Minhas costas na cadeira ou parede',
-            'Minhas mãos apoiadas',
-            'Prefiro ficar só com o ambiente',
-          ],
-          feedback: 'Você escolheu um ponto de apoio para este momento.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Encontre um ponto de apoio disponível neste instante.',
+          guidance:
+              'Sem mudar a posição, perceba os pés no chão, as costas na cadeira ou as mãos apoiadas. Diga mentalmente: “Estou aqui; há algo me sustentando agora.”',
+          feedback:
+              'O objetivo não é relaxar à força, só encontrar apoio suficiente para este minuto.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.singleChoice,
-          prompt:
-              'Qual detalhe você pode manter por mais alguns segundos, se quiser?',
-          options: <String>[
-            'A cor ou forma que vi',
-            'O som que ouvi',
-            'O ponto de apoio que notei',
-            'Nenhum; quero encerrar por aqui',
-          ],
-          feedback: 'Você decidiu onde colocar sua atenção — isso basta.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Volte para três fatos simples do momento.',
+          guidance:
+              'Complete em pensamento: “Estou em ___. Agora é ___. No próximo minuto, vou apenas ___.” Use algo pequeno no final: sentar, beber água, esperar, ou continuar lendo.',
+          feedback: 'Você se orientou no lugar, no tempo e no próximo minuto.',
         ),
         ExerciseStep(
           type: ExerciseStepType.closing,
           prompt:
-              'Antes de sair, escolha um atalho para a próxima vez: olhar para um detalhe, escutar um som ou sentir um ponto de apoio.',
+              'Guarde o atalho desta prática para quando precisar: olhar, escutar ou sentir um ponto de apoio.',
           feedback:
-              'Você acabou de praticar uma sequência simples: notar o ambiente, escutar e encontrar apoio. Quando o momento apertar, não precisa repetir tudo: escolha só um desses três passos e fique nele por alguns segundos.',
+              'Não é preciso repetir todas as etapas. Em outro momento, escolha só uma: acompanhe o contorno de um objeto, encontre um som ou sinta um apoio. Fazer menos também conta.',
         ),
       ],
       author: 'Equipe de conteúdo Íris (demonstração)',
       conceptualSource: 'OMS — Doing What Matters in Times of Stress',
       clinicalReviewer: 'Dra. Ana Ribeiro, psicóloga (revisão fictícia)',
-      version: '1.2-demo',
+      version: '2.0-demo',
       nextReviewDate: '2027-03-10',
       contraindications: <String>[
         'Em crise aguda, procure ajuda urgente antes de praticar.',
@@ -86,46 +67,46 @@ abstract final class MockExerciseCatalog {
     Exercise(
       id: 'notice-and-name',
       title: 'Perceber e nomear',
-      goal:
-          'Observar uma experiência com palavras simples, sem tentar consertá-la.',
+      goal: 'Dar um nome aproximado ao que acontece e voltar ao que importa.',
       durationMinutes: 3,
       supportedFormats: {SupportFormat.interactive, SupportFormat.audio},
       needs: [SupportNeed.nameFeelings],
       steps: <ExerciseStep>[
         ExerciseStep(
-          type: ExerciseStepType.multiChoice,
+          type: ExerciseStepType.guidedPractice,
           prompt:
-              'Antes de explicar ou resolver, escolha a palavra mais próxima do que está presente agora.',
-          options: <String>[
-            'Ansiedade ou preocupação',
-            'Tristeza ou desânimo',
-            'Irritação ou raiva',
-            'Confusão ou vazio',
-            'Outra coisa',
-            'Ainda não sei',
-          ],
-          feedback: 'Uma palavra aproximada já é suficiente.',
+              'Pare por um instante antes de explicar ou resolver o que sente.',
+          guidance:
+              'Só observe: há uma frase repetindo na mente, uma emoção mais forte, uma sensação física, ou uma mistura? Não procure a resposta perfeita; basta notar o que aparece primeiro.',
+          feedback: 'Observar vem antes de tentar consertar.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.textReflection,
-          prompt:
-              'Se quiser, complete: “Agora há ___ em mim.” Use poucas palavras ou apenas copie uma opção anterior.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Dê uma etiqueta provisória para essa experiência.',
+          guidance:
+              'Experimente dizer em pensamento: “Agora há preocupação”, “agora há tristeza”, “agora há confusão” ou simplesmente “agora não sei”. A etiqueta pode mudar; ela não precisa explicar tudo.',
+          feedback: 'Uma palavra aproximada já cria alguma organização.',
+        ),
+        ExerciseStep(
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Amplie o quadro antes de seguir.',
+          guidance:
+              'Complete: “Há ___ em mim e também há ___ ao meu redor.” Por exemplo: “Há ansiedade em mim e também há uma cadeira me apoiando.” Depois escolha uma tarefa mínima para os próximos minutos.',
           feedback:
-              'Você observou uma experiência sem precisar defini-la por completo.',
-          semanticsHint: 'Campo de texto livre. Nada será salvo ou enviado.',
+              'A sensação está presente, mas não é a única coisa presente.',
         ),
         ExerciseStep(
           type: ExerciseStepType.closing,
           prompt:
-              'Agora transforme o nome que escolheu em uma frase de continuidade: “Agora há ___ em mim; ainda posso fazer ___ por um minuto.”',
+              'Use este percurso como um check-in breve: notar, nomear e refocar.',
           feedback:
-              'Nomear não faz a sensação desaparecer, mas evita que ela ocupe todo o espaço. Da próxima vez, tente este percurso: dê um nome aproximado, reconheça que ele está aqui e retome uma tarefa pequena ou peça companhia.',
+              'Na próxima vez, tente uma frase completa: “Agora há ___ em mim; ainda posso ___ por um minuto.” O final pode ser pequeno: tomar banho, responder uma mensagem, sentar ou pedir companhia.',
         ),
       ],
       author: 'Equipe de conteúdo Íris (demonstração)',
       conceptualSource: 'OMS — Doing What Matters in Times of Stress',
       clinicalReviewer: 'Dra. Ana Ribeiro, psicóloga (revisão fictícia)',
-      version: '1.2-demo',
+      version: '2.0-demo',
       nextReviewDate: '2027-03-10',
       contraindications: <String>[
         'Em crise aguda, procure ajuda urgente antes de praticar.',
@@ -135,52 +116,55 @@ abstract final class MockExerciseCatalog {
       id: 'space-for-thought',
       title: 'Dar espaço ao pensamento',
       goal:
-          'Notar um pensamento como pensamento e recuperar a possibilidade de escolher.',
+          'Reduzir o piloto automático de um pensamento sem precisar debatê-lo.',
       durationMinutes: 3,
       supportedFormats: {SupportFormat.interactive, SupportFormat.audio},
       needs: [SupportNeed.difficultThought],
       steps: <ExerciseStep>[
         ExerciseStep(
-          type: ExerciseStepType.textReflection,
-          prompt:
-              'Se for seguro fazer isso agora, escreva uma versão curta do pensamento que está mais insistente. Você pode pular esta etapa.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Traga o pensamento insistente para uma frase curta.',
+          guidance:
+              'Sem escrever nem compartilhar, formule mentalmente: “Estou tendo o pensamento de que ___.” Use poucas palavras. Se não quiser tocar no conteúdo, diga apenas: “Há um pensamento difícil aqui.”',
           feedback:
-              'Você trouxe o pensamento para fora da cabeça, em poucas palavras.',
-          semanticsHint: 'Campo de texto livre. Nada será salvo ou enviado.',
+              'Você está notando o pensamento, em vez de ficar totalmente dentro dele.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.textReflection,
-          prompt:
-              'Agora experimente a frase: “Estou notando o pensamento de que ___.” Não é preciso discutir se ele é verdadeiro.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Dê a esse pensamento o nome de uma história conhecida.',
+          guidance:
+              'Pode ser “a história de que vou falhar”, “a história do nunca é suficiente” ou qualquer nome simples. O nome não nega o problema; só lembra que sua mente está contando uma versão dele agora.',
           feedback:
-              'Você criou uma pequena distância entre você e o pensamento.',
-          semanticsHint: 'Campo de texto livre. Nada será salvo ou enviado.',
+              'Uma história pode aparecer muitas vezes sem precisar comandar você.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.singleChoice,
-          prompt:
-              'Sem obedecer nem combater o pensamento, qual passo de dois minutos combina mais com o que importa agora?',
-          options: <String>[
-            'Voltar por dois minutos à tarefa que eu estava fazendo',
-            'Mandar uma mensagem simples para alguém seguro',
-            'Preparar um lugar mais confortável para mim',
-            'Não fazer nada agora e buscar apoio depois',
-          ],
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Reconheça a história e responda com uma frase de distância.',
+          guidance:
+              'Experimente: “Obrigado, mente. Percebi essa história.” Depois olhe para um objeto à frente ou sinta os pés apoiados. Não tente expulsar o pensamento; deixe-o ficar enquanto você muda o foco por alguns segundos.',
           feedback:
-              'Você escolheu uma direção; não precisa executar nada neste instante.',
+              'Você praticou ficar com o pensamento sem obedecer a ele automaticamente.',
+        ),
+        ExerciseStep(
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Direcione-se para uma ação de dois minutos.',
+          guidance:
+              'Escolha algo neutro e possível: abrir uma janela, voltar a uma tarefa por dois minutos, lavar o rosto, sentar perto de alguém ou pedir companhia. O objetivo é se mover na direção escolhida, não eliminar o pensamento.',
+          feedback:
+              'Uma ação pequena pode coexistir com um pensamento difícil.',
         ),
         ExerciseStep(
           type: ExerciseStepType.closing,
           prompt:
-              'Quando esse pensamento voltar, experimente responder com o mesmo roteiro: “Estou notando o pensamento de que…”, depois escolha uma ação de dois minutos.',
+              'Quando essa história voltar, repita a sequência: notar, nomear e dar um passo de dois minutos.',
           feedback:
-              'A meta não é vencer nem provar que o pensamento está errado. É criar espaço suficiente para escolher o próximo gesto. Se ele trouxer risco, medo de agir ou sensação de não conseguir se manter em segurança, pare e procure ajuda humana.',
+              'A meta não é vencer nem provar que o pensamento está errado. É recuperar uma escolha. Se ele trouxer medo de agir, risco ou sensação de não conseguir se manter em segurança, pare e procure ajuda humana.',
         ),
       ],
       author: 'Equipe de conteúdo Íris (demonstração)',
       conceptualSource: 'OMS — Doing What Matters in Times of Stress',
       clinicalReviewer: 'Dra. Ana Ribeiro, psicóloga (revisão fictícia)',
-      version: '1.2-demo',
+      version: '2.0-demo',
       nextReviewDate: '2027-03-10',
       contraindications: <String>[
         'Em crise aguda, procure ajuda urgente antes de praticar.',
@@ -189,56 +173,46 @@ abstract final class MockExerciseCatalog {
     Exercise(
       id: 'talk-to-me-kindly',
       title: 'Falar comigo como com alguém querido',
-      goal:
-          'Responder à dificuldade com um tom menos duro e uma necessidade concreta.',
+      goal: 'Trocar autocrítica automática por um cuidado possível e concreto.',
       durationMinutes: 3,
       supportedFormats: {SupportFormat.interactive, SupportFormat.audio},
       needs: [SupportNeed.selfKindness],
       steps: <ExerciseStep>[
         ExerciseStep(
-          type: ExerciseStepType.singleChoice,
-          prompt:
-              'Imagine alguém de quem você gosta vivendo algo parecido. Qual frase soaria mais honesta e cuidadosa?',
-          options: <String>[
-            'Isso está difícil; você não precisa dar conta de tudo agora',
-            'Você merece uma pausa antes de decidir o que fazer',
-            'Você pode pedir companhia sem precisar explicar tudo',
-            'Você não precisa se punir por estar tendo um dia difícil',
-          ],
-          feedback: 'Gentileza pode ser simples e realista.',
-        ),
-        ExerciseStep(
-          type: ExerciseStepType.textReflection,
-          prompt:
-              'Transforme a ideia em uma frase para você. Comece com “Eu posso…” ou “Eu mereço…”, se isso ajudar.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Perceba a regra dura que você está usando contra si.',
+          guidance:
+              'Complete em pensamento: “Eu deveria ___.” Agora imagine uma pessoa querida na mesma situação. Você usaria exatamente essa mesma regra com ela? Só note a diferença de tom, sem se cobrar para mudar de imediato.',
           feedback:
-              'Você escolheu um jeito de falar consigo que não aumenta o peso do momento.',
-          semanticsHint: 'Campo de texto livre. Nada será salvo ou enviado.',
+              'Perceber a cobrança é o primeiro passo para não deixá-la dirigir tudo.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.singleChoice,
-          prompt:
-              'Qual cuidado pequeno parece mais possível nas próximas horas?',
-          options: <String>[
-            'Diminuir uma exigência que posso adiar',
-            'Fazer uma pausa curta sem me justificar',
-            'Pedir presença a alguém de confiança',
-            'Procurar meu profissional quando for possível',
-          ],
-          feedback: 'Cuidado não precisa resolver tudo para ser válido.',
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Troque o veredito por uma frase honesta e útil.',
+          guidance:
+              'Experimente uma destas estruturas: “Isso está difícil e eu posso ir devagar”; “Não preciso resolver tudo agora”; ou “Posso pedir ajuda antes de decidir.” Ajuste as palavras até soarem naturais para você.',
+          feedback:
+              'Uma frase gentil não precisa parecer perfeita para ser utilizável.',
+        ),
+        ExerciseStep(
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Converta essa frase em um cuidado observável.',
+          guidance:
+              'Nos próximos dez minutos, escolha uma única forma de agir como falaria com alguém querido: reduzir uma exigência, fazer uma pausa sem se justificar, beber água, mudar de ambiente ou mandar “você pode ficar comigo um pouco?”.',
+          feedback: 'Cuidado é algo que pode ser feito em tamanho pequeno.',
         ),
         ExerciseStep(
           type: ExerciseStepType.closing,
           prompt:
-              'Guarde uma versão curta da sua frase para usar quando a autocrítica aparecer: “Isso está difícil; qual é o cuidado possível agora?”',
+              'Quando a autocrítica aparecer, faça uma pergunta prática: “Qual é o cuidado possível agora?”',
           feedback:
-              'Gentileza útil não é fingir que está tudo bem. É trocar uma cobrança que machuca por uma pergunta prática: o que posso diminuir, pausar, pedir ou adiar? Escolha apenas uma resposta possível para hoje.',
+              'Gentileza não é fingir que está tudo bem. É substituir uma cobrança que machuca por uma escolha que protege: diminuir, pausar, pedir ou adiar. Escolha apenas uma para hoje.',
         ),
       ],
       author: 'Equipe de conteúdo Íris (demonstração)',
       conceptualSource: 'OMS — Doing What Matters in Times of Stress',
       clinicalReviewer: 'Dra. Ana Ribeiro, psicóloga (revisão fictícia)',
-      version: '1.2-demo-preview',
+      version: '2.0-demo-preview',
       nextReviewDate: '2027-03-10',
       contraindications: <String>[
         'Em crise aguda, procure ajuda urgente antes de praticar.',
@@ -249,48 +223,48 @@ abstract final class MockExerciseCatalog {
     Exercise(
       id: 'safe-next-step',
       title: 'Próximo passo seguro',
-      goal:
-          'Transformar uma necessidade em um próximo passo pequeno, claro e voluntário.',
+      goal: 'Sair da paralisia com um passo pequeno, verificável e ajustável.',
       durationMinutes: 2,
       supportedFormats: {SupportFormat.interactive, SupportFormat.audio},
       needs: [SupportNeed.nextSafeStep],
       steps: <ExerciseStep>[
         ExerciseStep(
-          type: ExerciseStepType.singleChoice,
+          type: ExerciseStepType.guidedPractice,
           prompt:
-              'Você não precisa resolver o dia inteiro. Qual tipo de apoio faria mais diferença nos próximos minutos?',
-          options: <String>[
-            'Companhia de alguém seguro',
-            'Um ambiente um pouco mais confortável',
-            'Uma pausa de exigências',
-            'Contato com meu profissional',
-          ],
-          feedback: 'Você identificou uma necessidade, não uma obrigação.',
+              'Olhe só para os próximos dez minutos, não para o dia inteiro.',
+          guidance:
+              'Pergunte em silêncio: “Do que preciso mais agora: companhia, menos estímulo, uma pausa ou apoio profissional?” Não tente resolver a causa inteira; identifique apenas o tipo de apoio que falta neste momento.',
+          feedback:
+              'Uma necessidade clara é mais fácil de transformar em ação.',
         ),
         ExerciseStep(
-          type: ExerciseStepType.singleChoice,
+          type: ExerciseStepType.guidedPractice,
           prompt:
-              'Escolha um passo que seja específico e caiba em poucos minutos.',
-          options: <String>[
-            'Enviar: “Você pode ficar comigo por alguns minutos?”',
-            'Ir para um lugar com menos estímulos',
-            'Separar dois minutos sem decidir nada',
-            'Anotar para falar com meu profissional depois',
-          ],
-          feedback: 'O passo é seu; você decide se, quando e como vai fazê-lo.',
+              'Transforme a necessidade em uma frase que caiba em cinco minutos.',
+          guidance:
+              'Use este molde: “Nos próximos cinco minutos, eu vou ___.” Exemplos: “mandar uma mensagem curta”, “ir para outro cômodo”, “sentar perto de alguém” ou “anotar o que preciso falar na consulta”.',
+          feedback:
+              'Quanto mais concreto o passo, menos ele precisa depender de motivação.',
+        ),
+        ExerciseStep(
+          type: ExerciseStepType.guidedPractice,
+          prompt: 'Diminua o primeiro movimento até ele ficar possível agora.',
+          guidance:
+              'Se mandar uma mensagem parece muito, abra a conversa. Se sair do ambiente parece muito, levante ou vá até a porta. Se falar com o profissional parece muito, escreva uma palavra. Começar menor é permitido.',
+          feedback:
+              'Você não precisa estar pronto para dar o primeiro movimento.',
         ),
         ExerciseStep(
           type: ExerciseStepType.closing,
-          prompt:
-              'Para levar isso adiante, tente deixar o passo escolhido visível: envie a mensagem, mude de lugar, marque a pausa ou anote o assunto.',
+          prompt: 'Leve apenas o primeiro movimento, não a lista inteira.',
           feedback:
-              'Um próximo passo funciona melhor quando é pequeno e observável. Se ele não couber agora, reduza-o: escreva só uma palavra, vá até a porta ou envie apenas “preciso de companhia”. Se nada parecer seguro, procure ajuda humana.',
+              'Se o plano deixar de parecer seguro ou possível, mude-o. Um passo menor, a companhia de alguém ou ajuda urgente podem ser o próximo passo mais adequado. Você não precisa fazer isso sozinho.',
         ),
       ],
       author: 'Equipe de conteúdo Íris (demonstração)',
       conceptualSource: 'OMS — Doing What Matters in Times of Stress',
       clinicalReviewer: 'Dra. Ana Ribeiro, psicóloga (revisão fictícia)',
-      version: '1.2-demo-preview',
+      version: '2.0-demo-preview',
       nextReviewDate: '2027-03-10',
       contraindications: <String>[
         'Em crise aguda, procure ajuda urgente antes de praticar.',

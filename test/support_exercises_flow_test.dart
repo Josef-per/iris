@@ -1,5 +1,3 @@
-import 'dart:ui' show Tristate;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/theme/app_theme.dart';
@@ -32,6 +30,7 @@ void main() {
   Future<void> tapText(WidgetTester tester, String text) async {
     final finder = find.text(text);
     await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }
@@ -71,19 +70,16 @@ void main() {
   Future<void> tapKey(WidgetTester tester, String key) async {
     final finder = find.byKey(Key(key));
     await tester.ensureVisible(finder);
+    await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pumpAndSettle();
   }
 
   Future<void> completeAncorar(WidgetTester tester) async {
-    await tapKey(tester, 'exercise-option-Uma cor');
-    await tapKey(tester, 'exercise-continue');
-    await tapKey(tester, 'exercise-option-Um som mais distante');
-    await tapKey(tester, 'exercise-continue');
-    await tapKey(tester, 'exercise-option-Meus pés no chão');
-    await tapKey(tester, 'exercise-continue');
-    await tapKey(tester, 'exercise-option-A cor ou forma que vi');
-    await tapKey(tester, 'exercise-continue');
+    for (var step = 0; step < 4; step += 1) {
+      await tapKey(tester, 'exercise-practice-complete');
+      await tapKey(tester, 'exercise-continue');
+    }
     await tapKey(tester, 'exercise-continue');
   }
 
@@ -399,15 +395,15 @@ void main() {
       await tapKey(tester, 'exercise-back');
       expect(find.text('Etapa 1 de 5'), findsOneWidget);
 
-      await tapKey(tester, 'exercise-option-Uma cor');
+      await tapKey(tester, 'exercise-practice-complete');
       expect(find.byKey(const Key('exercise-feedback')), findsOneWidget);
 
       await tapKey(tester, 'exercise-continue');
       expect(find.text('Etapa 2 de 5'), findsOneWidget);
     });
 
-    testWidgets('texto livre é obrigatório só no momento de continuar e pode '
-        'ser pulado', (tester) async {
+    testWidgets('prática guiada é confirmada no momento de continuar e pode '
+        'ser pulada', (tester) async {
       await pumpFlow(tester);
       await tapKey(tester, 'menu-short-practice');
       await tapKey(tester, 'need-difficultThought');
@@ -417,24 +413,16 @@ void main() {
       expect(find.text('Dar espaço ao pensamento'), findsWidgets);
       await tapKey(tester, 'recommendation-start');
 
-      expect(find.text('Etapa 1 de 4'), findsOneWidget);
+      expect(find.text('Etapa 1 de 5'), findsOneWidget);
       final continueButton = find.byKey(const Key('exercise-continue'));
       expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
 
-      await tester.enterText(find.byKey(const Key('exercise-text')), '  ');
-      await tester.pump();
-      expect(tester.widget<FilledButton>(continueButton).onPressed, isNull);
-
-      await tester.enterText(
-        find.byKey(const Key('exercise-text')),
-        'que nada vai dar certo',
-      );
-      await tester.pump();
+      await tapKey(tester, 'exercise-practice-complete');
       expect(tester.widget<FilledButton>(continueButton).onPressed, isNotNull);
 
       await tapKey(tester, 'exercise-continue');
       await tapKey(tester, 'exercise-skip');
-      expect(find.text('Etapa 3 de 4'), findsOneWidget);
+      expect(find.text('Etapa 3 de 5'), findsOneWidget);
     });
 
     testWidgets('“Ajuda urgente” permanece acessível no player', (
@@ -507,7 +495,7 @@ void main() {
   });
 
   group('Acessibilidade', () {
-    testWidgets('progresso tem Semantics e opção selecionada é anunciada', (
+    testWidgets('progresso e confirmação da prática têm Semantics', (
       tester,
     ) async {
       final semantics = tester.ensureSemantics();
@@ -520,14 +508,9 @@ void main() {
 
       expect(find.bySemanticsLabel('Etapa 1 de 5'), findsOneWidget);
 
-      await tapKey(tester, 'exercise-option-Uma cor');
-      final semanticsNode = tester.getSemantics(
-        find.byKey(const Key('exercise-option-Uma cor')),
-      );
-      expect(
-        semanticsNode.flagsCollection.isSelected == Tristate.isTrue,
-        isTrue,
-      );
+      expect(find.bySemanticsLabel('Fiz no meu ritmo'), findsOneWidget);
+      await tapKey(tester, 'exercise-practice-complete');
+      expect(find.byKey(const Key('exercise-feedback')), findsOneWidget);
       semantics.dispose();
     });
 
