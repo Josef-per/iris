@@ -167,11 +167,11 @@ não apareçam por inteiro para o paciente.
 
 | Exercício | Necessidade | Duração | Mecânica interativa | Encerramento |
 |---|---|---:|---|---|
-| Ancorar no presente | Acalmar/aterrar | 2 min | Escolher e marcar coisas que vê, ouve e sente no ambiente | Escolher um detalhe que trouxe estabilidade |
-| Perceber e nomear | Reconhecer emoções | 3 min | Selecionar cartões “pensamento”, “emoção” e “sensação” | Montar: “Estou percebendo…” |
-| Dar espaço ao pensamento | Distanciamento cognitivo | 3 min | Completar “Estou tendo o pensamento de que…” e comparar as duas frases | Escolher uma ação pequena, sem discutir se o pensamento é verdadeiro |
-| Falar comigo como com alguém querido | Autocompaixão | 3 min | Escolher uma frase que diria a um amigo e adaptá-la para si | Salvar um cartão de cuidado apenas na sessão |
-| Próximo passo seguro | Valores/conexão | 2 min | Escolher “companhia”, “ambiente”, “pausa” ou “profissional” | Uma ação voluntária e pequena |
+| Ancorar no presente | Recuperar orientação no agora | 2 min | Guiar olhar, som, ponto de apoio e três fatos do momento; a pessoa marca apenas que experimentou | Deixar o atalho “olhar, escutar ou apoiar-se” para repetir uma única parte da prática |
+| Perceber e nomear | Dar nome aproximado e refocar | 3 min | Guiar observação, etiqueta provisória e a frase “há ___ em mim e também há ___ ao meu redor” | Retomar o roteiro “notar, nomear e refocar” em uma tarefa mínima |
+| Dar espaço ao pensamento | Sair do piloto automático de um pensamento | 3 min | Guiar a frase “estou tendo o pensamento”, dar nome à história, criar distância e agir por dois minutos | Repetir a sequência sem discutir o pensamento; buscar ajuda humana diante de risco |
+| Falar comigo como com alguém querido | Trocar autocrítica por cuidado concreto | 3 min | Guiar o reconhecimento da regra dura, uma frase útil e um cuidado observável para dez minutos | Usar “qual é o cuidado possível agora?” para diminuir, pausar, pedir ou adiar |
+| Próximo passo seguro | Sair da paralisia com uma ação ajustável | 2 min | Guiar a necessidade, um plano de cinco minutos e uma versão ainda menor do primeiro movimento | Levar somente o primeiro movimento e ajustar ou buscar companhia se necessário |
 
 Os conceitos são inspirados nas técnicas de grounding, perceber/nomear,
 desprender-se de pensamentos difíceis, agir segundo valores e gentileza consigo
@@ -205,10 +205,10 @@ Cada exercício usa de três a seis telas:
 ### Usar da inspiração do Duolingo
 
 - microlições;
-- cards tocáveis;
-- ordenar ou relacionar itens simples;
+- uma ação concreta por tela, com linguagem de convite e não de prova;
+- card de prática com “Fiz no meu ritmo”, que registra apenas a passagem de etapa;
 - progresso visível;
-- feedback imediato e acolhedor;
+- feedback imediato e acolhedor sobre a técnica, não sobre desempenho;
 - retomada do ponto atual durante a sessão;
 - sensação de descoberta de novas ferramentas.
 
@@ -220,6 +220,7 @@ Cada exercício usa de três a seis telas:
 - sons de erro, vermelho/verde como julgamento emocional;
 - confete quando a pessoa relata sofrimento;
 - “acertar” uma emoção;
+- sequência de perguntas para a pessoa provar que entendeu ou “responder certo”;
 - métricas de calorias, macros, peso ou “comida boa/ruim”;
 - avatar cujo corpo muda com desempenho;
 - ajuda de emergência bloqueada por progresso.

@@ -5,6 +5,7 @@ import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
+import 'package:iris/features/support_exercises/presentation/support_flow_screen.dart';
 import 'package:iris/screens/lembretes_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
 import 'package:iris/screens/patient_history_screen.dart';
@@ -210,6 +211,48 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 700;
+                      final cardWidth = wide
+                          ? (constraints.maxWidth - 14) / 2
+                          : constraints.maxWidth;
+                      return Wrap(
+                        spacing: 14,
+                        runSpacing: 14,
+                        children: [
+                          _SupportEntryCard(
+                            key: const Key('home-exercises-card'),
+                            width: cardWidth,
+                            icon: Icons.self_improvement_rounded,
+                            title: 'Exercícios',
+                            subtitle: 'Práticas curtas para diferentes momentos.',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(
+                                  start: SupportFlowStart.catalog,
+                                ),
+                              ),
+                            ),
+                          ),
+                          _SupportEntryCard(
+                            key: const Key('home-not-ok-card'),
+                            width: cardWidth,
+                            icon: Icons.favorite_rounded,
+                            title: 'Não estou bem',
+                            subtitle: 'Encontre uma prática ou procure apoio.',
+                            highlighted: true,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 28),
                   Text(
                     'Cuidar de você hoje',
                     style: Theme.of(context).textTheme.titleLarge,
@@ -505,6 +548,114 @@ class _TodayStatusCards extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class _SupportEntryCard extends StatelessWidget {
+  const _SupportEntryCard({
+    super.key,
+    required this.width,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
+  final double width;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  /// Card “Não estou bem”: roxo profundo da marca, sem sirene.
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final foreground = highlighted ? AppColors.white : colors.onSurface;
+    final iconBackground = highlighted
+        ? AppColors.white.withValues(alpha: .16)
+        : colors.primaryContainer;
+    final iconForeground = highlighted
+        ? AppColors.white
+        : colors.onPrimaryContainer;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        minWidth: width,
+        maxWidth: width,
+        minHeight: 110,
+      ),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          gradient: highlighted ? AppColors.brandGradient : null,
+          color: highlighted ? null : colors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: highlighted
+              ? null
+              : Border.all(color: colors.outlineVariant),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: iconBackground,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(icon, color: iconForeground),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: foreground,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          subtitle,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: highlighted ? AppColors.white : null,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(
+                    Icons.arrow_forward_rounded,
+                    color: highlighted
+                        ? AppColors.white
+                        : colors.primary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
