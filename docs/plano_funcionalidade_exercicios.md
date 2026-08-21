@@ -167,11 +167,11 @@ não apareçam por inteiro para o paciente.
 
 | Exercício | Necessidade | Duração | Mecânica interativa | Encerramento |
 |---|---|---:|---|---|
-| Ancorar no presente | Acalmar/aterrar | 2 min | Escolher e marcar coisas que vê, ouve e sente no ambiente | Escolher um detalhe que trouxe estabilidade |
-| Perceber e nomear | Reconhecer emoções | 3 min | Selecionar cartões “pensamento”, “emoção” e “sensação” | Montar: “Estou percebendo…” |
-| Dar espaço ao pensamento | Distanciamento cognitivo | 3 min | Completar “Estou tendo o pensamento de que…” e comparar as duas frases | Escolher uma ação pequena, sem discutir se o pensamento é verdadeiro |
-| Falar comigo como com alguém querido | Autocompaixão | 3 min | Escolher uma frase que diria a um amigo e adaptá-la para si | Salvar um cartão de cuidado apenas na sessão |
-| Próximo passo seguro | Valores/conexão | 2 min | Escolher “companhia”, “ambiente”, “pausa” ou “profissional” | Uma ação voluntária e pequena |
+| Ancorar no presente | Redirecionar a atenção para o ambiente | 2 min | Notar cor, forma, som e um ponto de apoio, sempre com alternativa de pular | Ensinar o atalho “ver, ouvir ou apoiar-se” para repetir apenas uma parte da prática |
+| Perceber e nomear | Observar uma experiência sem tentar resolvê-la | 3 min | Selecionar uma palavra aproximada e, opcionalmente, completar “Agora há ___ em mim” | Conectar nomeação a uma continuação concreta: retomar uma tarefa pequena ou pedir companhia |
+| Dar espaço ao pensamento | Notar pensamento como pensamento | 3 min | Escrever opcionalmente uma versão curta, usar “Estou notando o pensamento de que…” e escolher uma direção de dois minutos | Repetir o roteiro de distanciamento e escolher um gesto; buscar ajuda humana diante de risco |
+| Falar comigo como com alguém querido | Usar um tom menos duro e identificar um cuidado possível | 3 min | Escolher uma frase realista, adaptá-la para si e apontar um cuidado pequeno | Converter gentileza em uma pergunta prática: diminuir, pausar, pedir ou adiar |
+| Próximo passo seguro | Transformar uma necessidade em ação clara e voluntária | 2 min | Identificar o tipo de apoio e escolher um passo específico que caiba em poucos minutos | Tornar o passo observável e oferecer uma versão ainda menor se ele não couber |
 
 Os conceitos são inspirados nas técnicas de grounding, perceber/nomear,
 desprender-se de pensamentos difíceis, agir segundo valores e gentileza consigo
