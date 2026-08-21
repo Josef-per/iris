@@ -50,7 +50,7 @@ bloqueada e conselhos incompatíveis com o plano de cuidado.
 - sugerir contato com uma pessoa **segura escolhida pelo usuário**;
 - explicar quais dados e regras influenciaram a sugestão;
 - aceitar correção, recusa, pausa ou desativação.
-
+  
 ### A funcionalidade não pode
 
 - substituir psicoterapia ou atendimento do profissional;
