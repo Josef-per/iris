@@ -6,7 +6,10 @@ import 'package:iris/features/patient_professional/patient_professional_reposito
 import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/lembretes_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
+import 'package:iris/screens/patient_history_screen.dart';
+import 'package:iris/screens/patient_profile_screen.dart';
 import 'package:iris/screens/qr_code_screen.dart';
+import 'package:iris/widgets/patient_bottom_navigation_bar.dart';
 
 class PatientSessionGate extends StatefulWidget {
   const PatientSessionGate({super.key, this.authService, this.linkChecker});
@@ -25,6 +28,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
   bool _isSigningOut = false;
   bool _routeNormalizationScheduled = false;
   IrisRouteController? _routeController;
+  PatientDestination _localDestination = PatientDestination.home;
 
   @override
   void initState() {
@@ -64,13 +68,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
   Future<void> _signOut() async {
     setState(() => _isSigningOut = true);
     try {
-      await _authService.signOut();
-      if (mounted) {
-        final controller = _routeController;
-        if (controller != null) {
-          Router.neglect(context, () => controller.go('/'));
-        }
-      }
+      await _performSignOut();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -78,6 +76,37 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
       ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
       setState(() => _isSigningOut = false);
     }
+  }
+
+  Future<void> _performSignOut() async {
+    await _authService.signOut();
+    if (!mounted) return;
+    final controller = _routeController;
+    if (controller != null) {
+      Router.neglect(context, () => controller.go('/'));
+    }
+  }
+
+  void _openDestination(PatientDestination destination) {
+    final controller = _routeController;
+    if (controller == null) {
+      if (_localDestination == destination) return;
+      setState(() => _localDestination = destination);
+      return;
+    }
+    controller.go(PatientRouteLocation(destination).location);
+  }
+
+  void _returnHome() {
+    final controller = _routeController;
+    if (controller == null) {
+      _openDestination(PatientDestination.home);
+      return;
+    }
+    Router.neglect(
+      context,
+      () => controller.go(PatientRouteLocation.home.location),
+    );
   }
 
   @override
@@ -144,36 +173,42 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
         if (snapshot.data == true) {
           final controller = _routeController;
           final route = controller == null
-              ? PatientRouteLocation.home
+              ? PatientRouteLocation(_localDestination)
               : PatientRouteLocation.tryParse(controller.path.uri) ??
                     PatientRouteLocation.home;
-          return switch (route.destination) {
+          final content = switch (route.destination) {
             PatientDestination.reminders => LembretesScreen(
-              onBack: controller == null
-                  ? null
-                  : () => Router.neglect(
-                      context,
-                      () => controller.go(PatientRouteLocation.home.location),
-                    ),
+              onBack: _returnHome,
+            ),
+            PatientDestination.history => PatientHistoryScreen(
+              onBack: _returnHome,
             ),
             PatientDestination.carePlan => PatientCarePlanScreen(
-              onBack: controller == null
-                  ? null
-                  : () => Router.neglect(
-                      context,
-                      () => controller.go(PatientRouteLocation.home.location),
-                    ),
+              onBack: _returnHome,
             ),
-            PatientDestination.home => HomeScreen(
-              onOpenReminders: controller == null
-                  ? null
-                  : () =>
-                        controller.go(PatientRouteLocation.reminders.location),
-              onOpenCarePlan: controller == null
-                  ? null
-                  : () => controller.go(PatientRouteLocation.carePlan.location),
+            PatientDestination.profile => PatientProfileScreen(
+              onBack: _returnHome,
+              onSignOut: _performSignOut,
             ),
+            PatientDestination.home => const HomeScreen(),
           };
+          return Scaffold(
+            body: content,
+            bottomNavigationBar: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+              child: Center(
+                heightFactor: 1,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: PatientBottomNavigationBar(
+                    selectedDestination: route.destination,
+                    onDestinationSelected: _openDestination,
+                  ),
+                ),
+              ),
+            ),
+          );
         }
 
         return QrcodeScreen(onLinked: _refreshLinkCheck);

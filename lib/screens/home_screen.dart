@@ -1,13 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
-import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
-import 'package:iris/screens/lembretes_screen.dart';
-import 'package:iris/screens/patient_care_plan_screen.dart';
-import 'package:iris/screens/patient_history_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
@@ -17,22 +12,15 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     this.todayDataSource,
-    this.onOpenReminders,
-    this.onOpenCarePlan,
-    this.onOpenHistory,
   });
 
   final PatientTodayDataSource? todayDataSource;
-  final VoidCallback? onOpenReminders;
-  final VoidCallback? onOpenCarePlan;
-  final VoidCallback? onOpenHistory;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _authService = AuthService();
   final _profileRepository = ProfileRepository();
   late final Future<Profile?> _profileFuture;
   late final PatientTodayDataSource _todayDataSource;
@@ -67,95 +55,6 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  Future<void> _signOut(BuildContext sheetContext) async {
-    Navigator.pop(sheetContext);
-    try {
-      await _authService.signOut();
-    } catch (error) {
-      // O Supabase remove a sessão local antes de tentar invalidar o token no
-      // servidor. Se a tela ainda existir, a falha ocorreu antes da transição.
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
-    }
-  }
-
-  void _openMenu() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.assignment_outlined),
-                title: const Text('Plano de cuidado'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onOpenCarePlan case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PatientCarePlanScreen(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.history_rounded),
-                title: const Text('Meu histórico'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onOpenHistory case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PatientHistoryScreen(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.notifications_none_rounded),
-                title: const Text('Lembretes'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onOpenReminders case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LembretesScreen(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout_rounded),
-                title: const Text('Sair da conta'),
-                textColor: AppColors.danger,
-                iconColor: AppColors.danger,
-                onTap: () => _signOut(sheetContext),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -170,7 +69,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context, constraints) {
                     final greeting = _PatientGreeting(
                       profileFuture: _profileFuture,
-                      onOpenMenu: _openMenu,
                     );
                     final status = FutureBuilder<PatientTodaySummary>(
                       future: _todaySummaryFuture,
@@ -384,13 +282,9 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _PatientGreeting extends StatelessWidget {
-  const _PatientGreeting({
-    required this.profileFuture,
-    required this.onOpenMenu,
-  });
+  const _PatientGreeting({required this.profileFuture});
 
   final Future<Profile?> profileFuture;
-  final VoidCallback onOpenMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -420,17 +314,6 @@ class _PatientGreeting extends StatelessWidget {
               );
             },
           ),
-        ),
-        const SizedBox(width: 16),
-        IconButton.filledTonal(
-          tooltip: 'Abrir menu',
-          onPressed: onOpenMenu,
-          style: IconButton.styleFrom(
-            minimumSize: const Size.square(48),
-            backgroundColor: AppColors.white.withValues(alpha: .14),
-            foregroundColor: AppColors.white,
-          ),
-          icon: const Icon(Icons.grid_view_rounded),
         ),
       ],
     );
