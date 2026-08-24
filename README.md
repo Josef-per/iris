@@ -25,6 +25,8 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 
 - autenticação e cadastro;
 - diário emocional e registros alimentares;
+- sugestões de apoio locais e opcionais, com cenários fictícios, controles de
+  consentimento e simulador de notificações genéricas;
 - leitura ou digitação de convite QR;
 - confirmação e vínculo com o profissional.
 

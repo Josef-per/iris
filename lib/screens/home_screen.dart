@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/ai_support/presentation/after_journal_support_sheet.dart';
+import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
@@ -21,12 +23,14 @@ class HomeScreen extends StatefulWidget {
     this.onOpenReminders,
     this.onOpenCarePlan,
     this.onOpenHistory,
+    this.onOpenSupportSuggestions,
   });
 
   final PatientTodayDataSource? todayDataSource;
   final VoidCallback? onOpenReminders;
   final VoidCallback? onOpenCarePlan;
   final VoidCallback? onOpenHistory;
+  final VoidCallback? onOpenSupportSuggestions;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -47,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _todaySummaryFuture = _todayDataSource.loadToday();
   }
 
-  Future<void> _openBottomSheet(Widget child) async {
+  Future<bool> _openBottomSheet(Widget child) async {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -59,6 +63,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (saved == true && mounted) {
       _refreshTodaySummary();
+    }
+    return saved == true;
+  }
+
+  Future<void> _openCheckInSheet() async {
+    final saved = await _openBottomSheet(const CheckInDiarioBottomSheet());
+    if (saved && mounted) {
+      await AfterJournalSupportSheet.show(context);
+    }
+  }
+
+  Future<void> _openEmotionalDiarySheet() async {
+    final saved = await _openBottomSheet(const DiarioEmocionalBottomSheet());
+    if (saved && mounted) {
+      await AfterJournalSupportSheet.show(context);
     }
   }
 
@@ -121,6 +140,25 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => const PatientHistoryScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                key: const Key('home-support-suggestions-menu'),
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('Sugestões de apoio'),
+                subtitle: const Text('Demonstração local e controlável'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (widget.onOpenSupportSuggestions case final callback?) {
+                    callback();
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AiSupportHubScreen(),
                       ),
                     );
                   }
@@ -248,6 +286,27 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ),
+                          _SupportEntryCard(
+                            key: const Key('home-support-suggestions-card'),
+                            width: cardWidth,
+                            icon: Icons.auto_awesome_outlined,
+                            title: 'Sugestões de apoio',
+                            subtitle:
+                                'Uma demonstração local, discreta e opcional.',
+                            onTap: () {
+                              if (widget.onOpenSupportSuggestions
+                                  case final callback?) {
+                                callback();
+                              } else {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) =>
+                                        const AiSupportHubScreen(),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ],
                       );
                     },
@@ -293,18 +352,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             title: 'Registro do dia',
                             subtitle:
                                 'Faça uma pausa e perceba como você está.',
-                            onTap: () => _openBottomSheet(
-                              const CheckInDiarioBottomSheet(),
-                            ),
+                            onTap: _openCheckInSheet,
                           ),
                           _ActionCard(
                             width: width,
                             icon: Icons.favorite_outline_rounded,
                             title: 'Diário emocional',
                             subtitle: 'Dê nome ao que você está sentindo.',
-                            onTap: () => _openBottomSheet(
-                              const DiarioEmocionalBottomSheet(),
-                            ),
+                            onTap: _openEmotionalDiarySheet,
                           ),
                         ],
                       );

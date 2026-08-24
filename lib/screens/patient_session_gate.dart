@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
+import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
 import 'package:iris/features/patient_professional/patient_professional_repository.dart';
 import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/lembretes_screen.dart';
@@ -21,6 +23,7 @@ class PatientSessionGate extends StatefulWidget {
 class _PatientSessionGateState extends State<PatientSessionGate> {
   final _repository = PatientProfessionalRepository();
   late final AuthService _authService;
+  late final MockAiSupportStore _aiSupportStore;
   late Future<bool> _linkCheckFuture;
   bool _isSigningOut = false;
   bool _routeNormalizationScheduled = false;
@@ -30,6 +33,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
   void initState() {
     super.initState();
     _authService = widget.authService ?? AuthService();
+    _aiSupportStore = MockAiSupportStore();
     _linkCheckFuture = _checkLink();
   }
 
@@ -50,6 +54,12 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
       if (!mounted) return;
       Router.neglect(context, () => controller.go(canonical));
     });
+  }
+
+  @override
+  void dispose() {
+    _aiSupportStore.dispose();
+    super.dispose();
   }
 
   Future<bool> _checkLink() =>
@@ -164,6 +174,15 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
                       () => controller.go(PatientRouteLocation.home.location),
                     ),
             ),
+            PatientDestination.supportSuggestions => AiSupportHubScreen(
+              store: _aiSupportStore,
+              onBack: controller == null
+                  ? null
+                  : () => Router.neglect(
+                      context,
+                      () => controller.go(PatientRouteLocation.home.location),
+                    ),
+            ),
             PatientDestination.home => HomeScreen(
               onOpenReminders: controller == null
                   ? null
@@ -172,6 +191,11 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
               onOpenCarePlan: controller == null
                   ? null
                   : () => controller.go(PatientRouteLocation.carePlan.location),
+              onOpenSupportSuggestions: controller == null
+                  ? null
+                  : () => controller.go(
+                      PatientRouteLocation.supportSuggestions.location,
+                    ),
             ),
           };
         }

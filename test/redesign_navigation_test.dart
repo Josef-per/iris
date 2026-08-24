@@ -124,6 +124,7 @@ void main() {
         '/patient': PatientDestination.home,
         '/patient/reminders': PatientDestination.reminders,
         '/patient/care-plan': PatientDestination.carePlan,
+        '/patient/support-suggestions': PatientDestination.supportSuggestions,
       };
 
       for (final entry in expectations.entries) {

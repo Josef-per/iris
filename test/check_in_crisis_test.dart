@@ -68,9 +68,9 @@ void main() {
     matching: find.text(label),
   );
 
-  testWidgets('humor muito difícil abre o diálogo de apoio antes de fechar', (
-    tester,
-  ) async {
+  testWidgets(
+    'humor difícil não infere apoio ou abre checagem automaticamente',
+    (tester) async {
     final dataSource = _EmotionalDataSource(record: null);
     final resultFuture = await openCheckInSheet(tester, dataSource: dataSource);
 
@@ -80,20 +80,17 @@ void main() {
     await tester.pumpAndSettle();
     await submitCheckIn(tester);
 
-    expect(find.byKey(const Key('check-in-support-dialog')), findsOneWidget);
-    expect(find.text('Você não está sozinho(a)'), findsOneWidget);
     expect(dataSource.createCheckInCalls, 1);
-
-    await tester.tap(find.byKey(const Key('check-in-support-close')));
-    await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('check-in-support-dialog')), findsNothing);
     expect(find.text('Registro do dia salvo.'), findsOneWidget);
     expect(await resultFuture, isTrue);
     expect(tester.takeException(), isNull);
-  });
+    },
+  );
 
-  testWidgets('sintoma crítico também abre o diálogo de apoio', (tester) async {
+  testWidgets('sintoma marcado não dispara uma sugestão automática', (
+    tester,
+  ) async {
     final dataSource = _EmotionalDataSource(record: null);
     await openCheckInSheet(tester, dataSource: dataSource);
 
@@ -108,7 +105,7 @@ void main() {
     await tester.pumpAndSettle();
     await submitCheckIn(tester);
 
-    expect(find.byKey(const Key('check-in-support-dialog')), findsOneWidget);
+    expect(find.byKey(const Key('check-in-support-dialog')), findsNothing);
     expect(dataSource.lastPhysicalSymptoms, contains('desmaio'));
   });
 
