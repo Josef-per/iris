@@ -48,7 +48,7 @@ class PatientCarePlanRepository implements PatientCarePlanDataSource {
           .order('ordem'),
       _client
           .from(DatabaseTables.medicacoesPlano)
-          .select('id, plano_id, nome, dose, frequencia, ordem')
+          .select('id, plano_id, nome, dose, frequencia, adesao, ordem')
           .inFilter('plano_id', planIds)
           .order('ordem'),
     ]);
@@ -95,6 +95,7 @@ class PatientCarePlanRepository implements PatientCarePlanDataSource {
                             frequency:
                                 medication['frequencia']?.toString().trim() ??
                                 '',
+                            adherence: _adherence(medication['adesao']),
                           ),
                     ]
                     .where((medication) => medication.name.isNotEmpty)
@@ -118,5 +119,13 @@ class PatientCarePlanRepository implements PatientCarePlanDataSource {
         .map((item) => item?.toString().trim() ?? '')
         .where((item) => item.isNotEmpty)
         .toList(growable: false);
+  }
+
+  double _adherence(Object? value) {
+    final adherence = switch (value) {
+      num value => value.toDouble(),
+      _ => double.tryParse(value?.toString() ?? ''),
+    };
+    return (adherence ?? 1).clamp(0, 1).toDouble();
   }
 }

@@ -34,10 +34,12 @@ class PatientCareMedication {
     required this.name,
     required this.dose,
     required this.frequency,
+    this.adherence = 1,
   });
 
   final String id;
   final String name;
   final String dose;
   final String frequency;
+  final double adherence;
 }
