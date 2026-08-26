@@ -97,18 +97,6 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
     controller.go(PatientRouteLocation(destination).location);
   }
 
-  void _returnHome() {
-    final controller = _routeController;
-    if (controller == null) {
-      _openDestination(PatientDestination.home);
-      return;
-    }
-    Router.neglect(
-      context,
-      () => controller.go(PatientRouteLocation.home.location),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
@@ -178,17 +166,17 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
                     PatientRouteLocation.home;
           final content = switch (route.destination) {
             PatientDestination.reminders => LembretesScreen(
-              onBack: _returnHome,
+              embeddedInNavigationShell: true,
             ),
             PatientDestination.history => PatientHistoryScreen(
-              onBack: _returnHome,
+              embeddedInNavigationShell: true,
             ),
             PatientDestination.carePlan => PatientCarePlanScreen(
-              onBack: _returnHome,
+              embeddedInNavigationShell: true,
             ),
             PatientDestination.profile => PatientProfileScreen(
-              onBack: _returnHome,
               onSignOut: _performSignOut,
+              embeddedInNavigationShell: true,
             ),
             PatientDestination.home => const HomeScreen(),
           };

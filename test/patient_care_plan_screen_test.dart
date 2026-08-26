@@ -53,7 +53,15 @@ void main() {
           guidance: 'Orientação nova',
           crisisSteps: const ['Passo de crise'],
           goals: const [],
-          medications: const [],
+          medications: const [
+            PatientCareMedication(
+              id: 'medication-id',
+              name: 'Medicação atual',
+              dose: '10 mg',
+              frequency: '1 vez ao dia',
+              adherence: .75,
+            ),
+          ],
           updatedAt: DateTime(2026, 8, 10),
         ),
       ]),
@@ -63,6 +71,8 @@ void main() {
     expect(find.text('Orientação nova'), findsOneWidget);
     expect(find.text('Orientação antiga'), findsNothing);
     expect(find.text('Passos em momento de crise'), findsOneWidget);
+    expect(find.text('10 mg · 1 vez ao dia · Adesão: 75%'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_back_rounded), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

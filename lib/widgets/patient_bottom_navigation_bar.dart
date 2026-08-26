@@ -13,6 +13,12 @@ class PatientBottomNavigationBar extends StatelessWidget {
 
   static const _items = <_PatientNavigationItem>[
     _PatientNavigationItem(
+      destination: PatientDestination.home,
+      label: 'Home',
+      icon: Icons.home_outlined,
+      selectedIcon: Icons.home_rounded,
+    ),
+    _PatientNavigationItem(
       destination: PatientDestination.reminders,
       label: 'Lembretes',
       icon: Icons.notifications_none_rounded,
@@ -27,6 +33,7 @@ class PatientBottomNavigationBar extends StatelessWidget {
     _PatientNavigationItem(
       destination: PatientDestination.carePlan,
       label: 'Plano de cuidado',
+      compactLabel: 'Plano',
       icon: Icons.assignment_outlined,
       selectedIcon: Icons.assignment_rounded,
     ),
@@ -43,12 +50,12 @@ class PatientBottomNavigationBar extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Material(
       color: colors.surface,
-      elevation: 10,
-      shadowColor: colors.shadow.withValues(alpha: .18),
-      borderRadius: BorderRadius.circular(24),
+      elevation: 8,
+      shadowColor: colors.shadow.withValues(alpha: .14),
+      borderRadius: BorderRadius.circular(26),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
-        height: 64,
+        height: 76,
         child: Row(
           children: [
             for (final item in _items)
@@ -80,9 +87,7 @@ class _PatientNavigationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final foreground = selected
-        ? colors.onPrimaryContainer
-        : colors.onSurfaceVariant;
+    final foreground = selected ? colors.primary : colors.onSurfaceVariant;
     return Semantics(
       button: true,
       selected: selected,
@@ -94,20 +99,46 @@ class _PatientNavigationButton extends StatelessWidget {
           onTap: onPressed,
           child: ExcludeSemantics(
             child: Center(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOut,
-                width: 52,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: selected ? colors.primaryContainer : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(
-                  selected ? item.selectedIcon : item.icon,
-                  color: foreground,
-                  size: 25,
-                ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    width: selected ? 42 : 38,
+                    height: 34,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? colors.primaryContainer
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 180),
+                      child: Icon(
+                        selected ? item.selectedIcon : item.icon,
+                        key: ValueKey(selected),
+                        color: foreground,
+                        size: 23,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 180),
+                    curve: Curves.easeOut,
+                    style: Theme.of(context).textTheme.labelSmall!.copyWith(
+                      color: foreground,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
+                    child: Text(
+                      item.compactLabel ?? item.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -123,10 +154,12 @@ class _PatientNavigationItem {
     required this.label,
     required this.icon,
     required this.selectedIcon,
+    this.compactLabel,
   });
 
   final PatientDestination destination;
   final String label;
+  final String? compactLabel;
   final IconData icon;
   final IconData selectedIcon;
 }

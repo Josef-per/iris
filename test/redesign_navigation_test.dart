@@ -175,7 +175,7 @@ void main() {
   });
 
   group('PatientBottomNavigationBar', () {
-    testWidgets('exibe os quatro destinos com áreas de toque adequadas', (
+    testWidgets('exibe os cinco destinos com áreas de toque adequadas', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(320, 160);
@@ -199,6 +199,7 @@ void main() {
       );
 
       for (final destination in const [
+        PatientDestination.home,
         PatientDestination.reminders,
         PatientDestination.history,
         PatientDestination.carePlan,
@@ -212,6 +213,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('patient-nav-profile')));
       expect(selected, PatientDestination.profile);
+
+      await tester.tap(find.byKey(const Key('patient-nav-home')));
+      expect(selected, PatientDestination.home);
       expect(tester.takeException(), isNull);
     });
   });

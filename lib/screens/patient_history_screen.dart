@@ -3,12 +3,17 @@ import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/core/time/local_day.dart';
 import 'package:iris/features/patient_history/patient_history.dart';
 import 'package:iris/widgets/app_responsive.dart';
+import 'package:iris/widgets/app_function_header.dart';
 
 class PatientHistoryScreen extends StatefulWidget {
-  const PatientHistoryScreen({super.key, this.dataSource, this.onBack});
+  const PatientHistoryScreen({
+    super.key,
+    this.dataSource,
+    this.embeddedInNavigationShell = false,
+  });
 
   final PatientHistoryDataSource? dataSource;
-  final VoidCallback? onBack;
+  final bool embeddedInNavigationShell;
 
   @override
   State<PatientHistoryScreen> createState() => _PatientHistoryScreenState();
@@ -33,94 +38,66 @@ class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: AppGradientHeader(
-              child: AppResponsive(
-                maxWidth: 760,
-                padding: EdgeInsets.zero,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    IconButton(
-                      tooltip: 'Voltar',
-                      onPressed:
-                          widget.onBack ?? () => Navigator.maybePop(context),
-                      style: IconButton.styleFrom(
-                        foregroundColor: AppColors.white,
-                        backgroundColor: AppColors.white.withValues(alpha: .1),
+    final content = CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: AppFunctionHeader(
+            title: 'Meu histórico',
+            description: 'Seus registros de humor, emoções e alimentação.',
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: AppResponsive(
+            maxWidth: 860,
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
+            child: FutureBuilder<List<PatientHistoryEntry>>(
+              future: _historyFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    key: const Key('patient-history-loading'),
+                    child: Semantics(
+                      liveRegion: true,
+                      label: 'Carregando histórico',
+                      child: const Padding(
+                        padding: EdgeInsets.all(48),
+                        child: CircularProgressIndicator(),
                       ),
-                      icon: const Icon(Icons.arrow_back_rounded),
                     ),
-                    const SizedBox(height: 22),
-                    Text(
-                      'Meu histórico',
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(color: AppColors.white),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Seus registros de humor, emoções e alimentação.',
-                      style: TextStyle(color: AppColors.white),
-                    ),
-                  ],
-                ),
-              ),
+                  );
+                }
+                if (snapshot.hasError) {
+                  return _HistoryMessage(
+                    key: const Key('patient-history-error'),
+                    icon: Icons.cloud_off_rounded,
+                    title: 'Não foi possível carregar o histórico',
+                    message: 'Verifique sua conexão e tente novamente.',
+                    actionLabel: 'Tentar novamente',
+                    onAction: _reload,
+                  );
+                }
+
+                final entries = snapshot.data ?? const <PatientHistoryEntry>[];
+                if (entries.isEmpty) {
+                  return const _HistoryMessage(
+                    key: Key('patient-history-empty'),
+                    icon: Icons.history_rounded,
+                    title: 'Nenhum registro ainda',
+                    message:
+                        'Seus registros do dia, diários emocionais e refeições aparecerão aqui.',
+                  );
+                }
+
+                return _HistoryTimeline(entries: entries);
+              },
             ),
           ),
-          SliverToBoxAdapter(
-            child: AppResponsive(
-              maxWidth: 760,
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
-              child: FutureBuilder<List<PatientHistoryEntry>>(
-                future: _historyFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      key: const Key('patient-history-loading'),
-                      child: Semantics(
-                        liveRegion: true,
-                        label: 'Carregando histórico',
-                        child: const Padding(
-                          padding: EdgeInsets.all(48),
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return _HistoryMessage(
-                      key: const Key('patient-history-error'),
-                      icon: Icons.cloud_off_rounded,
-                      title: 'Não foi possível carregar o histórico',
-                      message: 'Verifique sua conexão e tente novamente.',
-                      actionLabel: 'Tentar novamente',
-                      onAction: _reload,
-                    );
-                  }
-
-                  final entries =
-                      snapshot.data ?? const <PatientHistoryEntry>[];
-                  if (entries.isEmpty) {
-                    return const _HistoryMessage(
-                      key: Key('patient-history-empty'),
-                      icon: Icons.history_rounded,
-                      title: 'Nenhum registro ainda',
-                      message:
-                          'Seus registros do dia, diários emocionais e refeições aparecerão aqui.',
-                    );
-                  }
-
-                  return _HistoryTimeline(entries: entries);
-                },
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
+
+    if (widget.embeddedInNavigationShell) return content;
+    return Scaffold(body: content);
   }
 }
 
