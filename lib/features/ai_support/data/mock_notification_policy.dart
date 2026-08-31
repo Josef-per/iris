@@ -59,6 +59,8 @@ enum NotificationPolicyBlockReason {
   invalidCandidate,
   categoryNotAllowed,
   notificationsDisabled,
+  systemPermissionNotGranted,
+  deliveryUnavailable,
   paused,
   outsideWindow,
   dailyLimitReached,

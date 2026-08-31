@@ -59,17 +59,20 @@ void main() {
     expect(find.text('Apoio breve, sob seu controle'), findsOneWidget);
     expect(find.textContaining('Não é terapia'), findsOneWidget);
 
-    final next = find.byKey(const Key('ai-support-onboarding-next-0'));
-    await scrollUntilVisible(tester, next);
-    await tester.tap(next);
-    await tester.pumpAndSettle();
-
     final toggle = tester.widget<SwitchListTile>(
       find.byKey(const Key('ai-support-personalization-switch')),
     );
     expect(toggle.value, isFalse);
-    expect(find.text('Texto livre do diário'), findsOneWidget);
-    expect(find.text('Indisponível nesta primeira versão.'), findsOneWidget);
+    expect(find.textContaining('texto livre do diário'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const Key('ai-support-personalization-switch')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('ai-support-source-moodHistory')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -83,7 +86,7 @@ void main() {
       await tester.tap(find.byKey(const Key('ai-support-generate')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Uma observação tentativa'), findsOneWidget);
+      expect(find.text('Com base no que você registrou'), findsOneWidget);
       await scrollUntilVisible(
         tester,
         find.byKey(const Key('ai-support-detail-why')),
@@ -91,7 +94,9 @@ void main() {
       expect(find.byKey(const Key('ai-support-detail-why')), findsOneWidget);
       expect(find.byKey(const Key('safety-yes')), findsNothing);
 
-      await tester.tap(find.byKey(const Key('ai-support-detail-primary-action')));
+      await tester.tap(
+        find.byKey(const Key('ai-support-detail-primary-action')),
+      );
       await tester.pumpAndSettle();
 
       expect(find.text('Etapa 1 de 5'), findsOneWidget);
@@ -135,30 +140,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('central permanece utilizável no tema escuro a 320 px e texto 200%', (
-    tester,
-  ) async {
-    tester.view.physicalSize = const Size(320, 900);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-    final store = configuredStore();
-    addTearDown(store.dispose);
+  testWidgets(
+    'central permanece utilizável no tema escuro a 320 px e texto 200%',
+    (tester) async {
+      tester.view.physicalSize = const Size(320, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final store = configuredStore();
+      addTearDown(store.dispose);
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: ThemeMode.dark,
-        home: MediaQuery(
-          data: const MediaQueryData(textScaler: TextScaler.linear(2)),
-          child: AiSupportHubScreen(store: store),
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
+          home: MediaQuery(
+            data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+            child: AiSupportHubScreen(store: store),
+          ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.text('Sugestões de apoio'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Sugestões de apoio'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

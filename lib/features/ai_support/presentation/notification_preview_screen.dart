@@ -70,7 +70,9 @@ class NotificationPreviewScreen extends StatelessWidget {
                       candidate: candidate,
                       onOpen: () {
                         final suggestion = _suggestionFor(candidate);
-                        if (suggestion != null) onOpenSuggestion?.call(suggestion);
+                        if (suggestion != null) {
+                          onOpenSuggestion?.call(suggestion);
+                        }
                       },
                     ),
                     const SizedBox(height: 12),
@@ -109,10 +111,7 @@ class _EmptyGenericPreview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Exemplo de prévia bloqueada',
-          style: theme.textTheme.titleMedium,
-        ),
+        Text('Exemplo de prévia bloqueada', style: theme.textTheme.titleMedium),
         const SizedBox(height: 10),
         _PreviewSurface(
           text: MockSupportTemplateCatalog.genericNotifications.first.text,
@@ -145,7 +144,10 @@ class _NoLockScreenPreview extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Prévia bloqueada desativada', style: theme.textTheme.titleMedium),
+          Text(
+            'Prévia bloqueada desativada',
+            style: theme.textTheme.titleMedium,
+          ),
           const SizedBox(height: 6),
           Text(
             'Nenhum conteúdo aparece na tela bloqueada. O detalhe só fica '

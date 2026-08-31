@@ -1,9 +1,27 @@
 # Plano de produto — IA de apoio baseada em diário e humor
 
-Status: proposta para validação de produto, clínica, privacidade e regulação  
+Status: fundação técnica implementada; rollout clínico ainda depende de validações externas
 Base: `plano_funcionalidade_exercicios.md`  
-Escopo inicial: front-end Flutter com dados fictícios e notificações simuladas  
+Escopo atual: Flutter conectado, notificações locais e backend com rollout seguro
 Público inicial recomendado: pessoas adultas em acompanhamento de transtornos alimentares  
+
+## Estado da implementação — agosto de 2026
+
+- Fase 1: preservada apenas como modo de demonstração e testes.
+- Fase 2: regras locais, preferências persistidas, notificações Android/iOS e
+  deep link por ID opaco implementados.
+- Fase 3: Edge Function, Responses API com saída estruturada, shadow mode,
+  auditoria mínima, fallback e kill switch implementados; OpenAI permanece
+  desligada por padrão.
+- Fases 4 e 5: controles técnicos de piloto e produção limitada existem, mas
+  não estão liberados. Consentimento de piloto, aprovação clínica/jurídica,
+  avaliação independente e governança continuam sendo gates obrigatórios.
+
+A interface real foi reduzida a uma sugestão atual, preferências essenciais e
+acessos permanentes a práticas, “Não estou bem” e “Ajuda urgente”. A
+personalização prioriza o check-in do dia, a tendência recente, temas que a
+pessoa marca no diário e respostas às sugestões/notificações. O texto livre do
+diário, alimentação e sintomas continuam fora do recomendador geral.
 
 ## 1. Decisão de produto
 
@@ -22,7 +40,7 @@ dar instruções sobre alimentação/medicação nem escrever livremente para a 
 bloqueada. Ela seleciona conteúdos de um catálogo fechado, aprovado e
 versionado; o aplicativo monta a mensagem com templates fixos.
 
-### Objetivo do MVP
+### Objetivo inicial da Fase 1
 
 Demonstrar, com dados fictícios, como um registro de humor ou diário pode gerar
 uma sugestão de apoio explicável, discreta e controlável pelo paciente, sem

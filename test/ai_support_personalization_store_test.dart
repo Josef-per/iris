@@ -1,0 +1,167 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:iris/features/ai_support/data/ai_support_event_repository.dart';
+import 'package:iris/features/ai_support/data/ai_support_settings_repository.dart';
+import 'package:iris/features/ai_support/data/mock_ai_recommender.dart';
+import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
+import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
+import 'package:iris/features/ai_support/domain/ai_support_consent.dart';
+import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
+import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
+import 'package:iris/features/ai_support/notifications/noop_support_notification_gateway.dart';
+
+void main() {
+  const consent = AiSupportConsent(
+    personalizedSuggestionsGranted: true,
+    grantedSources: <SupportSignalSource>{SupportSignalSource.moodHistory},
+  );
+  const preferences = AiSupportPreferences(
+    personalizedSuggestionsEnabled: true,
+    allowedCategories: <SupportSuggestionCategory>{
+      SupportSuggestionCategory.reflection,
+    },
+  );
+
+  test(
+    'restaura escolhas e persiste mudanças sem bloquear a interface',
+    () async {
+      final settings = _FakeSettings(
+        const SavedAiSupportSettings(
+          consent: consent,
+          preferences: preferences,
+        ),
+      );
+      final store = MockAiSupportStore(
+        isDemonstration: false,
+        settingsDataSource: settings,
+        notificationGateway: const NoopSupportNotificationGateway(),
+      );
+      addTearDown(store.dispose);
+
+      await store.initialize();
+      expect(store.isOnboarded, isTrue);
+      expect(store.isPersonalizationEnabled, isTrue);
+
+      store.setPersonalizationEnabled(false);
+      await settings.saved.future;
+      expect(settings.lastPreferences?.personalizedSuggestionsEnabled, isFalse);
+    },
+  );
+
+  test(
+    'preserva suggestionId do backend e registra feedback estruturado',
+    () async {
+      const suggestionId = '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46';
+      final events = _FakeEvents();
+      final store = MockAiSupportStore(
+        isDemonstration: false,
+        consent: consent,
+        preferences: preferences,
+        remoteRecommender: const _DeterministicRemote(suggestionId),
+        eventDataSource: events,
+        notificationGateway: const NoopSupportNotificationGateway(),
+      );
+      addTearDown(store.dispose);
+
+      final suggestion = await store.generatePersonalizedSuggestion(
+        refresh: false,
+      );
+      expect(suggestion?.id, suggestionId);
+
+      store.recordFeedback(
+        SuggestionFeedbackType.helpful,
+        suggestion: suggestion!,
+      );
+      await events.recorded.future;
+      expect(events.lastSuggestionId, suggestionId);
+      expect(events.lastType, AiSupportEventType.helpful);
+      expect(events.lastChannel, AiSupportEventChannel.app);
+    },
+  );
+
+  test('cold start registra abertura usando somente UUID opaco', () async {
+    const suggestionId = '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46';
+    final events = _FakeEvents();
+    final store = MockAiSupportStore(
+      isDemonstration: false,
+      eventDataSource: events,
+      notificationGateway: const NoopSupportNotificationGateway(),
+    );
+    addTearDown(store.dispose);
+    await store.initialize();
+
+    store.recordNotificationOpened(suggestionId);
+    await events.recorded.future;
+    expect(events.lastType, AiSupportEventType.opened);
+    expect(events.lastChannel, AiSupportEventChannel.localNotification);
+  });
+}
+
+class _FakeSettings implements AiSupportSettingsDataSource {
+  _FakeSettings(this.value);
+
+  final SavedAiSupportSettings? value;
+  final saved = Completer<void>();
+  AiSupportPreferences? lastPreferences;
+
+  @override
+  Future<SavedAiSupportSettings?> load() async => value;
+
+  @override
+  Future<void> save({
+    required AiSupportConsent consent,
+    required AiSupportPreferences preferences,
+  }) async {
+    lastPreferences = preferences;
+    if (!saved.isCompleted) saved.complete();
+  }
+
+  @override
+  Future<void> clear() async {}
+}
+
+class _FakeEvents implements AiSupportEventDataSource {
+  final recorded = Completer<void>();
+  String? lastSuggestionId;
+  AiSupportEventType? lastType;
+  AiSupportEventChannel? lastChannel;
+
+  @override
+  Future<void> record({
+    required String suggestionId,
+    required AiSupportEventType type,
+    required AiSupportEventChannel channel,
+    DateTime? scheduledFor,
+  }) async {
+    lastSuggestionId = suggestionId;
+    lastType = type;
+    lastChannel = channel;
+    if (!recorded.isCompleted) recorded.complete();
+  }
+}
+
+class _DeterministicRemote implements AiSupportRemoteRecommender {
+  const _DeterministicRemote(this.suggestionId);
+
+  final String suggestionId;
+
+  @override
+  Future<RemoteAiSupportDecision> recommend(
+    AiSupportRecommendationContext context, {
+    AiSupportRecommendationTrigger trigger =
+        AiSupportRecommendationTrigger.manual,
+  }) async {
+    return RemoteAiSupportDecision(
+      mode: AiSupportRolloutMode.local,
+      origin: 'regra_local',
+      suggestionId: suggestionId,
+      proposal: const <String, Object?>{
+        'suggestionTemplateId': 'reflection_lighter_checkin_v1',
+        'exerciseId': null,
+        'reasonCodes': <String>['TODAY_LIGHTER_CHECKIN'],
+        'confidenceBand': 'high',
+      },
+    );
+  }
+}

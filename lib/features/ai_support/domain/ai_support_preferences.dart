@@ -9,6 +9,12 @@ enum SupportSuggestionCategory {
   professionalConversation,
 }
 
+/// Categorias com destino funcional e conteúdo pronto na experiência real.
+const connectedAiSupportCategories = <SupportSuggestionCategory>{
+  SupportSuggestionCategory.reflection,
+  SupportSuggestionCategory.exercise,
+};
+
 /// Características de conteúdo que uma pessoa pode optar por evitar.
 enum SupportContentTag { breathingFocused, audioRequired, animation, bodyTouch }
 

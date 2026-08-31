@@ -23,7 +23,8 @@ class SuggestionFeedbackSheet extends StatelessWidget {
       context: context,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (_) => SuggestionFeedbackSheet(store: store, suggestion: suggestion),
+      builder: (_) =>
+          SuggestionFeedbackSheet(store: store, suggestion: suggestion),
     );
   }
 
@@ -31,9 +32,7 @@ class SuggestionFeedbackSheet extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     store.recordFeedback(type, suggestion: suggestion);
     Navigator.of(context).pop();
-    messenger.showSnackBar(
-      SnackBar(content: Text(_messageFor(type))),
-    );
+    messenger.showSnackBar(SnackBar(content: Text(_messageFor(type))));
   }
 
   @override
@@ -47,12 +46,16 @@ class SuggestionFeedbackSheet extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            child: Text('Como foi esta sugestão?', style: theme.textTheme.titleLarge),
+            child: Text(
+              'Como foi esta sugestão?',
+              style: theme.textTheme.titleLarge,
+            ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Seu feedback fica apenas nesta demonstração e ajuda a reduzir '
-            'repetições inadequadas.',
+            store.isDemonstration
+                ? 'Seu feedback fica nesta demonstração e ajuda a reduzir repetições.'
+                : 'Sua resposta ajuda a evitar repetições e ajustar os próximos apoios.',
             style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 16),
@@ -74,11 +77,11 @@ class SuggestionFeedbackSheet extends StatelessWidget {
   }
 
   String _messageFor(SuggestionFeedbackType type) => switch (type) {
-    SuggestionFeedbackType.helpful => 'Feedback registrado nesta demonstração.',
-    SuggestionFeedbackType.neutral => 'Feedback registrado nesta demonstração.',
+    SuggestionFeedbackType.helpful => 'Entendido. Vou considerar isso.',
+    SuggestionFeedbackType.neutral => 'Entendido. Vou considerar isso.',
     SuggestionFeedbackType.notHelpful || SuggestionFeedbackType.harmful =>
       'Esta sugestão será evitada por enquanto.',
-    _ => 'Feedback registrado nesta demonstração.',
+    _ => 'Resposta registrada.',
   };
 }
 

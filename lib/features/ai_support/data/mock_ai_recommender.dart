@@ -4,6 +4,8 @@ import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
 import 'package:iris/features/ai_support/domain/support_signal.dart';
 import 'package:iris/features/ai_support/domain/support_suggestion.dart';
 
+enum AiSupportRecommendationFocus { general, checkIn, diary, notification }
+
 /// Contexto estruturado aceito pelo recomendador local.
 ///
 /// Não há texto de diário, contatos, diagnóstico ou qualquer instrução livre.
@@ -13,6 +15,8 @@ class AiSupportRecommendationContext {
     required this.preferences,
     required this.signals,
     required this.now,
+    this.focus = AiSupportRecommendationFocus.general,
+    this.blockedTemplateIds = const <String>{},
     this.isRiskDemonstration = false,
   });
 
@@ -20,6 +24,8 @@ class AiSupportRecommendationContext {
   final AiSupportPreferences preferences;
   final Iterable<SupportSignal> signals;
   final DateTime now;
+  final AiSupportRecommendationFocus focus;
+  final Set<String> blockedTemplateIds;
 
   /// Cenários de demonstração de risco não participam de recomendações.
   final bool isRiskDemonstration;
@@ -301,7 +307,13 @@ class MockAiRecommender implements AiSupportRecommender {
       );
     }
 
-    final seeds = _seedsFor(usable, input.preferences);
+    final seeds = _seedsFor(usable, input.preferences, input.focus)
+        .where(
+          (seed) => !input.blockedTemplateIds.contains(
+            seed.proposal.suggestionTemplateId,
+          ),
+        )
+        .toList(growable: false);
     if (seeds.isEmpty) {
       return const AiSupportRecommendationResult.skipped(
         RecommendationSkipReason.noAllowedCategory,
@@ -339,6 +351,7 @@ class MockAiRecommender implements AiSupportRecommender {
   List<_ProposalSeed> _seedsFor(
     List<SupportSignal> signals,
     AiSupportPreferences preferences,
+    AiSupportRecommendationFocus focus,
   ) {
     final result = <_ProposalSeed>[];
     final negativeExercise = _latestNegativeExercise(signals);
@@ -347,13 +360,20 @@ class MockAiRecommender implements AiSupportRecommender {
       SupportTopicKey.loneliness,
     );
     final difficultMood = _latestDifficultMood(signals);
+    final dailyCheckIn = _latest<DailyCheckInSignal>(
+      signals.whereType<DailyCheckInSignal>(),
+    );
     final overload = _latestConfirmedTopic(signals, SupportTopicKey.overload);
+    final selfKindness = _latestConfirmedTopic(
+      signals,
+      SupportTopicKey.selfKindness,
+    );
 
     if (negativeExercise != null &&
         preferences.allowsCategory(SupportSuggestionCategory.humanConnection)) {
       result.add(
-        const _ProposalSeed(
-          proposal: AiSupportRecommendationProposal(
+        _ProposalSeed(
+          proposal: const AiSupportRecommendationProposal(
             suggestionTemplateId: 'connection_after_exercise_feedback_v1',
             reasonCodes: <SupportReasonCode>{
               SupportReasonCode.previousExerciseWasNotHelpful,
@@ -363,14 +383,15 @@ class MockAiRecommender implements AiSupportRecommender {
           usedSources: <SupportSignalSource>{
             SupportSignalSource.exerciseFeedback,
           },
+          evidenceAt: negativeExercise.createdAt,
         ),
       );
     }
     if (loneliness != null &&
         preferences.allowsCategory(SupportSuggestionCategory.humanConnection)) {
       result.add(
-        const _ProposalSeed(
-          proposal: AiSupportRecommendationProposal(
+        _ProposalSeed(
+          proposal: const AiSupportRecommendationProposal(
             suggestionTemplateId: 'connection_loneliness_v1',
             reasonCodes: <SupportReasonCode>{
               SupportReasonCode.confirmedLoneliness,
@@ -378,47 +399,57 @@ class MockAiRecommender implements AiSupportRecommender {
             confidenceBand: ConfidenceBand.high,
           ),
           usedSources: <SupportSignalSource>{SupportSignalSource.diaryTags},
+          evidenceAt: loneliness.createdAt,
         ),
       );
     }
-    if (difficultMood != null && negativeExercise == null) {
+    if ((dailyCheckIn?.isDifficult == true || difficultMood != null) &&
+        negativeExercise == null) {
+      final reasons = <SupportReasonCode>{
+        if (dailyCheckIn?.isDifficult == true)
+          SupportReasonCode.todayDifficultCheckIn,
+        if (difficultMood != null) SupportReasonCode.recentDifficultCheckIns,
+        SupportReasonCode.prefersShortPractice,
+      };
       if (preferences.allowsCategory(SupportSuggestionCategory.exercise)) {
         result.add(
-          const _ProposalSeed(
+          _ProposalSeed(
             proposal: AiSupportRecommendationProposal(
               suggestionTemplateId: 'exercise_difficult_checkins_v1',
               exerciseId: 'anchor-present',
-              reasonCodes: <SupportReasonCode>{
-                SupportReasonCode.recentDifficultCheckIns,
-                SupportReasonCode.prefersShortPractice,
-              },
+              reasonCodes: reasons,
               confidenceBand: ConfidenceBand.medium,
             ),
             usedSources: <SupportSignalSource>{SupportSignalSource.moodHistory},
+            evidenceAt: dailyCheckIn?.createdAt ?? difficultMood?.createdAt,
           ),
         );
       }
     }
-    if (difficultMood != null &&
+    if ((dailyCheckIn?.isDifficult == true || difficultMood != null) &&
         preferences.allowsCategory(SupportSuggestionCategory.reflection)) {
+      final reasons = <SupportReasonCode>{
+        if (dailyCheckIn?.isDifficult == true)
+          SupportReasonCode.todayDifficultCheckIn,
+        if (difficultMood != null) SupportReasonCode.recentDifficultCheckIns,
+      };
       result.add(
-        const _ProposalSeed(
+        _ProposalSeed(
           proposal: AiSupportRecommendationProposal(
             suggestionTemplateId: 'reflection_difficult_checkins_v1',
-            reasonCodes: <SupportReasonCode>{
-              SupportReasonCode.recentDifficultCheckIns,
-            },
+            reasonCodes: reasons,
             confidenceBand: ConfidenceBand.medium,
           ),
           usedSources: <SupportSignalSource>{SupportSignalSource.moodHistory},
+          evidenceAt: dailyCheckIn?.createdAt ?? difficultMood?.createdAt,
         ),
       );
     }
     if (overload != null &&
         preferences.allowsCategory(SupportSuggestionCategory.reflection)) {
       result.add(
-        const _ProposalSeed(
-          proposal: AiSupportRecommendationProposal(
+        _ProposalSeed(
+          proposal: const AiSupportRecommendationProposal(
             suggestionTemplateId: 'reflection_overload_v1',
             reasonCodes: <SupportReasonCode>{
               SupportReasonCode.confirmedOverload,
@@ -426,10 +457,166 @@ class MockAiRecommender implements AiSupportRecommender {
             confidenceBand: ConfidenceBand.high,
           ),
           usedSources: <SupportSignalSource>{SupportSignalSource.diaryTags},
+          evidenceAt: overload.createdAt,
         ),
       );
     }
-    return result;
+    if (dailyCheckIn?.isSteady == true &&
+        preferences.allowsCategory(SupportSuggestionCategory.reflection)) {
+      result.add(
+        _ProposalSeed(
+          proposal: const AiSupportRecommendationProposal(
+            suggestionTemplateId: 'reflection_overload_v1',
+            reasonCodes: <SupportReasonCode>{
+              SupportReasonCode.todaySteadyCheckIn,
+            },
+            confidenceBand: ConfidenceBand.high,
+          ),
+          usedSources: <SupportSignalSource>{SupportSignalSource.moodHistory},
+          evidenceAt: dailyCheckIn!.createdAt,
+        ),
+      );
+    }
+    if (dailyCheckIn?.isLighter == true &&
+        preferences.allowsCategory(SupportSuggestionCategory.reflection)) {
+      result.add(
+        _ProposalSeed(
+          proposal: const AiSupportRecommendationProposal(
+            suggestionTemplateId: 'reflection_lighter_checkin_v1',
+            reasonCodes: <SupportReasonCode>{
+              SupportReasonCode.todayLighterCheckIn,
+            },
+            confidenceBand: ConfidenceBand.high,
+          ),
+          usedSources: <SupportSignalSource>{SupportSignalSource.moodHistory},
+          evidenceAt: dailyCheckIn!.createdAt,
+        ),
+      );
+    }
+    if (selfKindness != null &&
+        preferences.allowsCategory(SupportSuggestionCategory.reflection)) {
+      result.add(
+        _ProposalSeed(
+          proposal: const AiSupportRecommendationProposal(
+            suggestionTemplateId: 'reflection_self_kindness_v1',
+            reasonCodes: <SupportReasonCode>{
+              SupportReasonCode.confirmedSelfKindness,
+            },
+            confidenceBand: ConfidenceBand.high,
+          ),
+          usedSources: <SupportSignalSource>{SupportSignalSource.diaryTags},
+          evidenceAt: selfKindness.createdAt,
+        ),
+      );
+    }
+    return _prioritizeForFocus(
+      _personalizeFromInteractions(result, signals),
+      focus,
+    );
+  }
+
+  List<_ProposalSeed> _prioritizeForFocus(
+    List<_ProposalSeed> seeds,
+    AiSupportRecommendationFocus focus,
+  ) {
+    if (focus == AiSupportRecommendationFocus.notification) return seeds;
+    int rank(_ProposalSeed seed) {
+      final usesCheckIn = seed.usedSources.contains(
+        SupportSignalSource.moodHistory,
+      );
+      final usesDiary = seed.usedSources.contains(
+        SupportSignalSource.diaryTags,
+      );
+      if (focus == AiSupportRecommendationFocus.diary) {
+        return usesDiary
+            ? 0
+            : usesCheckIn
+            ? 1
+            : 2;
+      }
+      return usesCheckIn
+          ? 0
+          : usesDiary
+          ? 1
+          : 2;
+    }
+
+    final ranked = seeds.indexed.toList(growable: false)
+      ..sort((left, right) {
+        final order = rank(left.$2).compareTo(rank(right.$2));
+        if (order != 0) return order;
+        final leftAt = left.$2.evidenceAt;
+        final rightAt = right.$2.evidenceAt;
+        if (leftAt != null && rightAt != null) {
+          final recency = rightAt.compareTo(leftAt);
+          if (recency != 0) return recency;
+        }
+        return left.$1.compareTo(right.$1);
+      });
+    return ranked.map((item) => item.$2).toList(growable: false);
+  }
+
+  List<_ProposalSeed> _personalizeFromInteractions(
+    List<_ProposalSeed> seeds,
+    List<SupportSignal> signals,
+  ) {
+    final interactions =
+        signals.whereType<NotificationInteractionSignal>().toList(
+          growable: false,
+        )..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    final blockedTemplates = interactions
+        .where(
+          (signal) =>
+              signal.interaction == NotificationInteractionType.markedUnhelpful,
+        )
+        .map((signal) => signal.templateId)
+        .whereType<String>()
+        .toSet();
+    final filtered = seeds
+        .where(
+          (seed) =>
+              !blockedTemplates.contains(seed.proposal.suggestionTemplateId),
+        )
+        .toList(growable: true);
+    SupportSuggestionCategory? preferredCategory;
+    for (final interaction in interactions) {
+      if (interaction.interaction == NotificationInteractionType.opened &&
+          interaction.category != null) {
+        preferredCategory = interaction.category;
+        break;
+      }
+    }
+    if (preferredCategory == null) return filtered;
+    int preferenceRank(_ProposalSeed seed) {
+      final template = MockSupportTemplateCatalog.catalog.templateById(
+        seed.proposal.suggestionTemplateId,
+      );
+      return template?.category == preferredCategory ? 0 : 1;
+    }
+
+    filtered.sort((a, b) => preferenceRank(a).compareTo(preferenceRank(b)));
+    return [
+      for (final seed in filtered)
+        if (preferenceRank(seed) == 0)
+          _ProposalSeed(
+            proposal: AiSupportRecommendationProposal(
+              suggestionTemplateId: seed.proposal.suggestionTemplateId,
+              exerciseId: seed.proposal.exerciseId,
+              reasonCodes: <SupportReasonCode>{
+                ...seed.proposal.reasonCodes,
+                SupportReasonCode.preferredFromPastInteractions,
+              },
+              confidenceBand: seed.proposal.confidenceBand,
+            ),
+            usedSources: <SupportSignalSource>{
+              ...seed.usedSources,
+              SupportSignalSource.notificationInteractions,
+            },
+            evidenceAt: seed.evidenceAt,
+          )
+        else
+          seed,
+    ];
   }
 
   ExerciseFeedbackSignal? _latestNegativeExercise(List<SupportSignal> signals) {
@@ -471,8 +658,13 @@ class MockAiRecommender implements AiSupportRecommender {
 }
 
 class _ProposalSeed {
-  const _ProposalSeed({required this.proposal, required this.usedSources});
+  const _ProposalSeed({
+    required this.proposal,
+    required this.usedSources,
+    this.evidenceAt,
+  });
 
   final AiSupportRecommendationProposal proposal;
   final Set<SupportSignalSource> usedSources;
+  final DateTime? evidenceAt;
 }

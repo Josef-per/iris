@@ -3,6 +3,17 @@ import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
 import 'package:iris/features/ai_support/domain/notification_preferences.dart';
 import 'package:iris/features/ai_support/domain/support_suggestion.dart';
 
+const patientAvailableSupportCategories = <SupportSuggestionCategory>[
+  SupportSuggestionCategory.reflection,
+  SupportSuggestionCategory.exercise,
+];
+
+const patientAvailableSupportSources = <SupportSignalSource>[
+  SupportSignalSource.moodHistory,
+  SupportSignalSource.diaryTags,
+  SupportSignalSource.notificationInteractions,
+];
+
 extension SupportSignalSourceLabels on SupportSignalSource {
   String get label => switch (this) {
     SupportSignalSource.moodHistory => 'Humor dos últimos dias',
@@ -10,7 +21,7 @@ extension SupportSignalSourceLabels on SupportSignalSource {
     SupportSignalSource.exerciseFeedback =>
       'Avaliação de exercícios concluídos',
     SupportSignalSource.notificationInteractions =>
-      'Interações com notificações simuladas',
+      'O que você abre ou prefere não receber',
   };
 
   String get description => switch (this) {
@@ -21,7 +32,7 @@ extension SupportSignalSourceLabels on SupportSignalSource {
     SupportSignalSource.exerciseFeedback =>
       'Evita repetir logo uma prática marcada como não útil.',
     SupportSignalSource.notificationInteractions =>
-      'Reduz interrupções depois de dispensas ou feedback negativo.',
+      'Ajuda a priorizar o que funciona e reduzir o que incomoda.',
   };
 }
 
@@ -47,21 +58,30 @@ extension NotificationFrequencyLabels on NotificationFrequency {
 
 extension LockScreenPreviewLabels on LockScreenPreview {
   String get label => switch (this) {
-    LockScreenPreview.none => 'Nenhuma prévia',
+    LockScreenPreview.none => 'Ocultar conteúdo',
     LockScreenPreview.generic => 'Prévia genérica',
   };
 }
 
 extension SupportReasonCodeLabels on SupportReasonCode {
   String get explanation => switch (this) {
+    SupportReasonCode.todayDifficultCheckIn =>
+      'o check-in de hoje indicou um momento mais difícil',
+    SupportReasonCode.todaySteadyCheckIn =>
+      'o check-in de hoje ficou no meio da escala',
+    SupportReasonCode.todayLighterCheckIn =>
+      'o check-in de hoje indicou um momento mais leve',
     SupportReasonCode.recentDifficultCheckIns =>
       'alguns check-ins estruturados recentes pareceram mais difíceis',
-    SupportReasonCode.prefersShortPractice =>
-      'a demonstração está configurada para práticas curtas',
+    SupportReasonCode.prefersShortPractice => 'você prefere práticas curtas',
     SupportReasonCode.confirmedOverload =>
       'você confirmou uma tag sobre sobrecarga',
     SupportReasonCode.confirmedLoneliness =>
       'você confirmou uma tag sobre solidão',
+    SupportReasonCode.confirmedSelfKindness =>
+      'você escolheu um tema de autogentileza no diário',
+    SupportReasonCode.preferredFromPastInteractions =>
+      'você costuma abrir este tipo de apoio',
     SupportReasonCode.previousExerciseWasNotHelpful =>
       'um exercício anterior foi marcado como não útil',
   };

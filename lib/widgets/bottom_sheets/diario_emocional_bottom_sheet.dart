@@ -2,12 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
+import 'package:iris/features/emotional_diary/emotional_diary_support_topics.dart';
 import 'package:iris/widgets/bottom_sheets/app_bottom_sheet.dart';
 
 class DiarioEmocionalBottomSheet extends StatefulWidget {
-  const DiarioEmocionalBottomSheet({super.key, this.repository});
+  const DiarioEmocionalBottomSheet({
+    super.key,
+    this.repository,
+    this.supportTopics,
+  });
 
   final EmotionalDiaryDataSource? repository;
+  final EmotionalDiarySupportTopicDataSource? supportTopics;
 
   @override
   State<DiarioEmocionalBottomSheet> createState() =>
@@ -19,17 +25,27 @@ class _DiarioEmocionalBottomSheetState
   final _formKey = GlobalKey<FormState>();
   final _contentController = TextEditingController();
   late final EmotionalDiaryDataSource _repository;
+  late final EmotionalDiarySupportTopicDataSource? _supportTopics;
 
   bool _isLoading = false;
   bool _isLoadingTodayRecord = true;
   bool _hasSavedContent = false;
+  bool _supportTopicsUnavailable = false;
+  String? _todayRecordId;
+  final _selectedSupportTopics = <String>{};
   String? _loadErrorMessage;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _repository = widget.repository ?? EmotionalDiaryRepository();
+    final repository = widget.repository ?? EmotionalDiaryRepository();
+    _repository = repository;
+    _supportTopics =
+        widget.supportTopics ??
+        (repository is EmotionalDiarySupportTopicDataSource
+            ? repository as EmotionalDiarySupportTopicDataSource
+            : null);
     _loadTodayRecord();
   }
 
@@ -47,11 +63,34 @@ class _DiarioEmocionalBottomSheetState
 
     try {
       final record = await _repository.getTodayRecord();
+      final recordId = record?['id']?.toString().trim();
+      var selectedTopics = const <String>{};
+      var topicsUnavailable = false;
+      if (_supportTopics != null && recordId != null && recordId.isNotEmpty) {
+        try {
+          selectedTopics = await _supportTopics.listConfirmedSupportTopics(
+            emotionalRecordId: recordId,
+          );
+        } catch (_) {
+          // O diário continua disponível se a funcionalidade secundária de
+          // personalização estiver temporariamente indisponível.
+          topicsUnavailable = true;
+        }
+      }
       if (!mounted) return;
 
       final content = record?['diario_emocional']?.toString();
       setState(() {
+        _todayRecordId = recordId == null || recordId.isEmpty ? null : recordId;
         _hasSavedContent = content != null && content.trim().isNotEmpty;
+        _supportTopicsUnavailable = topicsUnavailable;
+        _selectedSupportTopics
+          ..clear()
+          ..addAll(
+            EmotionalDiarySupportTopic.values
+                .where(selectedTopics.contains)
+                .take(2),
+          );
       });
       if (content != null && content.trim().isNotEmpty) {
         _contentController.text = content;
@@ -78,6 +117,30 @@ class _DiarioEmocionalBottomSheetState
     final messenger = ScaffoldMessenger.of(context);
     try {
       await _repository.createDiaryEntry(content: _contentController.text);
+      if (_supportTopics != null && !_supportTopicsUnavailable) {
+        try {
+          var recordId = _todayRecordId;
+          if (recordId == null) {
+            final savedRecord = await _repository.getTodayRecord();
+            recordId = savedRecord?['id']?.toString().trim();
+          }
+          if (recordId == null || recordId.isEmpty) {
+            throw StateError('Registro emocional salvo sem identificador.');
+          }
+          await _supportTopics.replaceConfirmedSupportTopics(
+            emotionalRecordId: recordId,
+            topicCodes: Set<String>.of(_selectedSupportTopics),
+          );
+        } catch (_) {
+          if (!mounted) return;
+          setState(() {
+            _errorMessage =
+                'Seu diário foi salvo, mas os temas de apoio não foram '
+                'atualizados. Tente salvar novamente.';
+          });
+          return;
+        }
+      }
       if (!mounted) return;
 
       navigator.pop(true);
@@ -98,7 +161,7 @@ class _DiarioEmocionalBottomSheetState
       builder: (dialogContext) => AlertDialog(
         title: const Text('Limpar diário de hoje?'),
         content: const Text(
-          'O texto salvo hoje será apagado. O registro do dia e os sintomas marcados são mantidos.',
+          'O texto salvo hoje será apagado. O registro do dia e suas outras respostas são mantidos.',
         ),
         actions: [
           TextButton(
@@ -126,7 +189,9 @@ class _DiarioEmocionalBottomSheetState
       await _repository.clearDiaryEntry();
       if (!mounted) return;
 
-      navigator.pop(true);
+      // `false` significa que houve alteração, mas não um novo registro que
+      // deva disparar sugestão personalizada na Home.
+      navigator.pop(false);
       messenger.showSnackBar(
         const SnackBar(content: Text('Diário emocional limpo.')),
       );
@@ -195,25 +260,89 @@ class _DiarioEmocionalBottomSheetState
                       onRetry: _loadTodayRecord,
                     )
                   else
-                    TextFormField(
-                      key: const Key('emotional-diary-field'),
-                      controller: _contentController,
-                      minLines: 6,
-                      maxLines: 10,
-                      maxLength: 4000,
-                      buildCounter:
-                          (
-                            _, {
-                            required currentLength,
-                            required isFocused,
-                            required maxLength,
-                          }) => null,
-                      textCapitalization: TextCapitalization.sentences,
-                      validator: _validateContent,
-                      decoration: const InputDecoration(
-                        hintText: 'Escreva um pouco sobre o seu dia...',
-                        alignLabelWithHint: true,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TextFormField(
+                          key: const Key('emotional-diary-field'),
+                          controller: _contentController,
+                          minLines: 6,
+                          maxLines: 10,
+                          maxLength: 4000,
+                          buildCounter:
+                              (
+                                _, {
+                                required currentLength,
+                                required isFocused,
+                                required maxLength,
+                              }) => null,
+                          textCapitalization: TextCapitalization.sentences,
+                          validator: _validateContent,
+                          decoration: const InputDecoration(
+                            hintText: 'Escreva um pouco sobre o seu dia...',
+                            alignLabelWithHint: true,
+                          ),
+                        ),
+                        if (_supportTopics != null &&
+                            !_supportTopicsUnavailable) ...[
+                          const SizedBox(height: 20),
+                          Text(
+                            'O que mais marcou hoje? (opcional)',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Escolha até 2.',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children:
+                                const [
+                                      _SupportTopicChoice(
+                                        code:
+                                            EmotionalDiarySupportTopic.overload,
+                                        label: 'Sobrecarga',
+                                      ),
+                                      _SupportTopicChoice(
+                                        code: EmotionalDiarySupportTopic
+                                            .loneliness,
+                                        label: 'Solidão',
+                                      ),
+                                      _SupportTopicChoice(
+                                        code: EmotionalDiarySupportTopic
+                                            .selfKindness,
+                                        label: 'Preciso ser mais gentil comigo',
+                                      ),
+                                    ]
+                                    .map(
+                                      (topic) => ChoiceChip(
+                                        key: Key(
+                                          'emotional-diary-topic-${topic.code}',
+                                        ),
+                                        label: Text(topic.label),
+                                        selected: _selectedSupportTopics
+                                            .contains(topic.code),
+                                        onSelected:
+                                            _isLoading ||
+                                                (!_selectedSupportTopics
+                                                        .contains(topic.code) &&
+                                                    _selectedSupportTopics
+                                                            .length >=
+                                                        2)
+                                            ? null
+                                            : (selected) => _toggleSupportTopic(
+                                                topic.code,
+                                                selected: selected,
+                                              ),
+                                      ),
+                                    )
+                                    .toList(growable: false),
+                          ),
+                        ],
+                      ],
                     ),
                   if (_hasSavedContent) ...[
                     const SizedBox(height: 12),
@@ -278,6 +407,25 @@ class _DiarioEmocionalBottomSheetState
     }
     return null;
   }
+
+  void _toggleSupportTopic(String code, {required bool selected}) {
+    setState(() {
+      if (selected) {
+        if (_selectedSupportTopics.length < 2) {
+          _selectedSupportTopics.add(code);
+        }
+      } else {
+        _selectedSupportTopics.remove(code);
+      }
+    });
+  }
+}
+
+class _SupportTopicChoice {
+  const _SupportTopicChoice({required this.code, required this.label});
+
+  final String code;
+  final String label;
 }
 
 class _DiaryLoadError extends StatelessWidget {

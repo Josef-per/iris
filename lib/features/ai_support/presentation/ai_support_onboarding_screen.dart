@@ -8,10 +8,6 @@ import 'package:iris/features/ai_support/domain/notification_preferences.dart';
 import 'package:iris/features/ai_support/presentation/support_ui_labels.dart';
 import 'package:iris/widgets/app_responsive.dart';
 
-/// Onboarding local para a demonstração de sugestões de apoio.
-///
-/// A tela não pede permissões do aparelho e só usa os estados selecionados
-/// aqui. Texto livre do diário não é uma fonte disponível.
 class AiSupportOnboardingScreen extends StatefulWidget {
   const AiSupportOnboardingScreen({
     super.key,
@@ -31,6 +27,7 @@ class AiSupportOnboardingScreen extends StatefulWidget {
 
 class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
   var _step = 0;
+  var _isFinishing = false;
   late bool _personalizationEnabled;
   late Set<SupportSignalSource> _sources;
   late Set<SupportSuggestionCategory> _categories;
@@ -54,7 +51,7 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
     _sources = {...consent.grantedSources};
     _categories = {...preferences.allowedCategories};
     _excludedContentTags = {...preferences.excludedContentTags};
-    _notificationsEnabled = notifications.enabled;
+    _notificationsEnabled = _personalizationEnabled && notifications.enabled;
     _frequency = notifications.frequency;
     _lockScreenPreview = notifications.lockScreenPreview;
     _allowedWeekdays = {...notifications.window.allowedWeekdays};
@@ -62,12 +59,16 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
     _endHour = notifications.window.end.hour;
   }
 
-  void _next() {
-    if (_step < 2) {
-      setState(() => _step += 1);
-    } else {
-      _finish();
+  bool get _canContinue =>
+      !_personalizationEnabled ||
+      (_sources.isNotEmpty && _categories.isNotEmpty);
+
+  Future<void> _next() async {
+    if (_step == 0) {
+      setState(() => _step = 1);
+      return;
     }
+    await _finish();
   }
 
   void _back() {
@@ -80,23 +81,17 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
     }
   }
 
-  void _finish() {
+  Future<void> _finish() async {
+    if (_isFinishing || !_canContinue) return;
+    setState(() => _isFinishing = true);
     final endHour = _endHour == _startHour ? (_endHour + 1) % 24 : _endHour;
-    final notificationPreferences = NotificationPreferences(
-      enabled: _notificationsEnabled,
-      frequency: _notificationsEnabled
-          ? _frequency
-          : NotificationFrequency.never,
-      window: NotificationWindow(
-        start: SupportTimeOfDay(_startHour),
-        end: SupportTimeOfDay(endHour),
-        allowedWeekdays: _allowedWeekdays,
-      ),
-      lockScreenPreview: _lockScreenPreview,
-      // Esta categoria começa discreta: nunca ativamos som ou vibração aqui.
-      soundEnabled: false,
-      vibrationEnabled: false,
-    );
+    var notificationsEnabled = _notificationsEnabled;
+    if (notificationsEnabled && !widget.store.isDemonstration) {
+      final permission = await widget.store.requestNotificationPermission();
+      notificationsEnabled = permission.allowsScheduling;
+    }
+    if (!mounted) return;
+
     widget.store.completeOnboarding(
       consent: AiSupportConsent(
         personalizedSuggestionsGranted: _personalizationEnabled,
@@ -109,9 +104,31 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
         allowedCategories: _categories,
         maximumExerciseMinutes: 2,
         excludedContentTags: _excludedContentTags,
-        notifications: notificationPreferences,
+        notifications: NotificationPreferences(
+          enabled: notificationsEnabled,
+          frequency: notificationsEnabled
+              ? _frequency
+              : NotificationFrequency.never,
+          window: NotificationWindow(
+            start: SupportTimeOfDay(_startHour),
+            end: SupportTimeOfDay(endHour),
+            allowedWeekdays: _allowedWeekdays,
+          ),
+          lockScreenPreview: _lockScreenPreview,
+          soundEnabled: false,
+          vibrationEnabled: false,
+        ),
       ),
     );
+    if (_notificationsEnabled && !notificationsEnabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Os lembretes não foram ativados. O apoio continua disponível no app.',
+          ),
+        ),
+      );
+    }
     widget.onFinished?.call();
   }
 
@@ -122,35 +139,32 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
       appBar: AppBar(
         leading: IconButton(
           tooltip: _step == 0 ? 'Voltar' : 'Etapa anterior',
-          onPressed: _back,
+          onPressed: _isFinishing ? null : _back,
           icon: const Icon(Icons.arrow_back_rounded),
         ),
-        title: const Text('Sugestões de apoio'),
+        title: const Text('Apoio para você'),
       ),
       body: AppResponsive(
-        maxWidth: 720,
+        maxWidth: 700,
         child: ListView(
           children: [
-            Semantics(
-              liveRegion: true,
-              label: 'Etapa ${_step + 1} de 3',
-              child: Text(
-                'Etapa ${_step + 1} de 3',
-                style: theme.textTheme.labelLarge,
-              ),
-            ),
-            const SizedBox(height: 12),
-            LinearProgressIndicator(value: (_step + 1) / 3),
-            const SizedBox(height: 28),
-            switch (_step) {
-              0 => _LimitsStep(theme: theme),
-              1 => _ConsentStep(
+            Text('Etapa ${_step + 1} de 2', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 10),
+            LinearProgressIndicator(value: (_step + 1) / 2),
+            const SizedBox(height: 24),
+            if (_step == 0)
+              _DataStep(
                 personalizationEnabled: _personalizationEnabled,
                 sources: _sources,
-                onPersonalizationChanged: (value) {
+                onPersonalizationChanged: (enabled) {
                   setState(() {
-                    _personalizationEnabled = value;
-                    if (!value) _sources.clear();
+                    _personalizationEnabled = enabled;
+                    if (!enabled) {
+                      _sources.clear();
+                      _notificationsEnabled = false;
+                    } else if (_categories.isEmpty) {
+                      _categories.addAll(patientAvailableSupportCategories);
+                    }
                   });
                 },
                 onSourceChanged: (source, enabled) {
@@ -158,8 +172,10 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
                     enabled ? _sources.add(source) : _sources.remove(source);
                   });
                 },
-              ),
-              _ => _PreferencesStep(
+              )
+            else
+              _PreferenceStep(
+                personalizationEnabled: _personalizationEnabled,
                 categories: _categories,
                 excludedContentTags: _excludedContentTags,
                 notificationsEnabled: _notificationsEnabled,
@@ -194,39 +210,40 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
                     }
                   });
                 },
-                onFrequencyChanged: (frequency) {
-                  setState(() => _frequency = frequency);
-                },
-                onPreviewChanged: (preview) {
-                  setState(() => _lockScreenPreview = preview);
-                },
+                onFrequencyChanged: (value) =>
+                    setState(() => _frequency = value),
+                onPreviewChanged: (value) =>
+                    setState(() => _lockScreenPreview = value),
                 onDayChanged: (day, enabled) {
                   setState(() {
                     enabled
                         ? _allowedWeekdays.add(day)
                         : _allowedWeekdays.remove(day);
+                    if (_allowedWeekdays.isEmpty) _allowedWeekdays.add(day);
                   });
                 },
-                onStartHourChanged: (hour) {
-                  setState(() => _startHour = hour);
-                },
-                onEndHourChanged: (hour) {
-                  setState(() => _endHour = hour);
-                },
+                onStartHourChanged: (hour) => setState(() => _startHour = hour),
+                onEndHourChanged: (hour) => setState(() => _endHour = hour),
               ),
-            },
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
             FilledButton.icon(
               key: Key('ai-support-onboarding-next-$_step'),
-              onPressed: _next,
-              icon: Icon(
-                _step == 2 ? Icons.check_rounded : Icons.arrow_forward_rounded,
-              ),
-              label: Text(_step == 2 ? 'Concluir' : 'Continuar'),
+              onPressed: _isFinishing || !_canContinue ? null : _next,
+              icon: _isFinishing
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Icon(
+                      _step == 1
+                          ? Icons.check_rounded
+                          : Icons.arrow_forward_rounded,
+                    ),
+              label: Text(_step == 1 ? 'Concluir' : 'Continuar'),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
-              'Configuração local. Nada será enviado.',
+              'Você pode mudar ou desligar tudo depois.',
               style: theme.textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -237,82 +254,8 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
   }
 }
 
-class _LimitsStep extends StatelessWidget {
-  const _LimitsStep({required this.theme});
-
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Apoio breve, sob seu controle',
-          style: theme.textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Receba sugestões simples para refletir, fazer uma prática ou buscar '
-          'alguém seguro.',
-          style: theme.textTheme.bodyLarge,
-        ),
-        const SizedBox(height: 20),
-        const _LimitTile(
-          icon: Icons.shield_outlined,
-          title: 'Você mantém o controle',
-          body:
-              'Não é terapia nem canal de emergência. O texto livre do diário não é usado e ninguém é avisado automaticamente.',
-        ),
-      ],
-    );
-  }
-}
-
-class _LimitTile extends StatelessWidget {
-  const _LimitTile({
-    required this.icon,
-    required this.title,
-    required this.body,
-  });
-
-  final IconData icon;
-  final String title;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: theme.colorScheme.outlineVariant),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: theme.colorScheme.primary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleSmall),
-                const SizedBox(height: 4),
-                Text(body, style: theme.textTheme.bodyMedium),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConsentStep extends StatelessWidget {
-  const _ConsentStep({
+class _DataStep extends StatelessWidget {
+  const _DataStep({
     required this.personalizationEnabled,
     required this.sources,
     required this.onPersonalizationChanged,
@@ -330,49 +273,56 @@ class _ConsentStep extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Escolha o que usar', style: theme.textTheme.headlineSmall),
-        const SizedBox(height: 8),
         Text(
-          'Tudo começa desligado. Ative somente o que fizer sentido para você.',
-          style: theme.textTheme.bodyMedium,
+          'Apoio breve, sob seu controle',
+          style: theme.textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Não é terapia nem monitoramento de crise. A Íris só escolhe conteúdos revisados e não avisa ninguém.',
         ),
         const SizedBox(height: 16),
         SwitchListTile.adaptive(
           key: const Key('ai-support-personalization-switch'),
           contentPadding: EdgeInsets.zero,
-          title: const Text('Ativar sugestões personalizadas'),
+          title: const Text('Personalizar para mim'),
+          subtitle: const Text('O texto livre do diário nunca é usado.'),
           value: personalizationEnabled,
           onChanged: onPersonalizationChanged,
         ),
-        const SizedBox(height: 8),
-        for (final source in SupportSignalSource.values)
-          SwitchListTile.adaptive(
-            key: Key('ai-support-source-${source.name}'),
-            contentPadding: EdgeInsets.zero,
-            title: Text(source.label),
-            value: sources.contains(source),
-            onChanged: personalizationEnabled
-                ? (enabled) => onSourceChanged(source, enabled)
-                : null,
+        if (personalizationEnabled) ...[
+          const SizedBox(height: 10),
+          Text('O que posso considerar?', style: theme.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final source in patientAvailableSupportSources)
+                FilterChip(
+                  key: Key('ai-support-source-${source.name}'),
+                  label: Text(_shortSourceLabel(source)),
+                  selected: sources.contains(source),
+                  onSelected: (enabled) => onSourceChanged(source, enabled),
+                ),
+            ],
           ),
-        const SizedBox(height: 8),
-        Semantics(
-          label: 'Texto livre do diário indisponível nesta demonstração',
-          child: const ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.lock_outline_rounded),
-            title: Text('Texto livre do diário'),
-            subtitle: Text('Indisponível nesta primeira versão.'),
-            enabled: false,
-          ),
-        ),
+          if (sources.isEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Escolha pelo menos uma opção.',
+              style: TextStyle(color: theme.colorScheme.error),
+            ),
+          ],
+        ],
       ],
     );
   }
 }
 
-class _PreferencesStep extends StatelessWidget {
-  const _PreferencesStep({
+class _PreferenceStep extends StatelessWidget {
+  const _PreferenceStep({
+    required this.personalizationEnabled,
     required this.categories,
     required this.excludedContentTags,
     required this.notificationsEnabled,
@@ -391,6 +341,7 @@ class _PreferencesStep extends StatelessWidget {
     required this.onEndHourChanged,
   });
 
+  final bool personalizationEnabled;
   final Set<SupportSuggestionCategory> categories;
   final Set<SupportContentTag> excludedContentTags;
   final bool notificationsEnabled;
@@ -416,60 +367,56 @@ class _PreferencesStep extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Como você prefere receber apoio?',
+          'Como prefere receber apoio?',
           style: theme.textTheme.headlineSmall,
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Escolha os tipos de sugestão que combinam com você.',
-          style: theme.textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 14),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final category in SupportSuggestionCategory.values)
-              FilterChip(
-                key: Key('ai-support-category-${category.name}'),
-                label: Text(category.label),
-                selected: categories.contains(category),
-                onSelected: (value) => onCategoryChanged(category, value),
-              ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SwitchListTile.adaptive(
-          key: const Key('ai-support-avoid-breathing-switch'),
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Evitar conteúdo focado na respiração'),
-          value: excludedContentTags.contains(
-            SupportContentTag.breathingFocused,
+        if (personalizationEnabled) ...[
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final category in patientAvailableSupportCategories)
+                FilterChip(
+                  key: Key('ai-support-category-${category.name}'),
+                  label: Text(category.label),
+                  selected: categories.contains(category),
+                  onSelected: (enabled) => onCategoryChanged(category, enabled),
+                ),
+            ],
           ),
-          onChanged: onBreathingChanged,
-        ),
-        const Divider(height: 32),
-        SwitchListTile.adaptive(
-          key: const Key('ai-support-notification-simulator-switch'),
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Receber lembretes'),
-          subtitle: const Text('Nesta versão, aparecem somente no simulador.'),
-          value: notificationsEnabled,
-          onChanged: onNotificationsChanged,
-        ),
-        if (notificationsEnabled) ...[
+          SwitchListTile.adaptive(
+            key: const Key('ai-support-avoid-breathing-switch'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Evitar práticas focadas na respiração'),
+            value: excludedContentTags.contains(
+              SupportContentTag.breathingFocused,
+            ),
+            onChanged: onBreathingChanged,
+          ),
+        ] else
+          const Text('Você poderá usar práticas mesmo sem personalização.'),
+        if (personalizationEnabled) ...[
+          const Divider(height: 28),
+          SwitchListTile.adaptive(
+            key: const Key('ai-support-notification-simulator-switch'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Receber lembretes discretos'),
+            subtitle: const Text('Sem som, vibração ou detalhes pessoais.'),
+            value: notificationsEnabled,
+            onChanged: onNotificationsChanged,
+          ),
+        ],
+        if (personalizationEnabled && notificationsEnabled)
           ExpansionTile(
             key: const Key('ai-support-advanced-notification-settings'),
             tilePadding: EdgeInsets.zero,
-            childrenPadding: const EdgeInsets.only(bottom: 8),
             title: const Text('Horários e privacidade'),
             subtitle: const Text('Opcional'),
             children: [
               DropdownButtonFormField<NotificationFrequency>(
                 key: const Key('ai-support-frequency-field'),
-                decoration: const InputDecoration(
-                  labelText: 'Frequência máxima',
-                ),
+                decoration: const InputDecoration(labelText: 'No máximo'),
                 initialValue: frequency,
                 items: NotificationFrequency.values
                     .where((value) => value != NotificationFrequency.never)
@@ -501,32 +448,30 @@ class _PreferencesStep extends StatelessWidget {
                   if (value != null) onPreviewChanged(value);
                 },
               ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  _HourPicker(
-                    label: 'A partir de',
-                    value: startHour,
-                    onChanged: onStartHourChanged,
+                  Expanded(
+                    child: _HourField(
+                      label: 'A partir de',
+                      value: startHour,
+                      onChanged: onStartHourChanged,
+                    ),
                   ),
-                  _HourPicker(
-                    label: 'Até',
-                    value: endHour,
-                    onChanged: onEndHourChanged,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _HourField(
+                      label: 'Até',
+                      value: endHour,
+                      onChanged: onEndHourChanged,
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Dias', style: theme.textTheme.titleSmall),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 12),
               Wrap(
-                spacing: 8,
-                runSpacing: 8,
+                spacing: 6,
+                runSpacing: 6,
                 children: List<Widget>.generate(7, (index) {
                   final day = index + DateTime.monday;
                   return FilterChip(
@@ -536,18 +481,18 @@ class _PreferencesStep extends StatelessWidget {
                   );
                 }),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
               _GenericPreview(preview: lockScreenPreview),
+              const SizedBox(height: 8),
             ],
           ),
-        ],
       ],
     );
   }
 }
 
-class _HourPicker extends StatelessWidget {
-  const _HourPicker({
+class _HourField extends StatelessWidget {
+  const _HourField({
     required this.label,
     required this.value,
     required this.onChanged,
@@ -559,18 +504,16 @@ class _HourPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 156,
-      child: DropdownButtonFormField<int>(
-        decoration: InputDecoration(labelText: label),
-        initialValue: value,
-        items: List<DropdownMenuItem<int>>.generate(24, (hour) {
-          return DropdownMenuItem(value: hour, child: Text('$hour:00'));
-        }),
-        onChanged: (hour) {
-          if (hour != null) onChanged(hour);
-        },
+    return DropdownButtonFormField<int>(
+      decoration: InputDecoration(labelText: label),
+      initialValue: value,
+      items: List<DropdownMenuItem<int>>.generate(
+        24,
+        (hour) => DropdownMenuItem(value: hour, child: Text('$hour:00')),
       ),
+      onChanged: (hour) {
+        if (hour != null) onChanged(hour);
+      },
     );
   }
 }
@@ -583,37 +526,28 @@ class _GenericPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final genericText =
-        MockSupportTemplateCatalog.genericNotifications.first.text;
     return Container(
       key: const Key('ai-support-generic-preview'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Prévia da tela bloqueada', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          if (preview == LockScreenPreview.generic)
-            Text(genericText, style: theme.textTheme.bodyLarge)
-          else
-            Text(
-              'Nenhuma prévia será exibida na tela bloqueada.',
-              style: theme.textTheme.bodyLarge,
-            ),
-          const SizedBox(height: 8),
-          Text(
-            'Nunca mostra humor, tags, texto do diário, exercício ou contato.',
-            style: theme.textTheme.bodySmall,
-          ),
-        ],
+      child: Text(
+        preview == LockScreenPreview.generic
+            ? MockSupportTemplateCatalog.genericNotifications.first.text
+            : 'Sem texto da sugestão na tela bloqueada.',
       ),
     );
   }
 }
+
+String _shortSourceLabel(SupportSignalSource source) => switch (source) {
+  SupportSignalSource.moodHistory => 'Meus check-ins',
+  SupportSignalSource.diaryTags => 'Temas que eu marcar',
+  SupportSignalSource.exerciseFeedback => 'Práticas que avaliei',
+  SupportSignalSource.notificationInteractions => 'Lembretes que abri',
+};
 
 String _weekdayLabel(int weekday) => switch (weekday) {
   DateTime.monday => 'Seg',

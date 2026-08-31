@@ -1,8 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
+import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
+import 'package:iris/features/ai_support/domain/support_suggestion.dart';
+import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
 import 'package:iris/features/ai_support/presentation/after_journal_support_sheet.dart';
 import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
+import 'package:iris/features/ai_support/presentation/support_suggestion_screen.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
@@ -24,6 +31,7 @@ class HomeScreen extends StatefulWidget {
     this.onOpenCarePlan,
     this.onOpenHistory,
     this.onOpenSupportSuggestions,
+    this.aiSupportStore,
   });
 
   final PatientTodayDataSource? todayDataSource;
@@ -31,6 +39,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onOpenCarePlan;
   final VoidCallback? onOpenHistory;
   final VoidCallback? onOpenSupportSuggestions;
+  final MockAiSupportStore? aiSupportStore;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -51,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _todaySummaryFuture = _todayDataSource.loadToday();
   }
 
-  Future<bool> _openBottomSheet(Widget child) async {
+  Future<bool?> _openBottomSheet(Widget child) async {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -61,24 +70,91 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (_) => child,
     );
 
-    if (saved == true && mounted) {
+    if (saved != null && mounted) {
       _refreshTodaySummary();
     }
-    return saved == true;
+    return saved;
   }
 
   Future<void> _openCheckInSheet() async {
     final saved = await _openBottomSheet(const CheckInDiarioBottomSheet());
-    if (saved && mounted) {
-      await AfterJournalSupportSheet.show(context);
+    if (saved == true && mounted) {
+      await _showAfterJournalSupport(
+        AiSupportRecommendationTrigger.afterCheckIn,
+      );
     }
   }
 
   Future<void> _openEmotionalDiarySheet() async {
     final saved = await _openBottomSheet(const DiarioEmocionalBottomSheet());
-    if (saved && mounted) {
-      await AfterJournalSupportSheet.show(context);
+    if (saved == true && mounted) {
+      await _showAfterJournalSupport(AiSupportRecommendationTrigger.afterDiary);
     }
+  }
+
+  Future<void> _showAfterJournalSupport(
+    AiSupportRecommendationTrigger trigger,
+  ) async {
+    final store = widget.aiSupportStore;
+    Future<SupportSuggestion?>? personalized;
+    if (store != null && store.isOnboarded && store.isPersonalizationEnabled) {
+      personalized = store.generatePersonalizedSuggestion(trigger: trigger);
+    }
+    await AfterJournalSupportSheet.show(
+      context,
+      personalizedSuggestion: personalized,
+      onOpenPersonalized: _openPersonalizedSuggestion,
+      onNotNow: () {
+        if (personalized == null || store == null) return;
+        unawaited(
+          personalized.then((suggestion) {
+            if (suggestion != null) {
+              store.recordFeedback(
+                SuggestionFeedbackType.dismissed,
+                suggestion: suggestion,
+              );
+            }
+          }),
+        );
+      },
+      onClosedWithoutPersonalized: () {
+        if (personalized == null || store == null) return;
+        unawaited(
+          personalized.then((suggestion) {
+            if (suggestion != null) {
+              store.cancelNotificationForSuggestion(suggestion);
+            }
+          }),
+        );
+      },
+    );
+  }
+
+  void _openPersonalizedSuggestion(SupportSuggestion suggestion) {
+    final store = widget.aiSupportStore;
+    if (store == null) return;
+    store.recordSuggestionOpenedInApp(suggestion);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SupportSuggestionScreen(
+          store: store,
+          suggestion: suggestion,
+          onManageData: _openSupportSuggestions,
+        ),
+      ),
+    );
+  }
+
+  void _openSupportSuggestions() {
+    if (widget.onOpenSupportSuggestions case final callback?) {
+      callback();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AiSupportHubScreen(store: widget.aiSupportStore),
+      ),
+    );
   }
 
   void _refreshTodaySummary() {
@@ -149,19 +225,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 key: const Key('home-support-suggestions-menu'),
                 leading: const Icon(Icons.auto_awesome_outlined),
                 title: const Text('Sugestões de apoio'),
-                subtitle: const Text('Demonstração local e controlável'),
+                subtitle: const Text('Um apoio breve para o seu momento'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: () {
                   Navigator.pop(sheetContext);
-                  if (widget.onOpenSupportSuggestions case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const AiSupportHubScreen(),
-                      ),
-                    );
-                  }
+                  _openSupportSuggestions();
                 },
               ),
               ListTile(
@@ -249,76 +317,13 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final wide = constraints.maxWidth >= 700;
-                      final cardWidth = wide
-                          ? (constraints.maxWidth - 14) / 2
-                          : constraints.maxWidth;
-                      return Wrap(
-                        spacing: 14,
-                        runSpacing: 14,
-                        children: [
-                          _SupportEntryCard(
-                            key: const Key('home-exercises-card'),
-                            width: cardWidth,
-                            icon: Icons.self_improvement_rounded,
-                            title: 'Exercícios',
-                            subtitle: 'Práticas curtas para diferentes momentos.',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SupportFlowScreen(
-                                  start: SupportFlowStart.catalog,
-                                ),
-                              ),
-                            ),
-                          ),
-                          _SupportEntryCard(
-                            key: const Key('home-not-ok-card'),
-                            width: cardWidth,
-                            icon: Icons.favorite_rounded,
-                            title: 'Não estou bem',
-                            subtitle: 'Encontre uma prática ou procure apoio.',
-                            highlighted: true,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SupportFlowScreen(),
-                              ),
-                            ),
-                          ),
-                          _SupportEntryCard(
-                            key: const Key('home-support-suggestions-card'),
-                            width: cardWidth,
-                            icon: Icons.auto_awesome_outlined,
-                            title: 'Sugestões de apoio',
-                            subtitle:
-                                'Uma demonstração local, discreta e opcional.',
-                            onTap: () {
-                              if (widget.onOpenSupportSuggestions
-                                  case final callback?) {
-                                callback();
-                              } else {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        const AiSupportHubScreen(),
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 28),
                   Text(
-                    'Cuidar de você hoje',
+                    'Registre seu dia',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Escolha uma atividade para registrar como foi o seu dia.',
+                    'Comece pelo check-in ou pelo diário emocional.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 18),
@@ -339,17 +344,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _ActionCard(
                             width: width,
-                            icon: Icons.restaurant_menu_rounded,
-                            title: 'Registro de alimentação',
-                            subtitle: 'Registre uma refeição e como se sentiu.',
-                            onTap: () => _openBottomSheet(
-                              const RegistroAlimentarBottomSheet(),
-                            ),
-                          ),
-                          _ActionCard(
-                            width: width,
                             icon: Icons.fact_check_outlined,
-                            title: 'Registro do dia',
+                            title: 'Check-in diário',
                             subtitle:
                                 'Faça uma pausa e perceba como você está.',
                             onTap: _openCheckInSheet,
@@ -361,54 +357,73 @@ class _HomeScreenState extends State<HomeScreen> {
                             subtitle: 'Dê nome ao que você está sentindo.',
                             onTap: _openEmotionalDiarySheet,
                           ),
+                          _ActionCard(
+                            width: width,
+                            icon: Icons.restaurant_menu_rounded,
+                            title: 'Alimentação',
+                            subtitle: 'Registre uma refeição e como se sentiu.',
+                            onTap: () => _openBottomSheet(
+                              const RegistroAlimentarBottomSheet(),
+                            ),
+                          ),
                         ],
                       );
                     },
                   ),
                   const SizedBox(height: 28),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.favorite_rounded,
-                              size: 18,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSecondaryContainer,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Mensagem do dia',
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSecondaryContainer,
-                                fontWeight: FontWeight.w800,
+                  Text(
+                    'Apoio quando precisar',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 14),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 700;
+                      final cardWidth = wide
+                          ? (constraints.maxWidth - 14) / 2
+                          : constraints.maxWidth;
+                      return Wrap(
+                        spacing: 14,
+                        runSpacing: 14,
+                        children: [
+                          _SupportEntryCard(
+                            key: const Key('home-support-suggestions-card'),
+                            width: cardWidth,
+                            icon: Icons.auto_awesome_outlined,
+                            title: 'Apoio para agora',
+                            subtitle: 'Uma sugestão breve, do seu jeito.',
+                            onTap: _openSupportSuggestions,
+                          ),
+                          _SupportEntryCard(
+                            key: const Key('home-exercises-card'),
+                            width: cardWidth,
+                            icon: Icons.self_improvement_rounded,
+                            title: 'Práticas breves',
+                            subtitle: 'Escolha algo simples para este momento.',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(
+                                  start: SupportFlowStart.catalog,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Você não precisa resolver tudo de uma vez. Cada pequeno passo já é um avanço. Seja gentil com você — um dia de cada vez já é suficiente.',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSecondaryContainer,
-                            height: 1.45,
                           ),
-                        ),
-                      ],
-                    ),
+                          _SupportEntryCard(
+                            key: const Key('home-not-ok-card'),
+                            width: cardWidth,
+                            icon: Icons.favorite_rounded,
+                            title: 'Não estou bem',
+                            subtitle: 'Encontre apoio e opções de segurança.',
+                            highlighted: true,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -651,9 +666,7 @@ class _SupportEntryCard extends StatelessWidget {
           gradient: highlighted ? AppColors.brandGradient : null,
           color: highlighted ? null : colors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: highlighted
-              ? null
-              : Border.all(color: colors.outlineVariant),
+          border: highlighted ? null : Border.all(color: colors.outlineVariant),
         ),
         child: Material(
           color: Colors.transparent,
@@ -701,9 +714,7 @@ class _SupportEntryCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Icon(
                     Icons.arrow_forward_rounded,
-                    color: highlighted
-                        ? AppColors.white
-                        : colors.primary,
+                    color: highlighted ? AppColors.white : colors.primary,
                   ),
                 ],
               ),

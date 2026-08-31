@@ -57,5 +57,9 @@ run_sql /workspace/supabase/migrations/0009_patient_journal_improvements.sql
 run_sql /workspace/supabase/migrations/0009_patient_journal_improvements.sql
 run_sql /workspace/supabase/tests/clinical_data_integrity.sql
 run_sql /workspace/supabase/tests/patient_journal_improvements.sql
+# A camada de IA tambem deve ser idempotente e permanecer fechada por padrao.
+run_sql /workspace/supabase/migrations/0010_ai_support_backend.sql
+run_sql /workspace/supabase/migrations/0010_ai_support_backend.sql
+run_sql /workspace/supabase/tests/ai_support_backend.sql
 
-echo "Migrations e fluxo profissional validados."
+echo "Migrations, fluxo profissional e apoio por IA validados."

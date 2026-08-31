@@ -84,7 +84,7 @@ class _ExercisePlayerViewState extends State<ExercisePlayerView> {
     final values = _session.answers[_stepIndex];
     if (values == null) return false;
     return switch (_step.type) {
-      ExerciseStepType.guidedPractice => values?.isNotEmpty ?? false,
+      ExerciseStepType.guidedPractice => values.isNotEmpty,
       ExerciseStepType.textReflection => values.any(
         (value) => value.trim().isNotEmpty,
       ),

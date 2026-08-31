@@ -35,15 +35,12 @@ void main() {
   ) async {
     await pumpSheet(tester);
 
-    expect(find.text('Quer apoio agora?'), findsOneWidget);
+    expect(find.text('Registro salvo'), findsOneWidget);
     expect(find.byKey(const Key('after-journal-exercises')), findsOneWidget);
     expect(find.byKey(const Key('after-journal-not-ok')), findsOneWidget);
     expect(find.byKey(const Key('after-journal-urgent-help')), findsOneWidget);
     expect(find.textContaining('Você corre risco'), findsNothing);
-    expect(
-      find.textContaining('não interpreta o texto nem monitora'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('não monitora seu diário'), findsOneWidget);
   });
 
   testWidgets('somente tocar em ajuda urgente abre a checagem', (tester) async {

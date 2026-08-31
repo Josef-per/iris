@@ -48,7 +48,10 @@ class SupportInboxScreen extends StatelessWidget {
             maxWidth: 720,
             child: ListView(
               children: [
-                Text('Somente nesta demonstração', style: theme.textTheme.headlineSmall),
+                Text(
+                  'Somente nesta demonstração',
+                  style: theme.textTheme.headlineSmall,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Estas sugestões ficam no app. Nenhum contato ou '
@@ -124,9 +127,15 @@ class _InboxSuggestionCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(template.inAppTitle, style: theme.textTheme.titleSmall),
+                      Text(
+                        template.inAppTitle,
+                        style: theme.textTheme.titleSmall,
+                      ),
                       const SizedBox(height: 4),
-                      Text(template.inAppBody, style: theme.textTheme.bodySmall),
+                      Text(
+                        template.inAppBody,
+                        style: theme.textTheme.bodySmall,
+                      ),
                     ],
                   ),
                 ),

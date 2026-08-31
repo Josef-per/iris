@@ -14,19 +14,30 @@ extension SupportContentStatusLabel on SupportContentStatus {
 
 /// Códigos de motivo fechados, mostrados depois como explicações revisadas.
 enum SupportReasonCode {
+  todayDifficultCheckIn,
+  todaySteadyCheckIn,
+  todayLighterCheckIn,
   recentDifficultCheckIns,
   prefersShortPractice,
   confirmedOverload,
   confirmedLoneliness,
+  confirmedSelfKindness,
+  preferredFromPastInteractions,
   previousExerciseWasNotHelpful,
 }
 
 extension SupportReasonCodeWire on SupportReasonCode {
   String get wireName => switch (this) {
+    SupportReasonCode.todayDifficultCheckIn => 'TODAY_DIFFICULT_CHECKIN',
+    SupportReasonCode.todaySteadyCheckIn => 'TODAY_STEADY_CHECKIN',
+    SupportReasonCode.todayLighterCheckIn => 'TODAY_LIGHTER_CHECKIN',
     SupportReasonCode.recentDifficultCheckIns => 'RECENT_DIFFICULT_CHECKINS',
     SupportReasonCode.prefersShortPractice => 'PREFERS_SHORT_PRACTICE',
     SupportReasonCode.confirmedOverload => 'CONFIRMED_OVERLOAD',
     SupportReasonCode.confirmedLoneliness => 'CONFIRMED_LONELINESS',
+    SupportReasonCode.confirmedSelfKindness => 'CONFIRMED_SELF_KINDNESS',
+    SupportReasonCode.preferredFromPastInteractions =>
+      'PREFERRED_FROM_PAST_INTERACTIONS',
     SupportReasonCode.previousExerciseWasNotHelpful =>
       'PREVIOUS_EXERCISE_WAS_NOT_HELPFUL',
   };

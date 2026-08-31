@@ -104,7 +104,9 @@ abstract final class MockSupportTemplateCatalog {
       inAppBody: 'O que tornou este momento um pouco mais suportável?',
       genericNotificationTemplateId: 'notification_pause_gentle_v1',
       allowedReasonCodes: <SupportReasonCode>{
+        SupportReasonCode.todayDifficultCheckIn,
         SupportReasonCode.recentDifficultCheckIns,
+        SupportReasonCode.preferredFromPastInteractions,
       },
       approvedBy: 'Revisão clínica fictícia — Fase 1',
     ),
@@ -118,8 +120,10 @@ abstract final class MockSupportTemplateCatalog {
           'Você gostaria de experimentar “Ancorar no presente” por cerca de 2 minutos?',
       genericNotificationTemplateId: 'notification_pause_gentle_v1',
       allowedReasonCodes: <SupportReasonCode>{
+        SupportReasonCode.todayDifficultCheckIn,
         SupportReasonCode.recentDifficultCheckIns,
         SupportReasonCode.prefersShortPractice,
+        SupportReasonCode.preferredFromPastInteractions,
       },
       exerciseId: 'anchor-present',
       approvedBy: 'Revisão clínica fictícia — Fase 1',
@@ -135,6 +139,8 @@ abstract final class MockSupportTemplateCatalog {
       genericNotificationTemplateId: 'notification_support_suggestion_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.confirmedOverload,
+        SupportReasonCode.todaySteadyCheckIn,
+        SupportReasonCode.preferredFromPastInteractions,
       },
       approvedBy: 'Revisão clínica fictícia — Fase 1',
     ),
@@ -149,8 +155,39 @@ abstract final class MockSupportTemplateCatalog {
       genericNotificationTemplateId: 'notification_support_suggestion_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.confirmedLoneliness,
+        SupportReasonCode.preferredFromPastInteractions,
       },
       approvedBy: 'Revisão clínica fictícia — Fase 1',
+    ),
+    SupportSuggestionTemplate(
+      id: 'reflection_lighter_checkin_v1',
+      category: SupportSuggestionCategory.reflection,
+      version: '1.0',
+      status: SupportContentStatus.approved,
+      inAppTitle: 'Algo que vale guardar',
+      inAppBody:
+          'O que ajudou a tornar hoje um pouco mais leve e você gostaria de lembrar?',
+      genericNotificationTemplateId: 'notification_pause_gentle_v1',
+      allowedReasonCodes: <SupportReasonCode>{
+        SupportReasonCode.todayLighterCheckIn,
+        SupportReasonCode.preferredFromPastInteractions,
+      },
+      approvedBy: 'Catálogo clínico Íris',
+    ),
+    SupportSuggestionTemplate(
+      id: 'reflection_self_kindness_v1',
+      category: SupportSuggestionCategory.reflection,
+      version: '1.0',
+      status: SupportContentStatus.approved,
+      inAppTitle: 'Um gesto gentil com você',
+      inAppBody:
+          'Que frase gentil você diria a alguém querido vivendo este mesmo momento?',
+      genericNotificationTemplateId: 'notification_two_minutes_v1',
+      allowedReasonCodes: <SupportReasonCode>{
+        SupportReasonCode.confirmedSelfKindness,
+        SupportReasonCode.preferredFromPastInteractions,
+      },
+      approvedBy: 'Catálogo clínico Íris',
     ),
     SupportSuggestionTemplate(
       id: 'connection_after_exercise_feedback_v1',
@@ -163,6 +200,7 @@ abstract final class MockSupportTemplateCatalog {
       genericNotificationTemplateId: 'notification_two_minutes_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.previousExerciseWasNotHelpful,
+        SupportReasonCode.preferredFromPastInteractions,
       },
       approvedBy: 'Revisão clínica fictícia — Fase 1',
     ),

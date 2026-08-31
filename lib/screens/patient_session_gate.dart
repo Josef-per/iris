@@ -1,9 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/navigation/iris_router.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/features/ai_support/data/ai_support_settings_repository.dart';
+import 'package:iris/features/ai_support/data/ai_support_signal_repository.dart';
+import 'package:iris/features/ai_support/data/ai_support_suggestion_repository.dart';
+import 'package:iris/features/ai_support/data/ai_support_event_repository.dart';
 import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
+import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
+import 'package:iris/features/ai_support/notifications/flutter_local_support_notification_gateway.dart';
 import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
+import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
 import 'package:iris/features/patient_professional/patient_professional_repository.dart';
 import 'package:iris/screens/home_screen.dart';
 import 'package:iris/screens/lembretes_screen.dart';
@@ -27,14 +36,27 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
   late Future<bool> _linkCheckFuture;
   bool _isSigningOut = false;
   bool _routeNormalizationScheduled = false;
+  bool _supportNotificationPending = false;
   IrisRouteController? _routeController;
 
   @override
   void initState() {
     super.initState();
     _authService = widget.authService ?? AuthService();
-    _aiSupportStore = MockAiSupportStore();
-    _linkCheckFuture = _checkLink();
+    final emotionalDiary = EmotionalDiaryRepository();
+    _aiSupportStore = MockAiSupportStore(
+      isDemonstration: false,
+      signalDataSource: AiSupportSignalRepository(
+        emotionalDiary: emotionalDiary,
+      ),
+      settingsDataSource: SupabaseAiSupportSettingsRepository(),
+      eventDataSource: SupabaseAiSupportEventRepository(),
+      suggestionDataSource: SupabaseAiSupportSuggestionRepository(),
+      remoteRecommender: SupabaseAiSupportRemoteRecommender(),
+      notificationGateway: FlutterLocalSupportNotificationGateway(),
+      notificationOpenHandler: _handleSupportNotificationOpen,
+    );
+    _linkCheckFuture = _bootstrap();
   }
 
   @override
@@ -43,6 +65,17 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
     _routeController = IrisRouteScope.maybeOf(context);
     final controller = _routeController;
     if (controller == null || _routeNormalizationScheduled) {
+      return;
+    }
+    if (_supportNotificationPending) {
+      _supportNotificationPending = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        Router.neglect(
+          context,
+          () => controller.go(PatientRouteLocation.supportSuggestions.location),
+        );
+      });
       return;
     }
     final route = PatientRouteLocation.tryParse(controller.path.uri);
@@ -64,6 +97,28 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
 
   Future<bool> _checkLink() =>
       widget.linkChecker?.call() ?? _repository.hasActiveProfessionalLink();
+
+  Future<bool> _bootstrap() async {
+    // Sugestões são apoio opcional e nunca podem bloquear a entrada clínica.
+    unawaited(_aiSupportStore.initialize());
+    return _checkLink();
+  }
+
+  void _handleSupportNotificationOpen(String _) {
+    if (!mounted) return;
+    final controller = _routeController;
+    if (controller == null) {
+      _supportNotificationPending = true;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Router.neglect(
+        context,
+        () => controller.go(PatientRouteLocation.supportSuggestions.location),
+      );
+    });
+  }
 
   void _refreshLinkCheck() {
     setState(() {
@@ -184,6 +239,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
                     ),
             ),
             PatientDestination.home => HomeScreen(
+              aiSupportStore: _aiSupportStore,
               onOpenReminders: controller == null
                   ? null
                   : () =>

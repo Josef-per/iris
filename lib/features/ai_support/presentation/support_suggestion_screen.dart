@@ -6,7 +6,6 @@ import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
 import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
 import 'package:iris/features/ai_support/domain/support_suggestion.dart';
 import 'package:iris/features/ai_support/presentation/suggestion_feedback_sheet.dart';
-import 'package:iris/features/ai_support/presentation/support_ui_labels.dart';
 import 'package:iris/features/ai_support/presentation/why_this_suggestion_sheet.dart';
 import 'package:iris/features/support_exercises/presentation/support_flow_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
@@ -32,15 +31,19 @@ class SupportSuggestionScreen extends StatelessWidget {
       messenger.showSnackBar(
         const SnackBar(
           content: Text(
-            'Entendido. Essa informação não será mais usada; seu diário não mudou.',
+            'Entendido. Vou evitar sugestões como esta; seu diário não mudou.',
           ),
         ),
       );
       return;
     }
     messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Resposta registrada somente nesta sessão.'),
+      SnackBar(
+        content: Text(
+          store.isDemonstration
+              ? 'Resposta registrada somente nesta sessão.'
+              : 'Entendido. Vou considerar isso nas próximas sugestões.',
+        ),
       ),
     );
   }
@@ -58,6 +61,7 @@ class SupportSuggestionScreen extends StatelessWidget {
     BuildContext context,
     SupportSuggestionTemplate template,
   ) {
+    store.recordActionStarted(suggestion);
     switch (suggestion.category) {
       case SupportSuggestionCategory.exercise:
         final exerciseId = suggestion.exerciseId;
@@ -88,22 +92,6 @@ class SupportSuggestionScreen extends StatelessWidget {
     }
   }
 
-  void _hideCategory(BuildContext context) {
-    final categories = <SupportSuggestionCategory>{
-      ...store.preferences.allowedCategories,
-    }..remove(suggestion.category);
-    store.configurePreferences(
-      store.preferences.copyWith(allowedCategories: categories),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Sugestões de ${suggestion.category.label.toLowerCase()} foram desativadas.',
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -116,25 +104,21 @@ class SupportSuggestionScreen extends StatelessWidget {
         maxWidth: 720,
         child: ListView(
           children: [
-            OutlinedButton.icon(
-              key: const Key('ai-support-detail-urgent-help'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.danger,
-              ),
-              onPressed: () => _openUrgentHelp(context),
-              icon: const Icon(Icons.emergency_share_rounded),
-              label: const Text('Ajuda urgente'),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'Uma observação tentativa',
-              style: theme.textTheme.titleMedium,
-            ),
+            Text('Para o seu momento', style: theme.textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(_observation(), style: theme.textTheme.bodyLarge),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            if (template == null)
+              _UnavailableSuggestion(theme: theme)
+            else
+              _SuggestionContent(
+                template: template,
+                category: suggestion.category,
+                onPrimaryAction: () => _openPrimaryAction(context, template),
+              ),
+            const SizedBox(height: 22),
             Text(
-              'Isso combina com sua percepção?',
+              'Isso combina com o que você sente?',
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 10),
@@ -156,27 +140,20 @@ class SupportSuggestionScreen extends StatelessWidget {
                       _answer(context, SuggestionFeedbackType.doesNotMatch),
                   child: const Text('Não'),
                 ),
-                TextButton(
-                  key: const Key('ai-support-detail-prefer-not-answer'),
-                  onPressed: () => _answer(
-                    context,
-                    SuggestionFeedbackType.preferNotToAnswer,
-                  ),
-                  child: const Text('Prefiro não responder'),
-                ),
               ],
             ),
-            const SizedBox(height: 24),
-            if (template == null)
-              _UnavailableSuggestion(theme: theme)
-            else
-              _SuggestionContent(
-                template: template,
-                category: suggestion.category,
-                onPrimaryAction: () => _openPrimaryAction(context, template),
+            const SizedBox(height: 14),
+            TextButton.icon(
+              key: const Key('ai-support-detail-feedback'),
+              onPressed: () => SuggestionFeedbackSheet.show(
+                context,
+                store: store,
+                suggestion: suggestion,
               ),
-            const SizedBox(height: 20),
-            OutlinedButton.icon(
+              icon: const Icon(Icons.thumb_up_outlined),
+              label: const Text('Contar se ajudou'),
+            ),
+            TextButton.icon(
               key: const Key('ai-support-detail-why'),
               onPressed: () => WhyThisSuggestionSheet.show(
                 context,
@@ -186,25 +163,6 @@ class SupportSuggestionScreen extends StatelessWidget {
               ),
               icon: const Icon(Icons.info_outline_rounded),
               label: const Text('Por que estou vendo isto?'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              key: const Key('ai-support-detail-feedback'),
-              onPressed: () => SuggestionFeedbackSheet.show(
-                context,
-                store: store,
-                suggestion: suggestion,
-              ),
-              icon: const Icon(Icons.thumb_up_outlined),
-              label: const Text('Avaliar esta sugestão'),
-            ),
-            const SizedBox(height: 8),
-            TextButton(
-              key: const Key('ai-support-detail-hide-category'),
-              onPressed: () => _hideCategory(context),
-              child: Text(
-                'Não mostrar sugestões de ${suggestion.category.label.toLowerCase()}',
-              ),
             ),
             TextButton(
               key: const Key('ai-support-detail-not-now'),
@@ -218,9 +176,16 @@ class SupportSuggestionScreen extends StatelessWidget {
               child: const Text('Agora não'),
             ),
             const SizedBox(height: 12),
-            Text(
-              'Nada foi compartilhado com outra pessoa.',
-              style: theme.textTheme.bodySmall,
+            const Divider(),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              key: const Key('ai-support-detail-urgent-help'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.danger,
+              ),
+              onPressed: () => _openUrgentHelp(context),
+              icon: const Icon(Icons.emergency_share_rounded),
+              label: const Text('Preciso de ajuda urgente'),
             ),
           ],
         ),
@@ -229,25 +194,55 @@ class SupportSuggestionScreen extends StatelessWidget {
   }
 
   String _observation() {
+    final observations = <String>[];
     if (suggestion.reasonCodes.contains(
+      SupportReasonCode.todayDifficultCheckIn,
+    )) {
+      observations.add('Seu check-in de hoje pareceu mais difícil.');
+    } else if (suggestion.reasonCodes.contains(
+      SupportReasonCode.todayLighterCheckIn,
+    )) {
+      observations.add('Seu check-in de hoje pareceu um pouco mais leve.');
+    } else if (suggestion.reasonCodes.contains(
+      SupportReasonCode.todaySteadyCheckIn,
+    )) {
+      observations.add('Seu check-in de hoje ficou no meio da escala.');
+    } else if (suggestion.reasonCodes.contains(
       SupportReasonCode.recentDifficultCheckIns,
     )) {
-      return 'Seus check-ins recentes pareceram mais difíceis.';
+      observations.add('Seus check-ins recentes pareceram mais difíceis.');
     }
     if (suggestion.reasonCodes.contains(
       SupportReasonCode.confirmedLoneliness,
     )) {
-      return 'Você confirmou uma tag que pode indicar vontade de companhia.';
+      observations.add(
+        'No diário, você marcou um tema ligado a vontade de companhia.',
+      );
     }
     if (suggestion.reasonCodes.contains(SupportReasonCode.confirmedOverload)) {
-      return 'Você confirmou uma tag relacionada a sobrecarga.';
+      observations.add('No diário, você marcou um tema ligado a sobrecarga.');
+    }
+    if (suggestion.reasonCodes.contains(
+      SupportReasonCode.confirmedSelfKindness,
+    )) {
+      observations.add(
+        'No diário, você marcou vontade de ser mais gentil com você.',
+      );
     }
     if (suggestion.reasonCodes.contains(
       SupportReasonCode.previousExerciseWasNotHelpful,
     )) {
-      return 'Você marcou uma prática anterior como não útil.';
+      observations.add('Você marcou uma prática anterior como não útil.');
     }
-    return 'Uma sugestão de apoio está disponível, se fizer sentido.';
+    if (suggestion.reasonCodes.contains(
+      SupportReasonCode.preferredFromPastInteractions,
+    )) {
+      observations.add('Você já abriu apoios desse tipo antes.');
+    }
+    if (observations.isEmpty) {
+      return 'Uma sugestão de apoio está disponível, se fizer sentido.';
+    }
+    return observations.take(2).join(' ');
   }
 
   Future<void> _showReflection(

@@ -1,4 +1,5 @@
 import 'ai_support_consent.dart';
+import 'ai_support_preferences.dart';
 
 /// Direção simples de uma tendência de humor estruturada.
 enum MoodTrendDirection { difficult, stable, easier }
@@ -85,6 +86,26 @@ class MoodTrendSignal extends SupportSignal {
   }
 }
 
+/// Check-in estruturado mais recente, sem texto livre ou sintomas clínicos.
+///
+/// O sinal permite que a sugestão responda ao registro do próprio dia sem
+/// transformar a pontuação em diagnóstico ou avaliação de risco.
+class DailyCheckInSignal extends SupportSignal {
+  const DailyCheckInSignal({
+    required super.id,
+    required super.createdAt,
+    required super.expiresAt,
+    required this.moodScore,
+  }) : assert(moodScore >= 1 && moodScore <= 5),
+       super(source: SupportSignalSource.moodHistory);
+
+  final int moodScore;
+
+  bool get isDifficult => moodScore <= 2;
+  bool get isSteady => moodScore == 3;
+  bool get isLighter => moodScore >= 4;
+}
+
 /// Tema de uma taxonomia fechada, confirmado ou recusável pela pessoa.
 class ConfirmedTopicSignal extends SupportSignal {
   const ConfirmedTopicSignal({
@@ -127,7 +148,11 @@ class NotificationInteractionSignal extends SupportSignal {
     required super.createdAt,
     required super.expiresAt,
     required this.interaction,
+    this.templateId,
+    this.category,
   }) : super(source: SupportSignalSource.notificationInteractions);
 
   final NotificationInteractionType interaction;
+  final String? templateId;
+  final SupportSuggestionCategory? category;
 }

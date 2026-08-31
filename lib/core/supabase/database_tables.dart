@@ -6,6 +6,7 @@ class DatabaseTables {
   static const pacienteProfissional = 'paciente_profissional';
   static const registrosAlimentares = 'registros_alimentares';
   static const registrosEmocionais = 'registros_emocionais';
+  static const topicosApoio = 'topicos_apoio';
   static const consultas = 'consultas';
   static const anotacoesClinicas = 'anotacoes_clinicas';
   static const planosCuidado = 'planos_cuidado';

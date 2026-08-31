@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
@@ -12,10 +14,10 @@ import 'package:iris/features/ai_support/presentation/support_suggestion_screen.
 import 'package:iris/features/support_exercises/presentation/support_flow_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
 
-/// Entrada autenticada da primeira versão de Sugestões de apoio.
+/// Entrada autenticada de Sugestões de apoio.
 ///
-/// A funcionalidade vive inteiramente em memória nesta fase; não inicia
-/// serviços, não solicita push nem envia conteúdo para Supabase ou IA.
+/// O modo de demonstração mantém os cenários do protótipo. A experiência real
+/// mostra somente a sugestão atual e os controles essenciais da pessoa.
 class AiSupportHubScreen extends StatefulWidget {
   const AiSupportHubScreen({super.key, this.store, this.onBack});
 
@@ -35,6 +37,21 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
     super.initState();
     _ownsStore = widget.store == null;
     _store = widget.store ?? MockAiSupportStore();
+    unawaited(_prepareConnectedExperience());
+  }
+
+  Future<void> _prepareConnectedExperience() async {
+    await _store.waitForSettings();
+    if (!mounted) return;
+    setState(() {});
+    if (_store.isDemonstration || !_store.isOnboarded) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final openedFromNotification = _store.hasPendingNotificationOpen;
+      if (openedFromNotification || _store.pendingSuggestion == null) {
+        _refreshPersonalized(openWhenReady: openedFromNotification);
+      }
+    });
   }
 
   @override
@@ -60,6 +77,7 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
   }
 
   void _openSuggestion(SupportSuggestion suggestion) {
+    _store.recordSuggestionOpenedInApp(suggestion);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SupportSuggestionScreen(
@@ -71,19 +89,24 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
     );
   }
 
-  void _generateSuggestion() {
-    final suggestion = _store.generateSuggestion();
+  Future<void> _refreshPersonalized({bool openWhenReady = true}) async {
+    final suggestion = _store.isDemonstration
+        ? _store.generateSuggestion()
+        : await _store.generatePersonalizedSuggestion();
+    if (!mounted) return;
     if (suggestion == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Nenhuma sugestão foi criada. Verifique suas fontes e tipos de apoio.',
+      if (openWhenReady) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Não há uma sugestão para agora. Você ainda pode escolher uma prática.',
+            ),
           ),
-        ),
-      );
+        );
+      }
       return;
     }
-    _openSuggestion(suggestion);
+    if (openWhenReady) _openSuggestion(suggestion);
   }
 
   void _openNotifications() {
@@ -110,11 +133,35 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_store.settingsReady) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: 'Voltar',
+            onPressed: _back,
+            icon: const Icon(Icons.arrow_back_rounded),
+          ),
+          title: const Text('Apoio para você'),
+        ),
+        body: Center(
+          child: Semantics(
+            liveRegion: true,
+            label: 'Carregando suas preferências de apoio',
+            child: const CircularProgressIndicator(),
+          ),
+        ),
+      );
+    }
     if (!_store.isOnboarded) {
       return AiSupportOnboardingScreen(
         store: _store,
         onBack: _back,
-        onFinished: () => setState(() {}),
+        onFinished: () {
+          setState(() {});
+          if (!_store.isDemonstration) {
+            _refreshPersonalized(openWhenReady: false);
+          }
+        },
       );
     }
     return AnimatedBuilder(
@@ -126,7 +173,7 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
         onOpenSuggestion: _openSuggestion,
         onOpenNotifications: _openNotifications,
         onOpenInbox: _openInbox,
-        onGenerateSuggestion: _generateSuggestion,
+        onGenerateSuggestion: () => _refreshPersonalized(),
       ),
     );
   }
@@ -155,6 +202,7 @@ class _SupportCenter extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final latest = store.pendingSuggestion;
+    final demonstration = store.isDemonstration;
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -162,7 +210,7 @@ class _SupportCenter extends StatelessWidget {
           onPressed: onBack,
           icon: const Icon(Icons.arrow_back_rounded),
         ),
-        title: const Text('Sugestões de apoio'),
+        title: Text(demonstration ? 'Sugestões de apoio' : 'Apoio para você'),
         actions: [
           IconButton(
             key: const Key('ai-support-open-settings'),
@@ -176,45 +224,61 @@ class _SupportCenter extends StatelessWidget {
         maxWidth: 800,
         child: ListView(
           children: [
-            Text('Um apoio para agora', style: theme.textTheme.headlineSmall),
+            Text(
+              demonstration ? 'Um apoio para agora' : 'Para o seu momento',
+              style: theme.textTheme.headlineSmall,
+            ),
             const SizedBox(height: 8),
             Text(
-              'Escolha uma sugestão breve ou outra forma de cuidado.',
+              demonstration
+                  ? 'Escolha uma sugestão breve ou outra forma de cuidado.'
+                  : 'Uma sugestão breve, baseada somente no que você permitiu.',
               style: theme.textTheme.bodyLarge,
             ),
             const SizedBox(height: 16),
-            _StateNotice(store: store),
-            const SizedBox(height: 18),
-            _ScenarioCard(
-              store: store,
-              onGenerateSuggestion: onGenerateSuggestion,
-            ),
-            if (latest != null) ...[
+            if (demonstration) ...[
+              _StateNotice(store: store),
+              const SizedBox(height: 18),
+              _ScenarioCard(
+                store: store,
+                onGenerateSuggestion: onGenerateSuggestion,
+              ),
+            ] else
+              _PersonalizedNowCard(
+                store: store,
+                suggestion: latest,
+                onGenerate: onGenerateSuggestion,
+                onOpenSuggestion: onOpenSuggestion,
+                onOpenSettings: onOpenSettings,
+              ),
+            if (demonstration && latest != null) ...[
               const SizedBox(height: 16),
               _LatestSuggestionCard(
                 suggestion: latest,
                 onOpen: () => onOpenSuggestion(latest),
               ),
             ],
-            const SizedBox(height: 16),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                _HubAction(
-                  key: const Key('ai-support-open-inbox'),
-                  icon: Icons.inbox_outlined,
-                  label: 'Sugestões salvas',
-                  onTap: onOpenInbox,
-                ),
-                _HubAction(
-                  key: const Key('ai-support-open-settings-card'),
-                  icon: Icons.tune_rounded,
-                  label: 'Preferências',
-                  onTap: onOpenSettings,
-                ),
-              ],
-            ),
+            if (demonstration) ...[
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _HubAction(
+                    key: const Key('ai-support-open-inbox'),
+                    icon: Icons.inbox_outlined,
+                    label: 'Sugestões salvas',
+                    onTap: onOpenInbox,
+                  ),
+                  _HubAction(
+                    key: const Key('ai-support-open-settings-card'),
+                    icon: Icons.tune_rounded,
+                    label: 'Preferências',
+                    onTap: onOpenSettings,
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 24),
             Text('Outras opções', style: theme.textTheme.titleLarge),
             const SizedBox(height: 12),
@@ -257,27 +321,28 @@ class _SupportCenter extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            ExpansionTile(
-              key: const Key('ai-support-demo-tools'),
-              tilePadding: EdgeInsets.zero,
-              title: const Text('Ferramentas da demonstração'),
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _HubAction(
-                    key: const Key('ai-support-open-notifications'),
-                    icon: Icons.notifications_none_rounded,
-                    label: 'Simular notificações',
-                    onTap: onOpenNotifications,
+            if (demonstration)
+              ExpansionTile(
+                key: const Key('ai-support-demo-tools'),
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Ferramentas da demonstração'),
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: _HubAction(
+                      key: const Key('ai-support-open-notifications'),
+                      icon: Icons.notifications_none_rounded,
+                      label: 'Simular notificações',
+                      onTap: onOpenNotifications,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Nenhuma mensagem é enviada para contatos, profissionais ou serviços.',
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Nenhuma mensagem é enviada para contatos, profissionais ou serviços.',
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
           ],
         ),
       ),
@@ -390,6 +455,95 @@ class _ScenarioCard extends StatelessWidget {
       return 'Uma notificação genérica também foi exibida no simulador.';
     }
     return 'A sugestão ficou apenas dentro do app; suas preferências impediram uma notificação simulada.';
+  }
+}
+
+class _PersonalizedNowCard extends StatelessWidget {
+  const _PersonalizedNowCard({
+    required this.store,
+    required this.suggestion,
+    required this.onGenerate,
+    required this.onOpenSuggestion,
+    required this.onOpenSettings,
+  });
+
+  final MockAiSupportStore store;
+  final SupportSuggestion? suggestion;
+  final VoidCallback onGenerate;
+  final ValueChanged<SupportSuggestion> onOpenSuggestion;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final current = suggestion;
+    final template = current == null
+        ? null
+        : MockSupportTemplateCatalog.catalog.templateById(current.templateId);
+    return Container(
+      key: const Key('ai-support-personalized-now'),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (store.isRefreshing) ...[
+            const LinearProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(
+              'Preparando algo para você…',
+              style: theme.textTheme.titleMedium,
+            ),
+          ] else if (!store.isPersonalizationEnabled) ...[
+            Text(
+              'Você escolhe se quer personalizar',
+              style: theme.textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Ative quando quiser usar seus check-ins e temas escolhidos.',
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              key: const Key('ai-support-enable-from-hub'),
+              onPressed: onOpenSettings,
+              child: const Text('Escolher preferências'),
+            ),
+          ] else if (current != null && template != null) ...[
+            Text(template.inAppTitle, style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            Text(template.inAppBody, style: theme.textTheme.bodyLarge),
+            const SizedBox(height: 18),
+            FilledButton(
+              key: const Key('ai-support-open-personalized'),
+              onPressed: () => onOpenSuggestion(current),
+              child: const Text('Ver sugestão'),
+            ),
+          ] else ...[
+            Text('Quer uma sugestão breve?', style: theme.textTheme.titleLarge),
+            const SizedBox(height: 8),
+            const Text('A Íris pode considerar o seu registro mais recente.'),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              key: const Key('ai-support-generate-personalized'),
+              onPressed: onGenerate,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Ver apoio para agora'),
+            ),
+          ],
+          if (store.isPersonalizationEnabled) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Só usa check-ins, temas que você marcou e o que funcionou antes.',
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

@@ -45,7 +45,7 @@ class WhyThisSuggestionSheet extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text(
-          'Essa informação não será mais usada. Seu diário não foi alterado.',
+          'Entendido. Vamos evitar sugestões como esta por enquanto. Seu diário não mudou.',
         ),
       ),
     );
@@ -67,9 +67,11 @@ class WhyThisSuggestionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final canDiscardSignal = store.activeSignals.any(
-      (item) => suggestion.usedSources.contains(item.source),
-    );
+    final canDiscardSignal =
+        store.isDemonstration &&
+        store.activeSignals.any(
+          (item) => suggestion.usedSources.contains(item.source),
+        );
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
       child: SingleChildScrollView(
@@ -89,18 +91,19 @@ class WhyThisSuggestionSheet extends StatelessWidget {
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: 20),
-            for (final source in suggestion.usedSources) ...[
-              Text(source.label, style: theme.textTheme.titleSmall),
-              const SizedBox(height: 4),
-              Text(source.description, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 12),
-            ],
             Text('O que influenciou', style: theme.textTheme.titleSmall),
             const SizedBox(height: 6),
             Text(
               _reasonSentence(suggestion),
               style: theme.textTheme.bodyMedium,
             ),
+            if (suggestion.usedSources.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                'Considerou: ${suggestion.usedSources.map((source) => source.label).join(', ')}.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 20),
             OutlinedButton(
               key: const Key('ai-support-does-not-match'),
@@ -131,10 +134,11 @@ class WhyThisSuggestionSheet extends StatelessWidget {
               },
               child: const Text('Pausar ou desligar personalização'),
             ),
-            TextButton(
-              onPressed: () => _showReviewExplanation(context),
-              child: const Text('Solicitar revisão/explicação'),
-            ),
+            if (store.isDemonstration)
+              TextButton(
+                onPressed: () => _showReviewExplanation(context),
+                child: const Text('Ver limite da demonstração'),
+              ),
           ],
         ),
       ),

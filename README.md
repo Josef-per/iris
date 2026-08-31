@@ -25,8 +25,8 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 
 - autenticação e cadastro;
 - diário emocional e registros alimentares;
-- sugestões de apoio locais e opcionais, com cenários fictícios, controles de
-  consentimento e simulador de notificações genéricas;
+- sugestões de apoio opcionais a partir de check-ins, temas confirmados e
+  feedback anterior, com notificações locais discretas no celular;
 - leitura ou digitação de convite QR;
 - confirmação e vínculo com o profissional.
 
@@ -44,6 +44,8 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 - Flutter e Dart;
 - Supabase Auth;
 - PostgreSQL, Row Level Security e RPCs do Supabase;
+- Supabase Edge Functions e OpenAI Responses API sob rollout controlado;
+- notificações locais para Android e iOS;
 - `qr_flutter` e `mobile_scanner`.
 
 ## Configuração do Supabase
@@ -54,7 +56,9 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 2. `0005_patient_professional_link_rls.sql`;
 3. `0006_professional_backend.sql`;
 4. `0007_professional_invite_legacy_text_compat.sql`;
-5. `0008_clinical_data_integrity.sql`.
+5. `0008_clinical_data_integrity.sql`;
+6. `0009_patient_journal_improvements.sql`;
+7. `0010_ai_support_backend.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -68,6 +72,30 @@ pelo aplicativo. A `0007` corrige a compatibilidade das RPCs de QR em bancos
 legados cujos campos de perfil ainda usam `varchar`. A `0008` cria o upsert
 emocional diário atômico, migra sintomas para códigos estáveis e aplica os
 contratos de escalas e agenda no banco.
+
+### Sugestões de apoio e OpenAI
+
+A experiência conectada usa somente sinais estruturados: check-in de humor,
+temas que o próprio paciente marcou, avaliação de práticas e interações com
+notificações. Texto livre do diário, alimentação e sintomas não entram no
+contrato do recomendador.
+
+A chave `OPENAI_API_KEY` nunca é lida pelo Flutter. Se ela foi colocada no
+`.env` da raiz, o aplicativo a ignora. Para configurar o backend:
+
+1. aplique a migration `0010_ai_support_backend.sql`;
+2. configure `OPENAI_API_KEY`, `OPENAI_MODEL` e
+   `AI_SUPPORT_SAFETY_SALT` como secrets da Edge Function;
+3. implante `ai-support-recommend` conforme
+   `supabase/functions/ai-support-recommend/README.md`.
+
+Produção nasce em modo local, com OpenAI desligada e kill switch ativo. Shadow,
+piloto e produção limitada exigem ativação explícita e não substituem as
+aprovações clínica, jurídica, de privacidade, segurança e regulação.
+
+A `0009` melhora a persistência do registro diário. A `0010` cria preferências,
+tópicos confirmados, eventos, sugestões, RLS, rollout e os RPCs do apoio
+personalizado.
 
 Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
 de validar especialidade e registro, um administrador pode aprovar pelo SQL

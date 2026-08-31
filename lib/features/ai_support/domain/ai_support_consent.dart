@@ -9,6 +9,16 @@ enum SupportSignalSource {
   notificationInteractions,
 }
 
+/// Fontes realmente conectadas na experiência do paciente.
+///
+/// Feedback de exercício permanece disponível somente no modo de demonstração
+/// até o fluxo de práticas persistir essa resposta de ponta a ponta.
+const connectedAiSupportSources = <SupportSignalSource>{
+  SupportSignalSource.moodHistory,
+  SupportSignalSource.diaryTags,
+  SupportSignalSource.notificationInteractions,
+};
+
 /// Consentimento granular para a personalização local.
 ///
 /// A permissão do sistema operacional não é representada aqui: ela é
