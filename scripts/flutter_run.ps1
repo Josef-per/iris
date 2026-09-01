@@ -85,15 +85,30 @@ $irisFlutterArguments = @($args)
 $irisRunArguments = @()
 $irisDeviceWasSelected = $false
 $irisBuildModeWasSelected = $false
+$irisWebPortWasSelected = $false
+$irisUsesWebDevice = $false
+$irisExpectsDeviceId = $false
 
 foreach ($irisArgument in $irisFlutterArguments) {
+    if ($irisExpectsDeviceId) {
+        $irisUsesWebDevice = $irisArgument -in @('chrome', 'edge', 'web-server')
+        $irisExpectsDeviceId = $false
+        continue
+    }
+
     if (
-        $irisArgument -eq '-d' -or
-        $irisArgument -eq '--device-id' -or
+        $irisArgument -eq '-d' -or $irisArgument -eq '--device-id'
+    ) {
+        $irisDeviceWasSelected = $true
+        $irisExpectsDeviceId = $true
+    }
+    elseif (
         $irisArgument -like '--device-id=*' -or
         $irisArgument -like '-d=*'
     ) {
         $irisDeviceWasSelected = $true
+        $irisDeviceId = $irisArgument -replace '^(-d|--device-id)=', ''
+        $irisUsesWebDevice = $irisDeviceId -in @('chrome', 'edge', 'web-server')
     }
 
     if (
@@ -102,6 +117,10 @@ foreach ($irisArgument in $irisFlutterArguments) {
         $irisArgument -eq '--release'
     ) {
         $irisBuildModeWasSelected = $true
+    }
+
+    if ($irisArgument -eq '--web-port' -or $irisArgument -like '--web-port=*') {
+        $irisWebPortWasSelected = $true
     }
 }
 
@@ -112,16 +131,10 @@ $irisIsHeadless = (
 )
 
 if ($irisIsHeadless -and -not $irisDeviceWasSelected) {
-    $irisWebPort = $env:IRIS_WEB_PORT
-    if ([string]::IsNullOrEmpty($irisWebPort)) {
-        $irisWebPort = '8080'
-    }
-
     $irisRunArguments += @(
         '-d'
         'web-server'
         '--web-hostname=0.0.0.0'
-        "--web-port=$irisWebPort"
     )
 
     if (-not $irisBuildModeWasSelected) {
@@ -129,8 +142,18 @@ if ($irisIsHeadless -and -not $irisDeviceWasSelected) {
     }
 
     [Console]::Error.WriteLine(
-        "Ambiente sem interface grafica; iniciando a versao web otimizada na porta $irisWebPort."
+        'Ambiente sem interface grafica; iniciando a versao web otimizada.'
     )
+}
+
+$irisWebPort = $env:IRIS_WEB_PORT
+if ([string]::IsNullOrEmpty($irisWebPort)) {
+    $irisWebPort = '8080'
+}
+
+if ((($irisIsHeadless -and -not $irisDeviceWasSelected) -or $irisUsesWebDevice) -and -not $irisWebPortWasSelected) {
+    $irisRunArguments += "--web-port=$irisWebPort"
+    [Console]::Error.WriteLine("Versao web usando a porta fixa $irisWebPort.")
 }
 
 $irisCommandArguments = @(

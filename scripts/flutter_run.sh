@@ -59,13 +59,35 @@ fi
 iris_run_args=()
 iris_device_was_selected=false
 iris_build_mode_was_selected=false
+iris_web_port_was_selected=false
+iris_uses_web_device=false
+iris_expects_device_id=false
 for iris_argument in "$@"; do
+  if [[ "$iris_expects_device_id" == true ]]; then
+    if [[ "$iris_argument" == "chrome" || "$iris_argument" == "edge" || "$iris_argument" == "web-server" ]]; then
+      iris_uses_web_device=true
+    fi
+    iris_expects_device_id=false
+    continue
+  fi
+
   case "$iris_argument" in
-    -d|--device-id|--device-id=*|-d=*)
+    -d|--device-id)
       iris_device_was_selected=true
+      iris_expects_device_id=true
+      ;;
+    --device-id=*|-d=*)
+      iris_device_was_selected=true
+      iris_device_id="${iris_argument#*=}"
+      if [[ "$iris_device_id" == "chrome" || "$iris_device_id" == "edge" || "$iris_device_id" == "web-server" ]]; then
+        iris_uses_web_device=true
+      fi
       ;;
     --debug|--profile|--release)
       iris_build_mode_was_selected=true
+      ;;
+    --web-port|--web-port=*)
+      iris_web_port_was_selected=true
       ;;
   esac
 done
@@ -75,12 +97,20 @@ if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" && \
   iris_run_args+=(
     -d web-server
     --web-hostname=0.0.0.0
-    "--web-port=${IRIS_WEB_PORT:-8080}"
   )
   if [[ "$iris_build_mode_was_selected" == false ]]; then
     iris_run_args+=(--release)
   fi
   echo "Ambiente sem interface gráfica; iniciando a versão web otimizada na porta ${IRIS_WEB_PORT:-8080}." >&2
+fi
+
+iris_web_port="${IRIS_WEB_PORT:-8080}"
+if { { [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]] &&
+       [[ "$iris_device_was_selected" == false ]]; } ||
+     [[ "$iris_uses_web_device" == true ]]; } &&
+   [[ "$iris_web_port_was_selected" == false ]]; then
+  iris_run_args+=("--web-port=$iris_web_port")
+  echo "Versão web usando a porta fixa $iris_web_port." >&2
 fi
 
 exec "$iris_flutter_bin" run \

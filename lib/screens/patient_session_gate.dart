@@ -152,17 +152,22 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return Scaffold(
-            body: Center(
-              child: Semantics(
-                liveRegion: true,
-                label: 'Verificando vínculo profissional',
-                child: const Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Verificando seu vínculo...'),
-                  ],
+            body: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Semantics(
+                    liveRegion: true,
+                    label: 'Verificando vínculo profissional',
+                    child: const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Verificando seu vínculo...'),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -171,35 +176,37 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
 
         if (snapshot.hasError) {
           return Scaffold(
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Não foi possível verificar seu vínculo com o profissional.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: _isSigningOut ? null : _refreshLinkCheck,
-                      child: const Text('Tentar novamente'),
-                    ),
-                    const SizedBox(height: 8),
-                    TextButton.icon(
-                      onPressed: _isSigningOut ? null : _signOut,
-                      icon: _isSigningOut
-                          ? const SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.logout_rounded),
-                      label: Text(
-                        _isSigningOut ? 'Saindo...' : 'Sair e trocar de conta',
+            body: SafeArea(
+              child: Center(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Não foi possível verificar seu vínculo com o profissional.',
+                        textAlign: TextAlign.center,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _isSigningOut ? null : _refreshLinkCheck,
+                        child: const Text('Tentar novamente'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _isSigningOut ? null : _signOut,
+                        icon: _isSigningOut
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.logout_rounded),
+                        label: Text(
+                          _isSigningOut ? 'Saindo...' : 'Sair e trocar de conta',
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
