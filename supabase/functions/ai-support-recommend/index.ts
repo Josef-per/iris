@@ -1,10 +1,11 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 
+import { corsHeadersFor } from "../_shared/cors.ts";
+
 import {
   buildSelectionSchema,
   eligibleTemplates,
   extractStructuredOutput,
-  localSelection,
   supportCategories,
   supportSources,
   type AcceptedSelection,
@@ -20,6 +21,7 @@ import {
 } from "../_shared/ai_support_contract.ts";
 
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
+const requiredOpenAiModel = "gpt-5-mini";
 const allowedTriggers = new Set([
   "manual",
   "after_checkin",
@@ -114,7 +116,7 @@ type PersistRunInput = {
   trigger: string;
   role: "efetiva" | "shadow";
   mode: RolloutMode;
-  origin: "regra_local" | "openai" | "fallback";
+  origin: "openai";
   selection: AcceptedSelection | null;
   result: "sugerida" | "silencio" | "rejeitada" | "erro";
   promptVersion: string;
@@ -129,7 +131,11 @@ type PersistRunInput = {
 
 Deno.serve(async (request) => {
   const origin = request.headers.get("Origin");
-  const corsHeaders = corsHeadersFor(origin);
+  const corsHeaders = corsHeadersFor(
+    origin,
+    Deno.env.get("AI_SUPPORT_ALLOWED_ORIGINS"),
+    Deno.env.get("AI_SUPPORT_ENVIRONMENT"),
+  );
   if (request.method === "OPTIONS") {
     if (origin !== null && corsHeaders["Access-Control-Allow-Origin"] === undefined) {
       return jsonResponse(403, { code: "ORIGIN_NOT_ALLOWED" });
@@ -219,7 +225,7 @@ Deno.serve(async (request) => {
         trigger: body.trigger,
         role: "efetiva",
         mode: rollout.modo,
-        origin: "regra_local",
+        origin: "openai",
         selection: null,
         result: "silencio",
         promptVersion: rollout.versao_prompt,
@@ -236,29 +242,33 @@ Deno.serve(async (request) => {
       preferences,
       body.trigger as SupportTrigger,
     );
-    const local = localSelection(context);
     const safetySalt = Deno.env.get("AI_SUPPORT_SAFETY_SALT")?.trim() ?? "";
-    const configuredModel = Deno.env.get("OPENAI_MODEL")?.trim() ?? "";
+    const configuredModel =
+      Deno.env.get("OPENAI_MODEL")?.trim() || requiredOpenAiModel;
     const canUseModel =
       rollout.openai_ativa &&
       !rollout.kill_switch &&
       eligibleTemplates(context).length > 0 &&
-      local !== null &&
-      configuredModel !== "" &&
-      safetySalt !== "" &&
+      configuredModel === requiredOpenAiModel &&
       rollout.modelo === configuredModel;
 
     let shouldCallModel = false;
     if (canUseModel && rollout.modo === "shadow") {
-      shouldCallModel =
-        (await stableBucket(patientId, safetySalt, "shadow")) <
-        rollout.percentual_shadow;
+      shouldCallModel = await isInsideRolloutPercentage(
+        patientId,
+        safetySalt,
+        "shadow",
+        rollout.percentual_shadow,
+      );
     } else if (canUseModel && rollout.modo === "pilot") {
       shouldCallModel = await isActivePilotParticipant(admin, patientId);
     } else if (canUseModel && rollout.modo === "limited") {
-      shouldCallModel =
-        (await stableBucket(patientId, safetySalt, "limited")) <
-        rollout.percentual_entrega;
+      shouldCallModel = await isInsideRolloutPercentage(
+        patientId,
+        safetySalt,
+        "limited",
+        rollout.percentual_entrega,
+      );
     }
 
     let attempt: ModelAttempt | null = null;
@@ -297,23 +307,17 @@ Deno.serve(async (request) => {
       attempt?.selection !== null &&
       attempt?.selection !== undefined &&
       (rollout.modo === "pilot" || rollout.modo === "limited");
-    const effectiveSelection = modelCanBeVisible ? attempt!.selection : local;
-    const modelFailedBeforeFallback =
-      attempt !== null && attempt.selection === null && rollout.modo !== "shadow";
-    const origin = modelCanBeVisible
-      ? "openai"
-      : modelFailedBeforeFallback
-      ? "fallback"
-      : "regra_local";
-    const validationCode = modelCanBeVisible
-      ? attempt!.validationCode
-      : modelFailedBeforeFallback
-      ? `fallback_after_${attempt!.validationCode}`
-      : shouldCallModel
-      ? "shadow_not_visible"
-      : rollout.kill_switch
-      ? "kill_switch_local"
-      : "local_policy";
+    const effectiveSelection = modelCanBeVisible ? attempt!.selection : null;
+    const effectiveResult: PersistRunInput["result"] = modelCanBeVisible
+      ? "sugerida"
+      : attempt !== null && rollout.modo !== "shadow"
+      ? attempt.result
+      : "silencio";
+    const validationCode = attempt !== null
+      ? rollout.modo === "shadow"
+        ? "shadow_not_visible"
+        : attempt.validationCode
+      : modelDisabledReason(rollout, configuredModel, context);
 
     const effectiveRow = await persistRun(admin, {
       patientId,
@@ -321,17 +325,17 @@ Deno.serve(async (request) => {
       trigger: body.trigger,
       role: "efetiva",
       mode: rollout.modo,
-      origin,
+      origin: "openai",
       selection: effectiveSelection,
-      result: effectiveSelection === null ? "silencio" : "sugerida",
+      result: effectiveResult,
       promptVersion: rollout.versao_prompt,
       catalogVersion: rollout.versao_catalogo,
-      model: modelCanBeVisible ? configuredModel : null,
+      model: shouldCallModel ? configuredModel : null,
       validationCode,
-      outputHash: modelCanBeVisible ? attempt!.outputHash : null,
-      latencyMs: modelCanBeVisible ? attempt!.latencyMs : null,
-      inputTokens: modelCanBeVisible ? attempt!.inputTokens : null,
-      outputTokens: modelCanBeVisible ? attempt!.outputTokens : null,
+      outputHash: attempt?.outputHash ?? null,
+      latencyMs: attempt?.latencyMs ?? null,
+      inputTokens: attempt?.inputTokens ?? null,
+      outputTokens: attempt?.outputTokens ?? null,
     });
     await recordServerEvent(admin, {
       patientId,
@@ -647,10 +651,9 @@ async function requestModelSelection(input: {
     return modelFailure("openai_secret_missing", startedAt);
   }
 
-  const safetyIdentifier = await hmacHex(
-    input.safetySalt,
-    input.patientId,
-  );
+  const safetyIdentifier = input.safetySalt === ""
+    ? null
+    : await hmacHex(input.safetySalt, input.patientId);
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -678,8 +681,11 @@ async function requestModelSelection(input: {
             allowedReasonCodes: template.allowedReasonCodes,
           })),
         }),
-        max_output_tokens: 180,
-        safety_identifier: safetyIdentifier,
+        reasoning: { effort: "minimal" },
+        max_output_tokens: 500,
+        ...(safetyIdentifier === null
+          ? {}
+          : { safety_identifier: safetyIdentifier }),
         metadata: {
           feature: "iris_ai_support_selection",
           prompt_version: input.promptVersion,
@@ -894,12 +900,12 @@ async function loadRollout(
     return {
       ambiente: environment,
       apoio_ativo: true,
-      modo: "local",
+      modo: "limited",
       openai_ativa: false,
       kill_switch: true,
       percentual_shadow: 0,
       percentual_entrega: 0,
-      modelo: null,
+      modelo: requiredOpenAiModel,
       versao_prompt: "selection-v1",
       versao_catalogo: "support-v1",
     };
@@ -1042,6 +1048,19 @@ function modelFailure(code: string, startedAt: number): ModelAttempt {
   };
 }
 
+function modelDisabledReason(
+  rollout: RolloutConfiguration,
+  configuredModel: string,
+  context: SelectionContext,
+): string {
+  if (!rollout.openai_ativa) return "model_disabled";
+  if (rollout.kill_switch) return "model_kill_switch";
+  if (configuredModel !== requiredOpenAiModel) return "unsupported_model";
+  if (rollout.modelo !== configuredModel) return "rollout_model_mismatch";
+  if (eligibleTemplates(context).length === 0) return "no_eligible_templates";
+  return "outside_model_rollout";
+}
+
 function modelTimeoutMilliseconds(): number {
   const parsed = Number.parseInt(Deno.env.get("OPENAI_TIMEOUT_MS") ?? "6000", 10);
   if (!Number.isFinite(parsed)) return 6000;
@@ -1055,6 +1074,18 @@ async function stableBucket(
 ): Promise<number> {
   const digest = await hmacHex(salt, `${purpose}:${patientId}`);
   return Number.parseInt(digest.slice(0, 8), 16) % 100;
+}
+
+async function isInsideRolloutPercentage(
+  patientId: string,
+  salt: string,
+  purpose: string,
+  percentage: number,
+): Promise<boolean> {
+  if (percentage <= 0) return false;
+  if (percentage >= 100) return true;
+  if (salt === "") return false;
+  return (await stableBucket(patientId, salt, purpose)) < percentage;
 }
 
 async function hmacHex(secret: string, value: string): Promise<string> {
@@ -1096,24 +1127,6 @@ function integerOrNull(value: unknown): number | null {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function corsHeadersFor(origin: string | null): Record<string, string> {
-  const headers: Record<string, string> = {
-    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Cache-Control": "no-store",
-    Vary: "Origin",
-  };
-  if (origin === null) return headers;
-  const allowed = new Set(
-    (Deno.env.get("AI_SUPPORT_ALLOWED_ORIGINS") ?? "")
-      .split(",")
-      .map((value) => value.trim())
-      .filter((value) => value !== ""),
-  );
-  if (allowed.has(origin)) headers["Access-Control-Allow-Origin"] = origin;
-  return headers;
 }
 
 function jsonResponse(

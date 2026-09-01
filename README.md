@@ -58,7 +58,8 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 4. `0007_professional_invite_legacy_text_compat.sql`;
 5. `0008_clinical_data_integrity.sql`;
 6. `0009_patient_journal_improvements.sql`;
-7. `0010_ai_support_backend.sql`.
+7. `0010_ai_support_backend.sql`;
+8. `0011_ai_support_gpt5_mini_only.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -80,22 +81,26 @@ temas que o próprio paciente marcou, avaliação de práticas e interações co
 notificações. Texto livre do diário, alimentação e sintomas não entram no
 contrato do recomendador.
 
-A chave `OPENAI_API_KEY` nunca é lida pelo Flutter. Se ela foi colocada no
-`.env` da raiz, o aplicativo a ignora. Para configurar o backend:
+A chave `OPENAI_API_KEY` nunca é lida pelo Flutter. Ela pode permanecer no
+`.env` da raiz como fonte local, mas deve ser copiada para o secret da Edge
+Function ou para `supabase/functions/.env`; não passe o `.env` inteiro ao
+Flutter. Para configurar o backend:
 
-1. aplique a migration `0010_ai_support_backend.sql`;
-2. configure `OPENAI_API_KEY`, `OPENAI_MODEL` e
-   `AI_SUPPORT_SAFETY_SALT` como secrets da Edge Function;
+1. aplique as migrations `0010_ai_support_backend.sql` e
+   `0011_ai_support_gpt5_mini_only.sql`;
+2. configure `OPENAI_API_KEY` como secret da Edge Function; o modelo aceito é
+   exclusivamente `gpt-5-mini`;
 3. implante `ai-support-recommend` conforme
    `supabase/functions/ai-support-recommend/README.md`.
 
-Produção nasce em modo local, com OpenAI desligada e kill switch ativo. Shadow,
-piloto e produção limitada exigem ativação explícita e não substituem as
-aprovações clínica, jurídica, de privacidade, segurança e regulação.
+No modo conectado não existe recomendação por regras nem fallback local: uma
+sugestão somente aparece quando o GPT-5 mini devolve uma seleção válida.
+Desenvolvimento nasce com entrega do modelo em 100%; staging e produção ficam
+com o modelo desligado e kill switch ativo até ativação explícita.
 
 A `0009` melhora a persistência do registro diário. A `0010` cria preferências,
 tópicos confirmados, eventos, sugestões, RLS, rollout e os RPCs do apoio
-personalizado.
+personalizado. A `0011` torna o GPT-5 mini a única fonte de seleção conectada.
 
 Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
 de validar especialidade e registro, um administrador pode aprovar pelo SQL

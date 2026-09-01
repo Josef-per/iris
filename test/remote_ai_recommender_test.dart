@@ -102,43 +102,37 @@ void main() {
     );
   });
 
-  test(
-    'aceita regra determinística do backend sem liberar IA em shadow',
-    () async {
-      final context = AiSupportRecommendationContext(
-        consent: const AiSupportConsent(
-          personalizedSuggestionsGranted: true,
-          grantedSources: <SupportSignalSource>{
-            SupportSignalSource.moodHistory,
-          },
-        ),
-        preferences: const AiSupportPreferences(
-          personalizedSuggestionsEnabled: true,
-          allowedCategories: <SupportSuggestionCategory>{
-            SupportSuggestionCategory.reflection,
-          },
-        ),
-        signals: const <SupportSignal>[],
-        now: now,
-      );
-      final decision = await SupabaseAiSupportRemoteRecommender(
-        invoker: _FakeInvoker(<String, Object?>{
-          'mode': 'shadow',
-          'status': 'suggested',
-          'origin': 'regra_local',
-          'suggestionId': '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46',
-          'templateId': 'reflection_difficult_checkins_v1',
-          'exerciseId': null,
-          'reasonCodes': <String>['RECENT_DIFFICULT_CHECKINS'],
-          'confidenceBand': 'medium',
-        }),
-        requestIdFactory: () => '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46',
-      ).recommend(context);
+  test('rejeita proposta que não tenha sido selecionada pela OpenAI', () async {
+    final context = AiSupportRecommendationContext(
+      consent: const AiSupportConsent(
+        personalizedSuggestionsGranted: true,
+        grantedSources: <SupportSignalSource>{SupportSignalSource.moodHistory},
+      ),
+      preferences: const AiSupportPreferences(
+        personalizedSuggestionsEnabled: true,
+        allowedCategories: <SupportSuggestionCategory>{
+          SupportSuggestionCategory.reflection,
+        },
+      ),
+      signals: const <SupportSignal>[],
+      now: now,
+    );
+    final future = SupabaseAiSupportRemoteRecommender(
+      invoker: _FakeInvoker(<String, Object?>{
+        'mode': 'limited',
+        'status': 'suggested',
+        'origin': 'regra_local',
+        'suggestionId': '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46',
+        'templateId': 'reflection_difficult_checkins_v1',
+        'exerciseId': null,
+        'reasonCodes': <String>['RECENT_DIFFICULT_CHECKINS'],
+        'confidenceBand': 'medium',
+      }),
+      requestIdFactory: () => '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46',
+    ).recommend(context);
 
-      expect(decision.shouldUseProposal, isTrue);
-      expect(decision.origin, 'regra_local');
-    },
-  );
+    await expectLater(future, throwsFormatException);
+  });
 
   test('gera UUID v4 sem dados pessoais', () {
     final value = generateAiSupportRequestId();

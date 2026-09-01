@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/features/ai_support/data/ai_support_signal_repository.dart';
+import 'package:iris/features/ai_support/data/mock_ai_recommender.dart';
 import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
 import 'package:iris/features/ai_support/data/mock_notification_policy.dart';
+import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
 import 'package:iris/features/ai_support/domain/ai_support_consent.dart';
 import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
 import 'package:iris/features/ai_support/domain/notification_preferences.dart';
@@ -19,6 +21,7 @@ void main() {
       clock: () => now,
       isDemonstration: false,
       notificationGateway: gateway,
+      remoteRecommender: const _ModelRemote(),
       signalDataSource: _StaticSignalDataSource(<SupportSignal>[
         MoodTrendSignal(
           id: 'mood-trend-test',
@@ -205,6 +208,27 @@ void main() {
     expect(gateway.scheduled, isEmpty);
     expect(gateway.permissionRequestCount, 0);
   });
+}
+
+class _ModelRemote implements AiSupportRemoteRecommender {
+  const _ModelRemote();
+
+  @override
+  Future<RemoteAiSupportDecision> recommend(
+    AiSupportRecommendationContext context, {
+    AiSupportRecommendationTrigger trigger =
+        AiSupportRecommendationTrigger.manual,
+  }) async => const RemoteAiSupportDecision(
+    mode: AiSupportRolloutMode.limitedProduction,
+    origin: 'openai',
+    suggestionId: '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46',
+    proposal: <String, Object?>{
+      'suggestionTemplateId': 'exercise_difficult_checkins_v1',
+      'exerciseId': 'anchor-present',
+      'reasonCodes': <String>['RECENT_DIFFICULT_CHECKINS'],
+      'confidenceBand': 'medium',
+    },
+  );
 }
 
 class _StaticSignalDataSource implements AiSupportSignalDataSource {

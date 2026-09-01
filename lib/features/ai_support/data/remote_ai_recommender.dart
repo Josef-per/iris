@@ -44,12 +44,8 @@ class RemoteAiSupportDecision {
   final String? suggestionId;
   final String? origin;
 
-  bool get shouldUseProposal {
-    if (proposal == null) return false;
-    final deterministicBackend =
-        origin == 'regra_local' || origin == 'fallback';
-    return deterministicBackend || mode.mayInfluencePatient;
-  }
+  bool get shouldUseProposal =>
+      proposal != null && origin == 'openai' && mode.mayInfluencePatient;
 }
 
 abstract interface class AiSupportRemoteRecommender {
@@ -141,9 +137,7 @@ class SupabaseAiSupportRemoteRecommender implements AiSupportRemoteRecommender {
     final origin = response['origin']?.toString() ?? '';
     final echoedRequestId = response['requestId']?.toString();
     if (!isAiSupportUuid(suggestionId) ||
-        (origin != 'regra_local' &&
-            origin != 'openai' &&
-            origin != 'fallback') ||
+        origin != 'openai' ||
         (echoedRequestId != null && echoedRequestId != requestId)) {
       throw const FormatException('Identidade da sugestão remota inválida.');
     }

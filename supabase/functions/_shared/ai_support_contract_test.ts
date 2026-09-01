@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import {
-  localSelection,
   type SelectionContext,
   validateSelection,
 } from "./ai_support_contract.ts";
@@ -153,58 +152,14 @@ test("nao aplica preferencia de notificacao a categoria diferente", () => {
   });
 });
 
-test("regra local prioriza categoria aberta sem perder o sinal atual", () => {
-  const selection = localSelection(
-    context({
-      dailyCheckIn: { moodBand: "difficult" },
-      interactions: {
-        ...context().interactions,
-        opened30Days: 1,
-        preferredCategories: ["reflection"],
-      },
-    }),
-  );
-
-  assert.equal(selection?.templateId, "reflection_difficult_checkins_v1");
-  assert.deepEqual(selection?.reasonCodes, [
-    "TODAY_DIFFICULT_CHECKIN",
-    "PREFERRED_FROM_PAST_INTERACTIONS",
-  ]);
-});
-
-test("tres dispensas pausam lembretes sem retirar apoio no app", () => {
-  const selection = localSelection(
-    context({
-      dailyCheckIn: { moodBand: "lighter" },
-      interactions: {
-        ...context().interactions,
-        dismissed30Days: 3,
-        consecutiveDismissals: 3,
-      },
-    }),
-  );
-
-  assert.equal(selection?.templateId, "reflection_lighter_checkin_v1");
-});
-
-test("gatilho do diario prioriza o tema acabado de confirmar", () => {
-  const selection = localSelection(
-    context({
-      trigger: "after_diary",
-      dailyCheckIn: { moodBand: "lighter" },
-      confirmedTopics: ["self_kindness"],
-    }),
-  );
-
-  assert.equal(selection?.templateId, "reflection_self_kindness_v1");
-});
-
 test("fronteira OpenAI usa Responses, schema estrito e nao armazena resposta", () => {
   assert.match(edgeFunctionSource, /https:\/\/api\.openai\.com\/v1\/responses/);
   assert.match(edgeFunctionSource, /store:\s*false/);
   assert.match(edgeFunctionSource, /type:\s*"json_schema"/);
   assert.match(edgeFunctionSource, /strict:\s*true/);
+  assert.match(edgeFunctionSource, /reasoning:\s*\{\s*effort:\s*"minimal"\s*\}/);
   assert.match(edgeFunctionSource, /safety_identifier:\s*safetyIdentifier/);
+  assert.doesNotMatch(edgeFunctionSource, /localSelection/);
 });
 
 test("funcao nao consulta texto do diario, alimentacao ou sintomas", () => {

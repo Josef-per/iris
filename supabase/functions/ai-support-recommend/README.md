@@ -1,7 +1,8 @@
 # `ai-support-recommend`
 
-Edge Function autenticada que transforma sinais estruturados em, no máximo,
-um ID de conteúdo previamente aprovado. Ela não devolve conselho livre, não
+Edge Function autenticada que pede exclusivamente ao `gpt-5-mini` para
+transformar sinais estruturados em, no máximo, um ID de conteúdo previamente
+aprovado. Ela não devolve conselho livre, não
 escolhe horário de notificação e não lê o conteúdo textual do diário.
 
 O cliente envia somente `requestId` e `trigger`. O backend resolve o paciente,
@@ -11,34 +12,43 @@ alimentação nem sintomas, e esses campos não entram na chamada à OpenAI.
 
 ## Antes de implantar
 
-1. Aplique `supabase/migrations/0010_ai_support_backend.sql`.
+1. Aplique `supabase/migrations/0010_ai_support_backend.sql` e
+   `supabase/migrations/0011_ai_support_gpt5_mini_only.sql`.
 2. Defina um projeto e uma chave OpenAI exclusivos para cada ambiente, com
    limites de gasto e rotação próprios.
 3. Configure os secrets da função; não coloque a chave no `.env` usado pelo
    Flutter e nunca use `--dart-define` para ela.
-4. Mantenha produção em `modo = 'local'`, `openai_ativa = false` e
+4. Mantenha staging e produção com `openai_ativa = false` e
    `kill_switch = true` até as aprovações clínica, jurídica, privacidade,
-   segurança e regulatória.
+   segurança e regulatória. Nesses estados a função fica em silêncio; ela não
+   substitui o modelo por regras.
 
 Secrets necessários para habilitar chamadas ao modelo:
 
 ```text
 OPENAI_API_KEY=<secret somente do backend>
-OPENAI_MODEL=<snapshot avaliado e aprovado>
-AI_SUPPORT_SAFETY_SALT=<valor aleatório exclusivo do ambiente>
+OPENAI_MODEL=gpt-5-mini
+AI_SUPPORT_SAFETY_SALT=<opcional em 100%; recomendado para rollout parcial>
 AI_SUPPORT_ENVIRONMENT=staging
 AI_SUPPORT_ALLOWED_ORIGINS=https://app-staging.exemplo
 OPENAI_TIMEOUT_MS=6000
 ```
 
-Para desenvolvimento local, copie `supabase/functions/.env.example` para
-`supabase/functions/.env`, preencha os valores (o arquivo final é ignorado pelo
-Git) e execute:
+Para desenvolvimento local, copie somente a `OPENAI_API_KEY` do `.env` da raiz
+para `supabase/functions/.env` e complete as variáveis mostradas acima. O
+arquivo final é ignorado pelo Git. Não passe o `.env` inteiro porque ele pode
+conter a URL do projeto remoto e sobrescrever a configuração do Supabase local:
 
 ```bash
 supabase functions serve ai-support-recommend \
   --env-file supabase/functions/.env
 ```
+
+Com `AI_SUPPORT_ENVIRONMENT=development`, a função aceita Flutter Web em
+`http://localhost` e `http://127.0.0.1` com qualquer porta. Isso evita que a
+porta aleatória escolhida por `flutter run -d chrome` quebre o preflight CORS.
+Em staging e produção, cada origem continua precisando constar exatamente em
+`AI_SUPPORT_ALLOWED_ORIGINS`.
 
 No projeto remoto, use o gerenciador de secrets do Supabase:
 
@@ -47,8 +57,8 @@ supabase secrets set --env-file supabase/functions/.env
 supabase functions deploy ai-support-recommend
 ```
 
-O `.env` da raiz é lido apenas pelo script de execução do Flutter para valores
-publicáveis do Supabase. Ele não configura secrets de Edge Functions.
+O inicializador do Flutter continua lendo somente valores publicáveis do
+Supabase. A chave OpenAI nunca é encaminhada ao aplicativo.
 
 ## Contrato do cliente
 
@@ -98,9 +108,9 @@ Resposta com sugestão:
 ```
 
 Sem evidência suficiente, consentimento ou disponibilidade segura, retorna
-`{"requestId":"...","mode":"local","status":"silent","proposal":null}`.
+`{"requestId":"...","mode":"limited","status":"silent","proposal":null}`.
 Uma indisponibilidade do modelo nunca impede o salvamento do check-in ou
-diário; a função usa regra local ou silêncio.
+diário; a função fica em silêncio e não usa fallback por regras.
 
 O `proposal` repete apenas o contrato fechado necessário para uma segunda
 validação no aplicativo. Ele nunca contém texto gerado. Os templates atualmente
@@ -111,25 +121,25 @@ quando a categoria ou o template coincide com uma notificação aberta antes.
 
 ## Modos de rollout
 
-- `local`: não chama a OpenAI; usa regras fechadas.
+- `local`: modo legado; não entrega sugestão no cliente conectado.
 - `shadow`: chama somente para a coorte configurada, grava IDs e métricas em
-  uma linha invisível ao paciente e mantém a decisão local na interface.
+  uma linha invisível ao paciente; a interface permanece sem sugestão.
 - `pilot`: usa uma saída validada apenas para pacientes inscritos em
   `participantes_piloto_ia_apoio`.
 - `limited`: usa distribuição determinística pelo percentual configurado; o
-  restante continua nas regras locais.
+  restante fica em silêncio.
 
-`kill_switch = true` força regra local imediatamente. `apoio_ativo = false`
-produz silêncio. A migration bloqueia `texto_generativo_ativo`; liberar texto
+`kill_switch = true` e `apoio_ativo = false` produzem silêncio. A migration
+bloqueia `texto_generativo_ativo`; liberar texto
 gerado exige uma avaliação e uma migration separadas.
 
 O campo `mode` da resposta sempre reflete o rollout configurado. Somente
 `pilot` e `limited` podem permitir que uma seleção da OpenAI, já validada no
 backend e novamente no app, influencie a experiência. Em `local` e `shadow`, o
-aplicativo mantém a recomendação local.
+aplicativo não cria recomendação alternativa.
 
-Exemplo de ativação **somente em staging**, depois de cadastrar no secret
-`OPENAI_MODEL` o mesmo snapshot:
+Exemplo de ativação **somente em staging**, depois de cadastrar
+`OPENAI_MODEL=gpt-5-mini` nos secrets:
 
 ```sql
 update public.rollout_ia_apoio
@@ -137,7 +147,7 @@ update public.rollout_ia_apoio
        openai_ativa = true,
        kill_switch = false,
        percentual_shadow = 100,
-       modelo = '<snapshot-avaliado>',
+       modelo = 'gpt-5-mini',
        atualizado_em = now()
  where ambiente = 'staging';
 ```
@@ -149,7 +159,9 @@ aprovação.
 ## Privacidade e retenção
 
 A chamada usa Responses API com `store: false`, Structured Outputs estritos,
-limite curto de tokens, nenhum tool e um `safety_identifier` derivado por HMAC.
+`reasoning.effort = minimal`, limite curto de tokens e nenhum tool. Quando
+`AI_SUPPORT_SAFETY_SALT` está
+configurado, também envia um `safety_identifier` derivado por HMAC.
 O banco guarda apenas IDs aceitos, códigos de motivo, fontes, hashes e métricas.
 Payload, prompt, resposta bruta e identificador do paciente não entram em logs.
 

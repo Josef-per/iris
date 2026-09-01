@@ -6,9 +6,11 @@ import 'package:iris/features/ai_support/data/ai_support_settings_repository.dar
 import 'package:iris/features/ai_support/data/mock_ai_recommender.dart';
 import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
 import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
+import 'package:iris/features/ai_support/data/ai_support_signal_repository.dart';
 import 'package:iris/features/ai_support/domain/ai_support_consent.dart';
 import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
 import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
+import 'package:iris/features/ai_support/domain/support_signal.dart';
 import 'package:iris/features/ai_support/notifications/noop_support_notification_gateway.dart';
 
 void main() {
@@ -96,6 +98,34 @@ void main() {
     expect(events.lastType, AiSupportEventType.opened);
     expect(events.lastChannel, AiSupportEventChannel.localNotification);
   });
+
+  test(
+    'modo conectado não usa regra local quando o modelo fica em silêncio',
+    () async {
+      final now = DateTime.utc(2026, 9, 1, 12);
+      final store = MockAiSupportStore(
+        isDemonstration: false,
+        consent: consent,
+        preferences: preferences,
+        signalDataSource: _FixedSignals(<SupportSignal>[
+          DailyCheckInSignal(
+            id: 'checkin-estruturado',
+            createdAt: now,
+            expiresAt: now.add(const Duration(days: 1)),
+            moodScore: 1,
+          ),
+        ]),
+        remoteRecommender: const _SilentModelRemote(),
+        notificationGateway: const NoopSupportNotificationGateway(),
+      );
+      addTearDown(store.dispose);
+
+      final suggestion = await store.generatePersonalizedSuggestion(now: now);
+
+      expect(suggestion, isNull);
+      expect(store.pendingSuggestion, isNull);
+    },
+  );
 }
 
 class _FakeSettings implements AiSupportSettingsDataSource {
@@ -153,8 +183,8 @@ class _DeterministicRemote implements AiSupportRemoteRecommender {
         AiSupportRecommendationTrigger.manual,
   }) async {
     return RemoteAiSupportDecision(
-      mode: AiSupportRolloutMode.local,
-      origin: 'regra_local',
+      mode: AiSupportRolloutMode.limitedProduction,
+      origin: 'openai',
       suggestionId: suggestionId,
       proposal: const <String, Object?>{
         'suggestionTemplateId': 'reflection_lighter_checkin_v1',
@@ -164,4 +194,27 @@ class _DeterministicRemote implements AiSupportRemoteRecommender {
       },
     );
   }
+}
+
+class _SilentModelRemote implements AiSupportRemoteRecommender {
+  const _SilentModelRemote();
+
+  @override
+  Future<RemoteAiSupportDecision> recommend(
+    AiSupportRecommendationContext context, {
+    AiSupportRecommendationTrigger trigger =
+        AiSupportRecommendationTrigger.manual,
+  }) async => const RemoteAiSupportDecision(
+    mode: AiSupportRolloutMode.limitedProduction,
+    origin: 'openai',
+  );
+}
+
+class _FixedSignals implements AiSupportSignalDataSource {
+  const _FixedSignals(this.signals);
+
+  final List<SupportSignal> signals;
+
+  @override
+  Future<List<SupportSignal>> loadRecentSignals() async => signals;
 }

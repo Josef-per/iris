@@ -29,7 +29,6 @@ export const supportReasonCodes = [
 export type SupportSource = (typeof supportSources)[number];
 export type SupportCategory = (typeof supportCategories)[number];
 export type SupportReasonCode = (typeof supportReasonCodes)[number];
-export type ConfidenceBand = "low" | "medium" | "high";
 export type TopicKey = "overload" | "loneliness" | "self_kindness";
 export type SupportTrigger =
   | "manual"
@@ -131,14 +130,6 @@ export const supportTemplates: readonly TemplateDefinition[] = [
     ],
   },
 ] as const;
-
-export type SelectionProposal = {
-  decision: "suggest" | "abstain";
-  suggestionTemplateId: string;
-  exerciseId: string;
-  reasonCodes: string[];
-  confidenceBand: ConfidenceBand;
-};
 
 export type AcceptedSelection = {
   templateId: string;
@@ -358,103 +349,6 @@ export function validateSelection(
   };
 }
 
-export function localSelection(
-  context: SelectionContext,
-): AcceptedSelection | null {
-  const proposals: SelectionProposal[] = [];
-  if (context.interactions.previousExerciseWasNotHelpful) {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "connection_after_exercise_feedback_v1",
-      exerciseId: "NONE",
-      reasonCodes: ["PREVIOUS_EXERCISE_WAS_NOT_HELPFUL"],
-      confidenceBand: "high",
-    });
-  }
-  if (context.confirmedTopics.includes("loneliness")) {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "connection_loneliness_v1",
-      exerciseId: "NONE",
-      reasonCodes: ["CONFIRMED_LONELINESS"],
-      confidenceBand: "high",
-    });
-  }
-  const difficultToday = context.dailyCheckIn?.moodBand === "difficult";
-  const difficultTrend = context.moodTrend?.direction === "difficult";
-  if (
-    (difficultToday || difficultTrend) &&
-    !context.interactions.previousExerciseWasNotHelpful
-  ) {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "exercise_difficult_checkins_v1",
-      exerciseId: "anchor-present",
-      reasonCodes: [
-        ...(difficultToday ? ["TODAY_DIFFICULT_CHECKIN" as const] : []),
-        ...(difficultTrend ? ["RECENT_DIFFICULT_CHECKINS" as const] : []),
-        "PREFERS_SHORT_PRACTICE",
-      ],
-      confidenceBand: "medium",
-    });
-  }
-  if (difficultToday || difficultTrend) {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "reflection_difficult_checkins_v1",
-      exerciseId: "NONE",
-      reasonCodes: [
-        ...(difficultToday ? ["TODAY_DIFFICULT_CHECKIN" as const] : []),
-        ...(difficultTrend ? ["RECENT_DIFFICULT_CHECKINS" as const] : []),
-      ],
-      confidenceBand: "medium",
-    });
-  }
-  if (context.confirmedTopics.includes("overload")) {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "reflection_overload_v1",
-      exerciseId: "NONE",
-      reasonCodes: ["CONFIRMED_OVERLOAD"],
-      confidenceBand: "high",
-    });
-  }
-  if (context.dailyCheckIn?.moodBand === "steady") {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "reflection_overload_v1",
-      exerciseId: "NONE",
-      reasonCodes: ["TODAY_STEADY_CHECKIN"],
-      confidenceBand: "high",
-    });
-  }
-  if (context.dailyCheckIn?.moodBand === "lighter") {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "reflection_lighter_checkin_v1",
-      exerciseId: "NONE",
-      reasonCodes: ["TODAY_LIGHTER_CHECKIN"],
-      confidenceBand: "high",
-    });
-  }
-  if (context.confirmedTopics.includes("self_kindness")) {
-    proposals.push({
-      decision: "suggest",
-      suggestionTemplateId: "reflection_self_kindness_v1",
-      exerciseId: "NONE",
-      reasonCodes: ["CONFIRMED_SELF_KINDNESS"],
-      confidenceBand: "high",
-    });
-  }
-
-  const personalized = prioritizeFromInteractions(proposals, context);
-  for (const proposal of prioritizeForTrigger(personalized, context)) {
-    const result = validateSelection(proposal, context);
-    if (result.accepted) return result.selection;
-  }
-  return null;
-}
-
 export function extractStructuredOutput(response: unknown): string | null {
   if (!isRecord(response) || !Array.isArray(response.output)) return null;
   for (const item of response.output) {
@@ -547,108 +441,6 @@ function sourceForReason(reason: SupportReasonCode): SupportSource | null {
     case "PREVIOUS_EXERCISE_WAS_NOT_HELPFUL":
       return "exercise_feedback";
   }
-}
-
-function prioritizeFromInteractions(
-  proposals: SelectionProposal[],
-  context: SelectionContext,
-): SelectionProposal[] {
-  const ranked = proposals.map((proposal, originalIndex) => {
-    const template = supportTemplates.find(
-      (candidate) => candidate.id === proposal.suggestionTemplateId,
-    );
-    const preferenceRank = template === undefined ||
-        !context.consentedSources.includes("notification_interactions")
-      ? 2
-      : context.interactions.preferredTemplateIds.includes(template.id)
-      ? 0
-      : context.interactions.preferredCategories.includes(template.category)
-      ? 1
-      : 2;
-    const enriched: SelectionProposal = preferenceRank < 2
-      ? {
-        ...proposal,
-        reasonCodes: [
-          ...proposal.reasonCodes,
-          "PREFERRED_FROM_PAST_INTERACTIONS",
-        ],
-      }
-      : proposal;
-    return {
-      originalIndex,
-      preferenceRank,
-      proposal: enriched,
-    };
-  });
-  ranked.sort((left, right) => {
-    if (left.preferenceRank === right.preferenceRank) {
-      return left.originalIndex - right.originalIndex;
-    }
-    return left.preferenceRank - right.preferenceRank;
-  });
-  return ranked.map((item) => item.proposal);
-}
-
-function prioritizeForTrigger(
-  proposals: SelectionProposal[],
-  context: SelectionContext,
-): SelectionProposal[] {
-  if (context.trigger === "notification_open") return proposals;
-  const ranked = proposals.map((proposal, originalIndex) => ({
-    proposal,
-    originalIndex,
-    rank: triggerRank(proposal, context),
-  }));
-  ranked.sort((left, right) =>
-    left.rank === right.rank
-      ? left.originalIndex - right.originalIndex
-      : left.rank - right.rank
-  );
-  return ranked.map((item) => item.proposal);
-}
-
-function triggerRank(
-  proposal: SelectionProposal,
-  context: SelectionContext,
-): number {
-  const hasDiaryEvidence = proposal.reasonCodes.some((reason) =>
-    reason === "CONFIRMED_OVERLOAD" ||
-    reason === "CONFIRMED_LONELINESS" ||
-    reason === "CONFIRMED_SELF_KINDNESS"
-  );
-  const hasCheckInEvidence = proposal.reasonCodes.some((reason) =>
-    reason === "TODAY_DIFFICULT_CHECKIN" ||
-    reason === "TODAY_STEADY_CHECKIN" ||
-    reason === "TODAY_LIGHTER_CHECKIN" ||
-    reason === "RECENT_DIFFICULT_CHECKINS"
-  );
-  const todayEvidence = proposal.reasonCodes.some((reason) =>
-    reason === "TODAY_DIFFICULT_CHECKIN" ||
-    reason === "TODAY_STEADY_CHECKIN" ||
-    reason === "TODAY_LIGHTER_CHECKIN"
-  );
-  const topic = proposal.reasonCodes.includes("CONFIRMED_OVERLOAD")
-    ? "overload"
-    : proposal.reasonCodes.includes("CONFIRMED_LONELINESS")
-    ? "loneliness"
-    : proposal.reasonCodes.includes("CONFIRMED_SELF_KINDNESS")
-    ? "self_kindness"
-    : null;
-  const topicRecency = topic === null
-    ? 9
-    : Math.max(0, context.confirmedTopics.indexOf(topic));
-  if (context.trigger === "after_diary") {
-    return hasDiaryEvidence
-      ? topicRecency
-      : hasCheckInEvidence
-      ? 20 + (todayEvidence ? 0 : 1)
-      : 40;
-  }
-  return hasCheckInEvidence
-    ? (todayEvidence ? 0 : 1)
-    : hasDiaryEvidence
-    ? 20 + topicRecency
-    : 40;
 }
 
 function isSupportSource(value: SupportSource | null): value is SupportSource {

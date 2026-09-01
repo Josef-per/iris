@@ -454,11 +454,13 @@ class MockAiSupportStore extends ChangeNotifier {
     }
   }
 
-  /// Recomendação conectada: regras locais sempre fornecem o fallback.
+  /// Recomendação conectada: somente uma seleção validada do modelo pode
+  /// influenciar a experiência.
   ///
-  /// Em shadow mode, a resposta remota é auditada no backend e nunca altera a
-  /// experiência. Em piloto/produção limitada, uma proposta remota ainda
-  /// precisa passar pelo mesmo validador local e pelo catálogo fechado.
+  /// As regras locais existem apenas no modo de demonstração. Em shadow mode,
+  /// a resposta remota é auditada no backend e não aparece. Em
+  /// piloto/produção limitada, a proposta do modelo ainda precisa passar pelo
+  /// validador local e pelo catálogo fechado.
   Future<SupportSuggestion?> generatePersonalizedSuggestion({
     DateTime? now,
     bool refresh = true,
@@ -525,7 +527,8 @@ class MockAiSupportStore extends ChangeNotifier {
       try {
         await _refreshSignalData();
       } catch (_) {
-        // Falhar a atualização não remove o apoio local já disponível.
+        // A Edge Function consultará os sinais persistidos. Não criamos uma
+        // recomendação local quando a atualização falha.
       }
     }
 
@@ -594,8 +597,9 @@ class MockAiSupportStore extends ChangeNotifier {
       },
       blockedTemplateIds: Set<String>.unmodifiable(_blockedTemplateIds),
     );
-    final local = _recommender.recommend(context).suggestion;
-    SupportSuggestion? selected = local;
+    SupportSuggestion? selected = isDemonstration
+        ? _recommender.recommend(context).suggestion
+        : null;
     final remote = _remoteRecommender;
     if (remote != null && isPersonalizationEnabled) {
       try {
