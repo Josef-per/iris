@@ -5,6 +5,7 @@ import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
 import 'package:iris/features/ai_support/domain/ai_support_consent.dart';
 import 'package:iris/features/ai_support/domain/ai_support_preferences.dart';
 import 'package:iris/features/ai_support/domain/notification_preferences.dart';
+import 'package:iris/features/ai_support/domain/support_signal.dart';
 import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
 import 'package:iris/features/ai_support/presentation/notification_preview_screen.dart';
 import 'package:iris/features/ai_support/presentation/support_suggestion_screen.dart';
@@ -86,7 +87,7 @@ void main() {
       await tester.tap(find.byKey(const Key('ai-support-generate')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Com base no que você registrou'), findsOneWidget);
+      expect(find.text('Para o seu momento'), findsOneWidget);
       await scrollUntilVisible(
         tester,
         find.byKey(const Key('ai-support-detail-why')),
@@ -106,7 +107,7 @@ void main() {
     },
   );
 
-  testWidgets('preview é genérico e correção descarta somente o sinal local', (
+  testWidgets('feedback preserva o registro original e descarta a sugestão', (
     tester,
   ) async {
     final store = configuredStore();
@@ -135,7 +136,8 @@ void main() {
     await tester.tap(find.byKey(const Key('ai-support-does-not-match')));
     await tester.pumpAndSettle();
 
-    expect(store.activeSignals, isEmpty);
+    expect(store.activeSignals, hasLength(1));
+    expect(store.activeSignals.single, isA<MoodTrendSignal>());
     expect(store.pendingSuggestion, isNull);
     expect(tester.takeException(), isNull);
   });

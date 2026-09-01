@@ -466,7 +466,7 @@ class MockAiRecommender implements AiSupportRecommender {
       result.add(
         _ProposalSeed(
           proposal: const AiSupportRecommendationProposal(
-            suggestionTemplateId: 'reflection_overload_v1',
+            suggestionTemplateId: 'reflection_self_kindness_v1',
             reasonCodes: <SupportReasonCode>{
               SupportReasonCode.todaySteadyCheckIn,
             },

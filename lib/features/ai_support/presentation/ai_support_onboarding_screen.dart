@@ -61,7 +61,7 @@ class _AiSupportOnboardingScreenState extends State<AiSupportOnboardingScreen> {
 
   bool get _canContinue =>
       !_personalizationEnabled ||
-      (_sources.isNotEmpty && _categories.isNotEmpty);
+      (hasPrimaryPatientSupportSource(_sources) && _categories.isNotEmpty);
 
   Future<void> _next() async {
     if (_step == 0) {
@@ -307,10 +307,12 @@ class _DataStep extends StatelessWidget {
                 ),
             ],
           ),
-          if (sources.isEmpty) ...[
+          if (!hasPrimaryPatientSupportSource(sources)) ...[
             const SizedBox(height: 10),
             Text(
-              'Escolha pelo menos uma opção.',
+              sources.isEmpty
+                  ? 'Escolha pelo menos uma opção.'
+                  : 'Escolha Meus check-ins ou Temas que eu marcar para a sugestão ter um sinal atual.',
               style: TextStyle(color: theme.colorScheme.error),
             ),
           ],

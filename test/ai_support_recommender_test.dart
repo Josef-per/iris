@@ -63,6 +63,31 @@ void main() {
       expect(first.exerciseId, 'anchor-present');
     });
 
+    test('check-in estável usa apoio próprio sem inferir sobrecarga', () {
+      final result = MockAiRecommender().recommend(
+        AiSupportRecommendationContext(
+          consent: consentFor(<SupportSignalSource>{
+            SupportSignalSource.moodHistory,
+          }),
+          preferences: preferences,
+          signals: <SupportSignal>[
+            DailyCheckInSignal(
+              id: 'checkin-steady',
+              createdAt: now,
+              expiresAt: now.add(const Duration(days: 1)),
+              moodScore: 3,
+            ),
+          ],
+          now: now,
+        ),
+      );
+
+      expect(result.suggestion?.templateId, 'reflection_self_kindness_v1');
+      expect(result.suggestion?.reasonCodes, <SupportReasonCode>{
+        SupportReasonCode.todaySteadyCheckIn,
+      });
+    });
+
     test('fonte sem consentimento não influencia a recomendação', () {
       final result = MockAiRecommender().recommend(
         AiSupportRecommendationContext(

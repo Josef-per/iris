@@ -58,6 +58,41 @@ void main() {
     },
   );
 
+  test('preserva motivo seguro quando o backend fica em silencio', () async {
+    final recommender = SupabaseAiSupportRemoteRecommender(
+      invoker: _FakeInvoker(<String, Object?>{
+        'mode': 'limited',
+        'status': 'silent',
+        'outcome': 'rejected',
+        'reasonCode': 'reason_without_consented_evidence',
+      }),
+      requestIdFactory: () => '0d3f9ef2-29b6-4fa1-983a-e9418bc4dd46',
+    );
+
+    final decision = await recommender.recommend(
+      AiSupportRecommendationContext(
+        consent: const AiSupportConsent(
+          personalizedSuggestionsGranted: true,
+          grantedSources: <SupportSignalSource>{
+            SupportSignalSource.moodHistory,
+          },
+        ),
+        preferences: const AiSupportPreferences(
+          personalizedSuggestionsEnabled: true,
+          allowedCategories: <SupportSuggestionCategory>{
+            SupportSuggestionCategory.reflection,
+          },
+        ),
+        signals: const <SupportSignal>[],
+        now: now,
+      ),
+    );
+
+    expect(decision.outcome, AiSupportRemoteOutcome.rejected);
+    expect(decision.reasonCode, 'reason_without_consented_evidence');
+    expect(decision.shouldUseProposal, isFalse);
+  });
+
   test('não deixa a escolha da IA em shadow influenciar o paciente', () async {
     final context = AiSupportRecommendationContext(
       consent: const AiSupportConsent(

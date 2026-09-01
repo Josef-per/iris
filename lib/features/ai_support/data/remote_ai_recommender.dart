@@ -18,6 +18,24 @@ extension AiSupportRolloutModeWire on AiSupportRolloutMode {
       this == AiSupportRolloutMode.limitedProduction;
 }
 
+enum AiSupportRemoteOutcome { suggested, silent, rejected, error, unknown }
+
+extension AiSupportRemoteOutcomeWire on AiSupportRemoteOutcome {
+  static AiSupportRemoteOutcome fromWire({
+    required String? status,
+    required String? outcome,
+  }) {
+    if (status == 'suggested') return AiSupportRemoteOutcome.suggested;
+    return switch (outcome) {
+      'silent' => AiSupportRemoteOutcome.silent,
+      'rejected' => AiSupportRemoteOutcome.rejected,
+      'error' => AiSupportRemoteOutcome.error,
+      _ when status == 'silent' => AiSupportRemoteOutcome.silent,
+      _ => AiSupportRemoteOutcome.unknown,
+    };
+  }
+}
+
 enum AiSupportRecommendationTrigger {
   manual('manual'),
   afterCheckIn('after_checkin'),
@@ -32,17 +50,21 @@ enum AiSupportRecommendationTrigger {
 class RemoteAiSupportDecision {
   const RemoteAiSupportDecision({
     required this.mode,
+    this.outcome = AiSupportRemoteOutcome.unknown,
     this.proposal,
     this.requestId,
     this.suggestionId,
     this.origin,
+    this.reasonCode,
   });
 
   final AiSupportRolloutMode mode;
+  final AiSupportRemoteOutcome outcome;
   final Map<String, Object?>? proposal;
   final String? requestId;
   final String? suggestionId;
   final String? origin;
+  final String? reasonCode;
 
   bool get shouldUseProposal =>
       proposal != null && origin == 'openai' && mode.mayInfluencePatient;
@@ -117,8 +139,17 @@ class SupabaseAiSupportRemoteRecommender implements AiSupportRemoteRecommender {
     final mode = AiSupportRolloutModeWire.fromWire(
       response['mode']?.toString(),
     );
+    final outcome = AiSupportRemoteOutcomeWire.fromWire(
+      status: response['status']?.toString(),
+      outcome: response['outcome']?.toString(),
+    );
     if (response['status'] != 'suggested') {
-      return RemoteAiSupportDecision(mode: mode, requestId: requestId);
+      return RemoteAiSupportDecision(
+        mode: mode,
+        outcome: outcome,
+        requestId: requestId,
+        reasonCode: _safeReasonCode(response['reasonCode']),
+      );
     }
 
     final templateId = response['templateId'];
@@ -144,6 +175,7 @@ class SupabaseAiSupportRemoteRecommender implements AiSupportRemoteRecommender {
 
     return RemoteAiSupportDecision(
       mode: mode,
+      outcome: AiSupportRemoteOutcome.suggested,
       requestId: requestId,
       suggestionId: suggestionId,
       origin: origin,
@@ -155,6 +187,14 @@ class SupabaseAiSupportRemoteRecommender implements AiSupportRemoteRecommender {
       },
     );
   }
+}
+
+String? _safeReasonCode(Object? value) {
+  final code = value?.toString() ?? '';
+  if (code.isEmpty || !RegExp(r'^[a-z0-9_]{1,80}$').hasMatch(code)) {
+    return null;
+  }
+  return code;
 }
 
 bool isAiSupportUuid(String value) => RegExp(

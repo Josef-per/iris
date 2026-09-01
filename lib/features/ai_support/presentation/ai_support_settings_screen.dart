@@ -21,10 +21,13 @@ class AiSupportSettingsScreen extends StatelessWidget {
   }
 
   void _setPersonalization(BuildContext context, bool enabled) {
-    if (enabled && store.consent.grantedSources.isEmpty) {
+    if (enabled &&
+        !hasPrimaryPatientSupportSource(store.consent.grantedSources)) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Escolha abaixo o que a Íris pode considerar.'),
+          content: Text(
+            'Escolha check-ins ou temas marcados para a Íris ter um sinal atual.',
+          ),
         ),
       );
       return;
@@ -50,9 +53,24 @@ class AiSupportSettingsScreen extends StatelessWidget {
     );
   }
 
-  void _setSource(SupportSignalSource source, bool enabled) {
+  void _setSource(
+    BuildContext context,
+    SupportSignalSource source,
+    bool enabled,
+  ) {
     final sources = <SupportSignalSource>{...store.consent.grantedSources};
     enabled ? sources.add(source) : sources.remove(source);
+    if (store.isPersonalizationEnabled &&
+        !hasPrimaryPatientSupportSource(sources)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Mantenha check-ins ou temas marcados enquanto a personalização estiver ativa.',
+          ),
+        ),
+      );
+      return;
+    }
     store.configureConsent(store.consent.copyWith(grantedSources: sources));
   }
 
@@ -242,7 +260,8 @@ class AiSupportSettingsScreen extends StatelessWidget {
                         title: Text(source.label),
                         subtitle: Text(source.description),
                         value: consent.grantedSources.contains(source),
-                        onChanged: (value) => _setSource(source, value),
+                        onChanged: (value) =>
+                            _setSource(context, source, value),
                       ),
                     const ListTile(
                       contentPadding: EdgeInsets.zero,

@@ -14,6 +14,15 @@ const patientAvailableSupportSources = <SupportSignalSource>[
   SupportSignalSource.notificationInteractions,
 ];
 
+const primaryPatientSupportSources = <SupportSignalSource>{
+  SupportSignalSource.moodHistory,
+  SupportSignalSource.diaryTags,
+};
+
+bool hasPrimaryPatientSupportSource(Iterable<SupportSignalSource> sources) {
+  return sources.any(primaryPatientSupportSources.contains);
+}
+
 extension SupportSignalSourceLabels on SupportSignalSource {
   String get label => switch (this) {
     SupportSignalSource.moodHistory => 'Humor dos últimos dias',

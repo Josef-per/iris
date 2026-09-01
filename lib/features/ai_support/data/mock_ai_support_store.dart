@@ -122,6 +122,8 @@ class MockAiSupportStore extends ChangeNotifier {
   NotificationPolicyResult? _lastNotificationDecision;
   bool _isRefreshing = false;
   Object? _lastRefreshError;
+  String? _lastRecommendationReasonCode;
+  AiSupportRemoteOutcome? _lastRecommendationOutcome;
   AiSupportRolloutMode _rolloutMode = AiSupportRolloutMode.local;
   SupportNotificationPermissionStatus _notificationPermissionStatus =
       SupportNotificationPermissionStatus.unavailable;
@@ -224,6 +226,9 @@ class MockAiSupportStore extends ChangeNotifier {
 
   bool get isRefreshing => _isRefreshing;
   Object? get lastRefreshError => _lastRefreshError;
+  String? get lastRecommendationReasonCode => _lastRecommendationReasonCode;
+  AiSupportRemoteOutcome? get lastRecommendationOutcome =>
+      _lastRecommendationOutcome;
   AiSupportRolloutMode get rolloutMode => _rolloutMode;
   SupportNotificationPermissionStatus get notificationPermissionStatus =>
       _notificationPermissionStatus;
@@ -603,6 +608,9 @@ class MockAiSupportStore extends ChangeNotifier {
     final remote = _remoteRecommender;
     if (remote != null && isPersonalizationEnabled) {
       try {
+        _lastRefreshError = null;
+        _lastRecommendationReasonCode = null;
+        _lastRecommendationOutcome = null;
         await _settingsWrite;
         if (_lastSettingsError != null) {
           throw StateError('Preferências ainda não foram sincronizadas.');
@@ -615,6 +623,8 @@ class MockAiSupportStore extends ChangeNotifier {
           trigger: effectiveTrigger,
         );
         _rolloutMode = decision.mode;
+        _lastRecommendationReasonCode = decision.reasonCode;
+        _lastRecommendationOutcome = decision.outcome;
         if (decision.shouldUseProposal) {
           final proposal = decision.proposal!;
           final usedSources = _sourcesForRemoteProposal(proposal);
@@ -628,10 +638,18 @@ class MockAiSupportStore extends ChangeNotifier {
             createdAt: at,
             suggestionId: decision.suggestionId,
           );
-          if (validation.isAccepted) selected = validation.suggestion;
+          if (validation.isAccepted) {
+            selected = validation.suggestion;
+          } else {
+            _lastRecommendationOutcome = AiSupportRemoteOutcome.rejected;
+            _lastRecommendationReasonCode =
+                'client_${validation.rejectionReason!.name}';
+          }
         }
       } catch (error) {
         _lastRefreshError = error;
+        _lastRecommendationReasonCode = 'client_request_failed';
+        _lastRecommendationOutcome = AiSupportRemoteOutcome.error;
       }
     }
     // Preferências podem mudar enquanto a chamada remota está em andamento.

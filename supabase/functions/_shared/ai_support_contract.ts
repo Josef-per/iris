@@ -81,7 +81,6 @@ export const supportTemplates: readonly TemplateDefinition[] = [
     contentTags: [],
     allowedReasonCodes: [
       "CONFIRMED_OVERLOAD",
-      "TODAY_STEADY_CHECKIN",
       "PREFERRED_FROM_PAST_INTERACTIONS",
     ],
   },
@@ -114,6 +113,7 @@ export const supportTemplates: readonly TemplateDefinition[] = [
     durationMinutes: null,
     contentTags: [],
     allowedReasonCodes: [
+      "TODAY_STEADY_CHECKIN",
       "CONFIRMED_SELF_KINDNESS",
       "PREFERRED_FROM_PAST_INTERACTIONS",
     ],
@@ -179,7 +179,29 @@ export type ValidationResult =
   | { accepted: true; selection: AcceptedSelection }
   | { accepted: false; code: string };
 
+const modifierReasonCodes = new Set<SupportReasonCode>([
+  "PREFERS_SHORT_PRACTICE",
+  "PREFERRED_FROM_PAST_INTERACTIONS",
+]);
+
 export function eligibleTemplates(
+  context: SelectionContext,
+): readonly TemplateDefinition[] {
+  return catalogEligibleTemplates(context).flatMap((template) => {
+    // A lista e enviada diretamente ao modelo. Portanto, alem de o template
+    // estar liberado pelas preferencias, cada motivo exposto precisa estar
+    // comprovado por uma fonte consentida neste contexto concreto.
+    const evidencedReasonCodes = template.allowedReasonCodes.filter((reason) =>
+      hasEvidence(reason, context, template)
+    );
+    if (!evidencedReasonCodes.some((reason) => !isModifierReason(reason))) {
+      return [];
+    }
+    return [{ ...template, allowedReasonCodes: evidencedReasonCodes }];
+  });
+}
+
+function catalogEligibleTemplates(
   context: SelectionContext,
 ): readonly TemplateDefinition[] {
   return supportTemplates.filter((template) => {
@@ -203,6 +225,9 @@ export function eligibleTemplates(
 export function buildSelectionSchema(context: SelectionContext) {
   const templates = eligibleTemplates(context);
   const templateIds = ["NONE", ...templates.map((item) => item.id)];
+  const reasonCodes = [
+    ...new Set(templates.flatMap((item) => item.allowedReasonCodes)),
+  ];
   const exerciseIds = [
     "NONE",
     ...new Set(
@@ -221,7 +246,7 @@ export function buildSelectionSchema(context: SelectionContext) {
       exerciseId: { type: "string", enum: exerciseIds },
       reasonCodes: {
         type: "array",
-        items: { type: "string", enum: supportReasonCodes },
+        items: { type: "string", enum: reasonCodes },
         maxItems: 4,
       },
       confidenceBand: {
@@ -299,7 +324,7 @@ export function validateSelection(
     return rejected("unknown_reason_code");
   }
 
-  const template = eligibleTemplates(context).find(
+  const template = catalogEligibleTemplates(context).find(
     (candidate) => candidate.id === templateId,
   );
   if (template === undefined) return rejected("template_not_allowed");
@@ -307,28 +332,27 @@ export function validateSelection(
   if (exerciseId !== expectedExerciseId) {
     return rejected("exercise_does_not_match_template");
   }
-  if (
-    !rawReasons.every((reason) =>
-      (template.allowedReasonCodes as readonly string[]).includes(reason)
-    )
-  ) {
-    return rejected("reason_not_allowed_for_template");
-  }
-
-  const reasons = rawReasons as SupportReasonCode[];
-  const modifierReasons = new Set<SupportReasonCode>([
-    "PREFERS_SHORT_PRACTICE",
-    "PREFERRED_FROM_PAST_INTERACTIONS",
-  ]);
-  if (reasons.every((reason) => modifierReasons.has(reason))) {
-    return rejected("preference_without_current_evidence");
-  }
-  for (const reason of reasons) {
-    if (!hasEvidence(reason, context, template)) {
-      return rejected("reason_without_consented_evidence");
+  const knownReasons = rawReasons as SupportReasonCode[];
+  const templateReasons = knownReasons.filter((reason) =>
+    template.allowedReasonCodes.includes(reason)
+  );
+  const reasons = templateReasons.filter((reason) =>
+    hasEvidence(reason, context, template)
+  );
+  if (!reasons.some((reason) => !isModifierReason(reason))) {
+    if (knownReasons.every(isModifierReason)) {
+      return rejected("preference_without_current_evidence");
     }
+    if (templateReasons.length === 0) {
+      return rejected("reason_not_allowed_for_template");
+    }
+    return rejected("reason_without_consented_evidence");
   }
 
+  // Structured Outputs ja limita o modelo aos motivos evidenciados. Esta
+  // intersecao continua sendo necessaria como defesa em profundidade e evita
+  // perder uma selecao valida caso uma resposta antiga ou adulterada traga um
+  // motivo extra: somente os motivos comprovados e aplicaveis sao persistidos.
   const usedSources = [
     ...new Set(reasons.map(sourceForReason).filter(isSupportSource)),
   ] as SupportSource[];
@@ -445,6 +469,10 @@ function sourceForReason(reason: SupportReasonCode): SupportSource | null {
 
 function isSupportSource(value: SupportSource | null): value is SupportSource {
   return value !== null;
+}
+
+function isModifierReason(reason: SupportReasonCode): boolean {
+  return modifierReasonCodes.has(reason);
 }
 
 function rejected(code: string): ValidationResult {

@@ -98,10 +98,11 @@ abstract final class MockSupportTemplateCatalog {
     SupportSuggestionTemplate(
       id: 'reflection_difficult_checkins_v1',
       category: SupportSuggestionCategory.reflection,
-      version: '1.0-demo',
+      version: '1.1',
       status: SupportContentStatus.approved,
-      inAppTitle: 'Uma pergunta breve, se fizer sentido',
-      inAppBody: 'O que tornou este momento um pouco mais suportável?',
+      inAppTitle: 'Escolha um próximo passo pequeno',
+      inAppBody:
+          'Pelos próximos minutos, reduza uma exigência: deixe uma tarefa para depois, vá para um lugar mais tranquilo ou mande uma mensagem curta para alguém seguro.',
       genericNotificationTemplateId: 'notification_pause_gentle_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.todayDifficultCheckIn,
@@ -113,11 +114,11 @@ abstract final class MockSupportTemplateCatalog {
     SupportSuggestionTemplate(
       id: 'exercise_difficult_checkins_v1',
       category: SupportSuggestionCategory.exercise,
-      version: '1.0-demo',
+      version: '1.1',
       status: SupportContentStatus.approved,
-      inAppTitle: 'Uma prática curta pode estar disponível',
+      inAppTitle: 'Dois minutos para voltar ao presente',
       inAppBody:
-          'Você gostaria de experimentar “Ancorar no presente” por cerca de 2 minutos?',
+          'Experimente “Ancorar no presente”. A prática é curta e você pode parar a qualquer momento.',
       genericNotificationTemplateId: 'notification_pause_gentle_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.todayDifficultCheckIn,
@@ -131,15 +132,14 @@ abstract final class MockSupportTemplateCatalog {
     SupportSuggestionTemplate(
       id: 'reflection_overload_v1',
       category: SupportSuggestionCategory.reflection,
-      version: '1.0-demo',
+      version: '1.1',
       status: SupportContentStatus.approved,
-      inAppTitle: 'Um espaço para notar o que você precisa',
+      inAppTitle: 'Uma coisa de cada vez',
       inAppBody:
-          'O que você percebe que precisa agora: pausa, companhia ou espaço?',
+          'Escolha apenas uma próxima ação possível. O restante pode esperar por dez minutos enquanto você recupera um pouco de espaço.',
       genericNotificationTemplateId: 'notification_support_suggestion_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.confirmedOverload,
-        SupportReasonCode.todaySteadyCheckIn,
         SupportReasonCode.preferredFromPastInteractions,
       },
       approvedBy: 'Revisão clínica fictícia — Fase 1',
@@ -162,11 +162,11 @@ abstract final class MockSupportTemplateCatalog {
     SupportSuggestionTemplate(
       id: 'reflection_lighter_checkin_v1',
       category: SupportSuggestionCategory.reflection,
-      version: '1.0',
+      version: '1.1',
       status: SupportContentStatus.approved,
-      inAppTitle: 'Algo que vale guardar',
+      inAppTitle: 'Guarde uma pista do que ajudou',
       inAppBody:
-          'O que ajudou a tornar hoje um pouco mais leve e você gostaria de lembrar?',
+          'Pense em uma coisa concreta que deixou hoje um pouco mais leve. Guardar essa pista pode ajudar você a reconhecê-la de novo.',
       genericNotificationTemplateId: 'notification_pause_gentle_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.todayLighterCheckIn,
@@ -177,13 +177,14 @@ abstract final class MockSupportTemplateCatalog {
     SupportSuggestionTemplate(
       id: 'reflection_self_kindness_v1',
       category: SupportSuggestionCategory.reflection,
-      version: '1.0',
+      version: '1.1',
       status: SupportContentStatus.approved,
-      inAppTitle: 'Um gesto gentil com você',
+      inAppTitle: 'Uma frase gentil e possível',
       inAppBody:
-          'Que frase gentil você diria a alguém querido vivendo este mesmo momento?',
+          'Escolha uma frase curta e realista para o próximo passo, como: “Posso seguir no meu ritmo e ajustar se precisar.”',
       genericNotificationTemplateId: 'notification_two_minutes_v1',
       allowedReasonCodes: <SupportReasonCode>{
+        SupportReasonCode.todaySteadyCheckIn,
         SupportReasonCode.confirmedSelfKindness,
         SupportReasonCode.preferredFromPastInteractions,
       },

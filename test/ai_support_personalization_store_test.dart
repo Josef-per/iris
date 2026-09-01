@@ -124,6 +124,37 @@ void main() {
 
       expect(suggestion, isNull);
       expect(store.pendingSuggestion, isNull);
+      expect(store.lastRecommendationReasonCode, 'model_abstained');
+      expect(store.lastRecommendationOutcome, AiSupportRemoteOutcome.silent);
+    },
+  );
+
+  test(
+    'nova tentativa limpa falha anterior quando o backend responde',
+    () async {
+      final remote = _FailThenSilentRemote();
+      final store = MockAiSupportStore(
+        isDemonstration: false,
+        consent: consent,
+        preferences: preferences,
+        remoteRecommender: remote,
+        notificationGateway: const NoopSupportNotificationGateway(),
+      );
+      addTearDown(store.dispose);
+
+      expect(
+        await store.generatePersonalizedSuggestion(refresh: false),
+        isNull,
+      );
+      expect(store.lastRefreshError, isNotNull);
+      expect(store.lastRecommendationOutcome, AiSupportRemoteOutcome.error);
+
+      expect(
+        await store.generatePersonalizedSuggestion(refresh: false),
+        isNull,
+      );
+      expect(store.lastRefreshError, isNull);
+      expect(store.lastRecommendationOutcome, AiSupportRemoteOutcome.silent);
     },
   );
 }
@@ -206,8 +237,30 @@ class _SilentModelRemote implements AiSupportRemoteRecommender {
         AiSupportRecommendationTrigger.manual,
   }) async => const RemoteAiSupportDecision(
     mode: AiSupportRolloutMode.limitedProduction,
+    outcome: AiSupportRemoteOutcome.silent,
     origin: 'openai',
+    reasonCode: 'model_abstained',
   );
+}
+
+class _FailThenSilentRemote implements AiSupportRemoteRecommender {
+  var calls = 0;
+
+  @override
+  Future<RemoteAiSupportDecision> recommend(
+    AiSupportRecommendationContext context, {
+    AiSupportRecommendationTrigger trigger =
+        AiSupportRecommendationTrigger.manual,
+  }) async {
+    calls += 1;
+    if (calls == 1) throw StateError('Falha transitória simulada');
+    return const RemoteAiSupportDecision(
+      mode: AiSupportRolloutMode.limitedProduction,
+      outcome: AiSupportRemoteOutcome.silent,
+      origin: 'openai',
+      reasonCode: 'model_abstained',
+    );
+  }
 }
 
 class _FixedSignals implements AiSupportSignalDataSource {

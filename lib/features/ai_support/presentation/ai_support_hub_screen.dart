@@ -5,6 +5,7 @@ import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
 import 'package:iris/features/ai_support/data/mock_notification_policy.dart';
 import 'package:iris/features/ai_support/data/mock_support_templates.dart';
+import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
 import 'package:iris/features/ai_support/domain/support_suggestion.dart';
 import 'package:iris/features/ai_support/presentation/ai_support_onboarding_screen.dart';
 import 'package:iris/features/ai_support/presentation/ai_support_settings_screen.dart';
@@ -31,6 +32,8 @@ class AiSupportHubScreen extends StatefulWidget {
 class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
   late final MockAiSupportStore _store;
   late final bool _ownsStore;
+  _PersonalizedAttemptState _personalizedAttemptState =
+      _PersonalizedAttemptState.idle;
 
   @override
   void initState() {
@@ -89,25 +92,70 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
     );
   }
 
+  void _openPracticeCatalog() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            const SupportFlowScreen(start: SupportFlowStart.catalog),
+      ),
+    );
+  }
+
   Future<void> _refreshPersonalized({bool openWhenReady = true}) async {
     final suggestion = _store.isDemonstration
         ? _store.generateSuggestion()
         : await _store.generatePersonalizedSuggestion();
     if (!mounted) return;
     if (suggestion == null) {
+      final attemptState = _attemptStateForEmptyResult();
+      if (!_store.isDemonstration) {
+        setState(() => _personalizedAttemptState = attemptState);
+      }
       if (openWhenReady) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Não há uma sugestão para agora. Você ainda pode escolher uma prática.',
+          SnackBar(
+            content: Text(_snackBarMessage(attemptState)),
+            action: SnackBarAction(
+              label: 'Ver práticas',
+              onPressed: _openPracticeCatalog,
             ),
           ),
         );
       }
       return;
     }
+    if (!_store.isDemonstration &&
+        _personalizedAttemptState != _PersonalizedAttemptState.idle) {
+      setState(
+        () => _personalizedAttemptState = _PersonalizedAttemptState.idle,
+      );
+    }
     if (openWhenReady) _openSuggestion(suggestion);
   }
+
+  _PersonalizedAttemptState _attemptStateForEmptyResult() {
+    if (_store.lastRefreshError != null) {
+      return _PersonalizedAttemptState.technicalFailure;
+    }
+    return switch (_store.lastRecommendationOutcome) {
+      AiSupportRemoteOutcome.error || AiSupportRemoteOutcome.unknown =>
+        _PersonalizedAttemptState.technicalFailure,
+      AiSupportRemoteOutcome.rejected || AiSupportRemoteOutcome.suggested =>
+        _PersonalizedAttemptState.rejectedSuggestion,
+      AiSupportRemoteOutcome.silent ||
+      null => _PersonalizedAttemptState.safeNoSuggestion,
+    };
+  }
+
+  String _snackBarMessage(_PersonalizedAttemptState state) => switch (state) {
+    _PersonalizedAttemptState.technicalFailure =>
+      'Não conseguimos buscar um apoio agora. As práticas do app continuam disponíveis.',
+    _PersonalizedAttemptState.rejectedSuggestion =>
+      'Uma sugestão não passou pelas verificações do app e não foi exibida. Você ainda pode escolher uma prática.',
+    _PersonalizedAttemptState.safeNoSuggestion ||
+    _PersonalizedAttemptState.idle =>
+      'Não encontramos um apoio personalizado agora. Você ainda pode escolher uma prática.',
+  };
 
   void _openNotifications() {
     Navigator.of(context).push(
@@ -173,10 +221,19 @@ class _AiSupportHubScreenState extends State<AiSupportHubScreen> {
         onOpenSuggestion: _openSuggestion,
         onOpenNotifications: _openNotifications,
         onOpenInbox: _openInbox,
+        onOpenPractices: _openPracticeCatalog,
         onGenerateSuggestion: () => _refreshPersonalized(),
+        personalizedAttemptState: _personalizedAttemptState,
       ),
     );
   }
+}
+
+enum _PersonalizedAttemptState {
+  idle,
+  safeNoSuggestion,
+  rejectedSuggestion,
+  technicalFailure,
 }
 
 class _SupportCenter extends StatelessWidget {
@@ -187,7 +244,9 @@ class _SupportCenter extends StatelessWidget {
     required this.onOpenSuggestion,
     required this.onOpenNotifications,
     required this.onOpenInbox,
+    required this.onOpenPractices,
     required this.onGenerateSuggestion,
+    required this.personalizedAttemptState,
   });
 
   final MockAiSupportStore store;
@@ -196,7 +255,9 @@ class _SupportCenter extends StatelessWidget {
   final ValueChanged<SupportSuggestion> onOpenSuggestion;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenInbox;
+  final VoidCallback onOpenPractices;
   final VoidCallback onGenerateSuggestion;
+  final _PersonalizedAttemptState personalizedAttemptState;
 
   @override
   Widget build(BuildContext context) {
@@ -250,6 +311,8 @@ class _SupportCenter extends StatelessWidget {
                 onGenerate: onGenerateSuggestion,
                 onOpenSuggestion: onOpenSuggestion,
                 onOpenSettings: onOpenSettings,
+                onOpenPractices: onOpenPractices,
+                attemptState: personalizedAttemptState,
               ),
             if (demonstration && latest != null) ...[
               const SizedBox(height: 16),
@@ -289,13 +352,7 @@ class _SupportCenter extends StatelessWidget {
                 _HubAction(
                   icon: Icons.self_improvement_rounded,
                   label: 'Exercícios',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const SupportFlowScreen(
-                        start: SupportFlowStart.catalog,
-                      ),
-                    ),
-                  ),
+                  onTap: onOpenPractices,
                 ),
                 _HubAction(
                   icon: Icons.favorite_outline_rounded,
@@ -465,6 +522,8 @@ class _PersonalizedNowCard extends StatelessWidget {
     required this.onGenerate,
     required this.onOpenSuggestion,
     required this.onOpenSettings,
+    required this.onOpenPractices,
+    required this.attemptState,
   });
 
   final MockAiSupportStore store;
@@ -472,6 +531,8 @@ class _PersonalizedNowCard extends StatelessWidget {
   final VoidCallback onGenerate;
   final ValueChanged<SupportSuggestion> onOpenSuggestion;
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenPractices;
+  final _PersonalizedAttemptState attemptState;
 
   @override
   Widget build(BuildContext context) {
@@ -521,6 +582,84 @@ class _PersonalizedNowCard extends StatelessWidget {
               key: const Key('ai-support-open-personalized'),
               onPressed: () => onOpenSuggestion(current),
               child: const Text('Ver sugestão'),
+            ),
+          ] else if (attemptState ==
+              _PersonalizedAttemptState.technicalFailure) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                'Não conseguimos buscar um apoio agora',
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Pode ser uma instabilidade momentânea. Você pode tentar de novo ou escolher uma prática disponível no app.',
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              key: const Key('ai-support-retry-personalized'),
+              onPressed: onGenerate,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Tentar novamente'),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              key: const Key('ai-support-practice-after-error'),
+              onPressed: onOpenPractices,
+              child: const Text('Escolher uma prática'),
+            ),
+          ] else if (attemptState ==
+              _PersonalizedAttemptState.rejectedSuggestion) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                'A sugestão não passou pelas verificações',
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Para cuidar da sua segurança, ela não foi exibida. Você pode buscar outra ou escolher uma prática disponível no app.',
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              key: const Key('ai-support-retry-after-rejection'),
+              onPressed: onGenerate,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Buscar outra sugestão'),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              key: const Key('ai-support-practice-after-rejection'),
+              onPressed: onOpenPractices,
+              child: const Text('Escolher uma prática'),
+            ),
+          ] else if (attemptState ==
+              _PersonalizedAttemptState.safeNoSuggestion) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                'Não encontramos um apoio personalizado agora',
+                style: theme.textTheme.titleLarge,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Nenhuma sugestão combinou com os dados que você autorizou. Você pode escolher uma prática sem personalização.',
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              key: const Key('ai-support-practice-after-empty'),
+              onPressed: onOpenPractices,
+              icon: const Icon(Icons.self_improvement_rounded),
+              label: const Text('Escolher uma prática'),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              key: const Key('ai-support-retry-after-empty'),
+              onPressed: onGenerate,
+              child: const Text('Buscar novamente'),
             ),
           ] else ...[
             Text('Quer uma sugestão breve?', style: theme.textTheme.titleLarge),

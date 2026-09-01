@@ -22,6 +22,8 @@ import {
 
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
+const activePromptVersion = "selection-v2";
+const activeCatalogVersion = "support-v2";
 const allowedTriggers = new Set([
   "manual",
   "after_checkin",
@@ -32,11 +34,12 @@ const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const selectionInstructions = `
-Voce e um componente de roteamento de apoio, nao um terapeuta.
-Escolha no maximo um ID permitido ou abstenha-se.
-Use somente os sinais estruturados e codigos fornecidos.
-Use PREFERRED_FROM_PAST_INTERACTIONS apenas como complemento de outro motivo.
-Use PREFERS_SHORT_PRACTICE apenas como complemento de um sinal de check-in.
+Voce seleciona um apoio breve e cotidiano de um catalogo fechado.
+Cada opcao elegivel informa evidencedReasonCodes comprovados para esta pessoa.
+Escolha no maximo uma opcao e copie somente codigos de evidencedReasonCodes da opcao escolhida.
+Quando houver uma opcao diretamente sustentada e sem conflito, prefira suggest.
+Use abstain apenas quando nenhuma opcao combinar com a evidencia disponivel.
+Nunca acrescente um motivo plausivel que nao esteja explicitamente evidenciado na opcao.
 Nao diagnostique, nao estime risco, nao afirme causas e nao produza texto para a pessoa.
 Nao recomende alimentacao, peso, atividade fisica, medicacao ou tratamento.
 Nao escolha contato, horario ou envio de notificacao.
@@ -374,6 +377,10 @@ async function buildContext(
   const oneDayAgo = new Date(
     now.getTime() - 24 * 60 * 60 * 1000,
   ).toISOString();
+  const moodWindowStart = isoDateDaysBefore(
+    localIsoDate(now, preferences.fuso_horario),
+    6,
+  );
 
   const checkInsPromise = sources.includes("mood_history")
     ? admin
@@ -381,6 +388,7 @@ async function buildContext(
         .select("data_local,fuso_horario,como_sentiu")
         .eq("paciente_id", patientId)
         .not("como_sentiu", "is", null)
+        .gte("data_local", moodWindowStart)
         .order("data_local", { ascending: false })
         .limit(4)
     : Promise.resolve({ data: [], error: null });
@@ -678,7 +686,7 @@ async function requestModelSelection(input: {
             suggestionTemplateId: template.id,
             category: template.category,
             exerciseId: template.exerciseId ?? "NONE",
-            allowedReasonCodes: template.allowedReasonCodes,
+            evidencedReasonCodes: template.allowedReasonCodes,
           })),
         }),
         reasoning: { effort: "minimal" },
@@ -804,7 +812,8 @@ async function persistRun(
     )
     .select(
       "id,request_id,modo,origem,resultado,template_id,categoria," +
-        "exercicio_id,reason_codes,fontes_usadas,confidence_band,expira_em",
+        "exercicio_id,reason_codes,fontes_usadas,confidence_band," +
+        "validacao_codigo,expira_em",
     )
     .single();
   if (error !== null || data === null) throw new Error("persist_run_failed");
@@ -820,7 +829,8 @@ async function findEffectiveRun(
     .from("sugestoes_ia_apoio")
     .select(
       "id,request_id,modo,origem,resultado,template_id,categoria," +
-        "exercicio_id,reason_codes,fontes_usadas,confidence_band,expira_em",
+        "exercicio_id,reason_codes,fontes_usadas,confidence_band," +
+        "validacao_codigo,expira_em",
     )
     .eq("paciente_id", patientId)
     .eq("request_id", requestId)
@@ -906,11 +916,18 @@ async function loadRollout(
       percentual_shadow: 0,
       percentual_entrega: 0,
       modelo: requiredOpenAiModel,
-      versao_prompt: "selection-v1",
-      versao_catalogo: "support-v1",
+      versao_prompt: activePromptVersion,
+      versao_catalogo: activeCatalogVersion,
     };
   }
-  return data as RolloutConfiguration;
+  // Estas versoes descrevem o codigo realmente implantado. Os campos do
+  // rollout controlam entrega e kill switch, mas nao selecionam implementacoes
+  // alternativas de prompt ou catalogo.
+  return {
+    ...(data as RolloutConfiguration),
+    versao_prompt: activePromptVersion,
+    versao_catalogo: activeCatalogVersion,
+  };
 }
 
 async function isActivePilotParticipant(
@@ -948,7 +965,18 @@ function responseForRun(row: Record<string, unknown>) {
     mode: row.modo,
   };
   if (row.resultado !== "sugerida") {
-    return { ...base, status: "silent", proposal: null };
+    const outcome = row.resultado === "rejeitada"
+      ? "rejected"
+      : row.resultado === "erro"
+      ? "error"
+      : "silent";
+    return {
+      ...base,
+      status: "silent",
+      outcome,
+      reasonCode: row.validacao_codigo,
+      proposal: null,
+    };
   }
   return {
     ...base,
@@ -1030,6 +1058,12 @@ function localIsoDate(now: Date, timeZone: string): string {
     // Um fuso legado invalido nao pode interromper o check-in principal.
   }
   return now.toISOString().slice(0, 10);
+}
+
+function isoDateDaysBefore(isoDate: string, days: number): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const utcDate = new Date(Date.UTC(year, month - 1, day - days));
+  return utcDate.toISOString().slice(0, 10);
 }
 
 function uniqueStrings(values: string[]): string[] {
