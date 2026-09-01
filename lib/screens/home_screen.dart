@@ -277,7 +277,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   builder: (context, constraints) {
                     final greeting = _PatientGreeting(
                       profileFuture: _profileFuture,
-                      onOpenMenu: _openMenu,
                     );
                     final status = FutureBuilder<PatientTodaySummary>(
                       future: _todaySummaryFuture,
@@ -497,13 +496,9 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _PatientGreeting extends StatelessWidget {
-  const _PatientGreeting({
-    required this.profileFuture,
-    required this.onOpenMenu,
-  });
+  const _PatientGreeting({required this.profileFuture});
 
   final Future<Profile?> profileFuture;
-  final VoidCallback onOpenMenu;
 
   @override
   Widget build(BuildContext context) {
@@ -533,17 +528,6 @@ class _PatientGreeting extends StatelessWidget {
               );
             },
           ),
-        ),
-        const SizedBox(width: 16),
-        IconButton.filledTonal(
-          tooltip: 'Abrir menu',
-          onPressed: onOpenMenu,
-          style: IconButton.styleFrom(
-            minimumSize: const Size.square(48),
-            backgroundColor: AppColors.white.withValues(alpha: .14),
-            foregroundColor: AppColors.white,
-          ),
-          icon: const Icon(Icons.grid_view_rounded),
         ),
       ],
     );

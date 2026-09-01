@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/navigation/iris_router.dart';
+import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/widgets/patient_bottom_navigation_bar.dart';
 
 void main() {
   group('IrisRoutePath', () {
@@ -114,6 +116,14 @@ void main() {
         controller.go('/patient/care-plan');
         expect(await delegate.popRoute(), isTrue);
         expect(controller.path.location, '/patient');
+
+        controller.go('/patient/history');
+        expect(await delegate.popRoute(), isTrue);
+        expect(controller.path.location, '/patient');
+
+        controller.go('/patient/profile');
+        expect(await delegate.popRoute(), isTrue);
+        expect(controller.path.location, '/patient');
       },
     );
   });
@@ -123,8 +133,10 @@ void main() {
       const expectations = <String, PatientDestination>{
         '/patient': PatientDestination.home,
         '/patient/reminders': PatientDestination.reminders,
+        '/patient/history': PatientDestination.history,
         '/patient/care-plan': PatientDestination.carePlan,
         '/patient/support-suggestions': PatientDestination.supportSuggestions,
+        '/patient/profile': PatientDestination.profile,
       };
 
       for (final entry in expectations.entries) {
@@ -160,6 +172,52 @@ void main() {
         PatientRouteLocation.tryParse(Uri.parse('/professional/patients')),
         isNull,
       );
+    });
+  });
+
+  group('PatientBottomNavigationBar', () {
+    testWidgets('exibe os cinco destinos com áreas de toque adequadas', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 160);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      PatientDestination? selected;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            bottomNavigationBar: PatientBottomNavigationBar(
+              selectedDestination: PatientDestination.carePlan,
+              onDestinationSelected: (destination) {
+                selected = destination;
+              },
+            ),
+          ),
+        ),
+      );
+
+      for (final destination in const [
+        PatientDestination.home,
+        PatientDestination.reminders,
+        PatientDestination.history,
+        PatientDestination.carePlan,
+        PatientDestination.profile,
+      ]) {
+        final button = find.byKey(Key('patient-nav-${destination.name}'));
+        expect(button, findsOneWidget);
+        expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+      }
+      expect(find.byIcon(Icons.assignment_rounded), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('patient-nav-profile')));
+      expect(selected, PatientDestination.profile);
+
+      await tester.tap(find.byKey(const Key('patient-nav-home')));
+      expect(selected, PatientDestination.home);
+      expect(tester.takeException(), isNull);
     });
   });
 

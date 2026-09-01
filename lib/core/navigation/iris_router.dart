@@ -186,7 +186,14 @@ class IrisRouteScope extends InheritedNotifier<IrisRouteController> {
   }
 }
 
-enum PatientDestination { home, reminders, carePlan, supportSuggestions }
+enum PatientDestination {
+  home,
+  reminders,
+  history,
+  carePlan,
+  profile,
+  supportSuggestions,
+}
 
 class PatientRouteLocation {
   const PatientRouteLocation(this.destination);
@@ -195,16 +202,20 @@ class PatientRouteLocation {
 
   static const home = PatientRouteLocation(PatientDestination.home);
   static const reminders = PatientRouteLocation(PatientDestination.reminders);
+  static const history = PatientRouteLocation(PatientDestination.history);
   static const carePlan = PatientRouteLocation(PatientDestination.carePlan);
   static const supportSuggestions = PatientRouteLocation(
     PatientDestination.supportSuggestions,
   );
+  static const profile = PatientRouteLocation(PatientDestination.profile);
 
   String get location => switch (destination) {
     PatientDestination.home => '/patient',
     PatientDestination.reminders => '/patient/reminders',
+    PatientDestination.history => '/patient/history',
     PatientDestination.carePlan => '/patient/care-plan',
     PatientDestination.supportSuggestions => '/patient/support-suggestions',
+    PatientDestination.profile => '/patient/profile',
   };
 
   static PatientRouteLocation? tryParse(Uri rawUri) {
@@ -214,8 +225,10 @@ class PatientRouteLocation {
     if (segments.length == 1) return home;
     return switch (segments[1]) {
       'reminders' => reminders,
+      'history' => history,
       'care-plan' => carePlan,
-      'support-suggestions' => supportSuggestions,
+    'support-suggestions' => supportSuggestions,
+    'profile' => profile,
       _ => home,
     };
   }

@@ -3,14 +3,19 @@ import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/reminders/reminder_repository.dart';
 import 'package:iris/widgets/app_lembretes_content.dart';
+import 'package:iris/widgets/app_function_header.dart';
 import 'package:iris/widgets/app_reminder_form.dart';
 import 'package:iris/widgets/app_responsive.dart';
 
 class LembretesScreen extends StatefulWidget {
-  const LembretesScreen({super.key, this.dataSource, this.onBack});
+  const LembretesScreen({
+    super.key,
+    this.dataSource,
+    this.embeddedInNavigationShell = false,
+  });
 
   final ReminderDataSource? dataSource;
-  final VoidCallback? onBack;
+  final bool embeddedInNavigationShell;
 
   @override
   State<LembretesScreen> createState() => _LembretesScreenState();
@@ -191,191 +196,149 @@ class _LembretesScreenState extends State<LembretesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: AppGradientHeader(
-              padding: EdgeInsets.zero,
-              child: SafeArea(
-                bottom: false,
-                child: AppResponsive(
-                  maxWidth: 860,
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      IconButton(
-                        tooltip: 'Voltar',
-                        onPressed:
-                            widget.onBack ?? () => Navigator.maybePop(context),
-                        style: IconButton.styleFrom(
-                          minimumSize: const Size.square(48),
-                          foregroundColor: AppColors.white,
-                          backgroundColor: AppColors.white.withValues(
-                            alpha: .12,
-                          ),
-                        ),
-                        icon: const Icon(Icons.arrow_back_rounded),
-                      ),
-                      const SizedBox(height: 18),
-                      Text(
-                        'Lembretes',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(color: AppColors.white),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Organize horários de refeições e medicamentos.',
-                        style: TextStyle(color: AppColors.white),
-                      ),
-                      const SizedBox(height: 22),
-                      FilledButton.icon(
-                        onPressed: _showForm ? _closeForm : _openCreate,
-                        style: AppButtonStyles.onBrandFilled,
-                        icon: Icon(
-                          _showForm ? Icons.close_rounded : Icons.add_rounded,
-                        ),
-                        label: Text(
-                          _showForm
-                              ? 'Fechar formulário'
-                              : 'Adicionar lembrete',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+    final content = CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: AppFunctionHeader(
+            title: 'Lembretes',
+            description: 'Organize horários de refeições e medicamentos.',
+            footer: FilledButton.icon(
+              onPressed: _showForm ? _closeForm : _openCreate,
+              style: AppButtonStyles.onBrandFilled,
+              icon: Icon(_showForm ? Icons.close_rounded : Icons.add_rounded),
+              label: Text(
+                _showForm ? 'Fechar formulário' : 'Adicionar lembrete',
               ),
             ),
           ),
-          SliverToBoxAdapter(
-            child: AppResponsive(
-              maxWidth: 860,
-              padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
-              child: FutureBuilder<List<PatientReminder>>(
-                future: _remindersFuture,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return Center(
-                      key: const Key('reminders-loading'),
-                      child: Semantics(
-                        liveRegion: true,
-                        label: 'Carregando lembretes',
-                        child: const Padding(
-                          padding: EdgeInsets.all(48),
-                          child: CircularProgressIndicator(),
-                        ),
+        ),
+        SliverToBoxAdapter(
+          child: AppResponsive(
+            maxWidth: 860,
+            padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
+            child: FutureBuilder<List<PatientReminder>>(
+              future: _remindersFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(
+                    key: const Key('reminders-loading'),
+                    child: Semantics(
+                      liveRegion: true,
+                      label: 'Carregando lembretes',
+                      child: const Padding(
+                        padding: EdgeInsets.all(48),
+                        child: CircularProgressIndicator(),
                       ),
-                    );
-                  }
-                  if (snapshot.hasError) {
-                    return AppSurface(
-                      key: const Key('reminders-error'),
-                      child: Column(
-                        children: [
-                          Icon(
-                            Icons.cloud_off_rounded,
-                            size: 44,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            'Não foi possível carregar os lembretes',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.titleLarge,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            AppErrorMessages.from(snapshot.error!),
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          const SizedBox(height: 18),
-                          FilledButton.icon(
-                            key: const Key('reminders-retry'),
-                            onPressed: () {
-                              setState(() {
-                                _remindersFuture = _dataSource
-                                    .listCurrentUserReminders();
-                              });
-                            },
-                            icon: const Icon(Icons.refresh_rounded),
-                            label: const Text('Tentar novamente'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  final reminders = snapshot.data ?? const <PatientReminder>[];
-                  final meals = reminders
-                      .where(
-                        (item) => item.type == PatientReminderType.refeicao,
-                      )
-                      .toList(growable: false);
-                  final medications = reminders
-                      .where(
-                        (item) => item.type == PatientReminderType.medicamento,
-                      )
-                      .toList(growable: false);
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: !_showForm
-                            ? const SizedBox.shrink(
-                                key: ValueKey('closed-reminder-form'),
-                              )
-                            : Padding(
-                                key: ValueKey(_editingId ?? 'new-reminder'),
-                                padding: const EdgeInsets.only(bottom: 28),
-                                child: AppReminderForm(
-                                  initialType: _toAppType(_newReminderType),
-                                  initialValue: _editingReminder == null
-                                      ? null
-                                      : AppReminderDraft(
-                                          type: _toAppType(
-                                            _editingReminder!.type,
-                                          ),
-                                          title: _editingReminder!.title,
-                                          time: _editingReminder!.time,
-                                        ),
-                                  onCancel: _closeForm,
-                                  onSubmit: _saveReminder,
-                                ),
-                              ),
-                      ),
-                      _ReminderSection(
-                        title: 'Refeições',
-                        icon: Icons.restaurant_rounded,
-                        reminders: meals,
-                        onAdd: () => _openCreate(PatientReminderType.refeicao),
-                        onToggle: _toggleReminder,
-                        onEdit: _openEdit,
-                        onDelete: _confirmDelete,
-                      ),
-                      const SizedBox(height: 36),
-                      _ReminderSection(
-                        title: 'Medicamentos',
-                        icon: Icons.medication_rounded,
-                        reminders: medications,
-                        onAdd: () =>
-                            _openCreate(PatientReminderType.medicamento),
-                        onToggle: _toggleReminder,
-                        onEdit: _openEdit,
-                        onDelete: _confirmDelete,
-                      ),
-                    ],
+                    ),
                   );
-                },
-              ),
+                }
+                if (snapshot.hasError) {
+                  return AppSurface(
+                    key: const Key('reminders-error'),
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.cloud_off_rounded,
+                          size: 44,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Não foi possível carregar os lembretes',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          AppErrorMessages.from(snapshot.error!),
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        const SizedBox(height: 18),
+                        FilledButton.icon(
+                          key: const Key('reminders-retry'),
+                          onPressed: () {
+                            setState(() {
+                              _remindersFuture = _dataSource
+                                  .listCurrentUserReminders();
+                            });
+                          },
+                          icon: const Icon(Icons.refresh_rounded),
+                          label: const Text('Tentar novamente'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                final reminders = snapshot.data ?? const <PatientReminder>[];
+                final meals = reminders
+                    .where((item) => item.type == PatientReminderType.refeicao)
+                    .toList(growable: false);
+                final medications = reminders
+                    .where(
+                      (item) => item.type == PatientReminderType.medicamento,
+                    )
+                    .toList(growable: false);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 200),
+                      child: !_showForm
+                          ? const SizedBox.shrink(
+                              key: ValueKey('closed-reminder-form'),
+                            )
+                          : Padding(
+                              key: ValueKey(_editingId ?? 'new-reminder'),
+                              padding: const EdgeInsets.only(bottom: 28),
+                              child: AppReminderForm(
+                                initialType: _toAppType(_newReminderType),
+                                initialValue: _editingReminder == null
+                                    ? null
+                                    : AppReminderDraft(
+                                        type: _toAppType(
+                                          _editingReminder!.type,
+                                        ),
+                                        title: _editingReminder!.title,
+                                        time: _editingReminder!.time,
+                                      ),
+                                onCancel: _closeForm,
+                                onSubmit: _saveReminder,
+                              ),
+                            ),
+                    ),
+                    _ReminderSection(
+                      title: 'Refeições',
+                      icon: Icons.restaurant_rounded,
+                      reminders: meals,
+                      onAdd: () => _openCreate(PatientReminderType.refeicao),
+                      onToggle: _toggleReminder,
+                      onEdit: _openEdit,
+                      onDelete: _confirmDelete,
+                    ),
+                    const SizedBox(height: 36),
+                    _ReminderSection(
+                      title: 'Medicamentos',
+                      icon: Icons.medication_rounded,
+                      reminders: medications,
+                      onAdd: () => _openCreate(PatientReminderType.medicamento),
+                      onToggle: _toggleReminder,
+                      onEdit: _openEdit,
+                      onDelete: _confirmDelete,
+                    ),
+                  ],
+                );
+              },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
+
+    if (widget.embeddedInNavigationShell) return content;
+    return Scaffold(body: content);
   }
 }
 
