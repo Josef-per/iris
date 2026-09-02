@@ -41,32 +41,25 @@ class PatientBottomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     final effectiveDestination = switch (selectedDestination) {
       PatientDestination.reminders ||
       PatientDestination.supportSuggestions => PatientDestination.home,
       _ => selectedDestination,
     };
-    return Material(
-      color: colors.surface,
-      elevation: 8,
-      shadowColor: colors.shadow.withValues(alpha: .14),
-      borderRadius: BorderRadius.circular(26),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: 76,
-        child: Row(
-          children: [
-            for (final item in _items)
-              Expanded(
-                child: _PatientNavigationButton(
-                  item: item,
-                  selected: effectiveDestination == item.destination,
-                  onPressed: () => onDestinationSelected(item.destination),
-                ),
+    return SizedBox(
+      key: const Key('patient-floating-navigation'),
+      height: 76,
+      child: Row(
+        children: [
+          for (final item in _items)
+            Expanded(
+              child: _PatientNavigationButton(
+                item: item,
+                selected: effectiveDestination == item.destination,
+                onPressed: () => onDestinationSelected(item.destination),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
@@ -140,58 +133,71 @@ class _PatientNavigationButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final foreground = selected ? colors.primary : colors.onSurfaceVariant;
+    final foreground = selected ? colors.onPrimaryContainer : colors.onSurface;
+    final contentShadow = Shadow(
+      color: colors.shadow.withValues(alpha: .2),
+      blurRadius: 4,
+      offset: const Offset(0, 1),
+    );
     return Semantics(
       button: true,
       selected: selected,
       label: item.label,
       child: Tooltip(
         message: item.label,
-        child: InkWell(
-          key: Key('patient-nav-${item.destination.name}'),
-          onTap: onPressed,
-          child: ExcludeSemantics(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    width: selected ? 42 : 38,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? colors.primaryContainer
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 180),
-                      child: Icon(
-                        selected ? item.selectedIcon : item.icon,
-                        key: ValueKey(selected),
-                        color: foreground,
-                        size: 23,
-                      ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 6),
+          child: AnimatedPhysicalModel(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            shape: BoxShape.rectangle,
+            borderRadius: BorderRadius.circular(22),
+            elevation: selected ? 4 : 0,
+            color: selected ? colors.primaryContainer : Colors.transparent,
+            shadowColor: colors.shadow.withValues(alpha: .2),
+            clipBehavior: Clip.antiAlias,
+            child: Material(
+              type: MaterialType.transparency,
+              child: InkWell(
+                key: Key('patient-nav-${item.destination.name}'),
+                onTap: onPressed,
+                child: ExcludeSemantics(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 180),
+                          child: Icon(
+                            selected ? item.selectedIcon : item.icon,
+                            key: ValueKey(selected),
+                            color: foreground,
+                            size: 23,
+                            shadows: selected ? null : [contentShadow],
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOut,
+                          style: Theme.of(context).textTheme.labelSmall!
+                              .copyWith(
+                                color: foreground,
+                                fontWeight: selected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                shadows: selected ? null : [contentShadow],
+                              ),
+                          child: Text(
+                            item.compactLabel ?? item.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 3),
-                  AnimatedDefaultTextStyle(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    style: Theme.of(context).textTheme.labelSmall!.copyWith(
-                      color: foreground,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    ),
-                    child: Text(
-                      item.compactLabel ?? item.label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ),

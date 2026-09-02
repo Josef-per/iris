@@ -210,6 +210,31 @@ void main() {
           expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
         }
         expect(find.byIcon(Icons.assignment_rounded), findsOneWidget);
+        expect(
+          find.byKey(const Key('patient-floating-navigation')),
+          findsOneWidget,
+        );
+
+        final selectedItem = tester.widget<AnimatedPhysicalModel>(
+          find
+              .ancestor(
+                of: find.byKey(const Key('patient-nav-carePlan')),
+                matching: find.byType(AnimatedPhysicalModel),
+              )
+              .first,
+        );
+        final unselectedItem = tester.widget<AnimatedPhysicalModel>(
+          find
+              .ancestor(
+                of: find.byKey(const Key('patient-nav-home')),
+                matching: find.byType(AnimatedPhysicalModel),
+              )
+              .first,
+        );
+        expect(selectedItem.color, AppTheme.light.colorScheme.primaryContainer);
+        expect(selectedItem.elevation, greaterThan(0));
+        expect(unselectedItem.color, Colors.transparent);
+        expect(unselectedItem.elevation, 0);
 
         await tester.tap(find.byKey(const Key('patient-nav-profile')));
         expect(selected, PatientDestination.profile);

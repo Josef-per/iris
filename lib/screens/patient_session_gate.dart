@@ -287,6 +287,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
               }
 
               return Scaffold(
+                extendBody: true,
                 body: content,
                 bottomNavigationBar: SafeArea(
                   top: false,
