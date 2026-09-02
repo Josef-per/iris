@@ -441,12 +441,94 @@ class _DailyCompanionCard extends StatelessWidget {
   final VoidCallback onManagePersonalization;
   final VoidCallback onNeedSupport;
 
+  Future<void> _openReflectionDialog(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String? question,
+    required bool personalized,
+    required bool needsSupport,
+  }) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        key: const Key('home-daily-companion-dialog'),
+        icon: Icon(
+          needsSupport ? Icons.favorite_rounded : Icons.auto_awesome_outlined,
+        ),
+        title: Text(title),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(message, style: Theme.of(context).textTheme.bodyLarge),
+                if (question != null) ...[
+                  const SizedBox(height: 18),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Text(
+                      question,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Theme.of(context).colorScheme.onPrimaryContainer,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+                if (personalized) ...[
+                  const SizedBox(height: 16),
+                  Text(
+                    'Feito apenas com o que você permitiu. Não substitui cuidado profissional.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Fechar'),
+          ),
+          if (personalized && !needsSupport)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                onManagePersonalization();
+              },
+              child: const Text('Ajustar personalização'),
+            ),
+          if (needsSupport)
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                onNeedSupport();
+              },
+              icon: const Icon(Icons.favorite_rounded),
+              label: const Text('Encontrar apoio'),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final needsSupport = companion?.needsHumanSupport == true;
     final personalized = companion?.isPersonalized == true;
-    final title = companion?.title ?? 'Seu momento de hoje';
+    final title = needsSupport
+        ? 'Um cuidado importante agora'
+        : 'Uma reflexão para você';
     final message =
         companion?.message ??
         (isLoading
@@ -459,10 +541,15 @@ class _DailyCompanionCard extends StatelessWidget {
     final foreground = needsSupport
         ? theme.colorScheme.onErrorContainer
         : theme.colorScheme.onPrimaryContainer;
+    final preview = isLoading
+        ? 'Preparando uma reflexão breve...'
+        : needsSupport
+        ? 'Há opções de apoio disponíveis para este momento.'
+        : 'Um convite breve para observar seu momento, no seu ritmo.';
 
     return Semantics(
       container: true,
-      label: 'Seu momento de hoje',
+      label: title,
       child: Container(
         key: const Key('home-daily-companion-card'),
         width: double.infinity,
@@ -499,50 +586,43 @@ class _DailyCompanionCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    message,
-                    maxLines: needsSupport ? null : 3,
-                    overflow: needsSupport ? null : TextOverflow.ellipsis,
+                    preview,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: foreground,
                     ),
                   ),
-                  if (question != null) ...[
-                    const SizedBox(height: 10),
-                    Text(
-                      question,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: foreground,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ],
-                  if (needsSupport || personalized) ...[
-                    const SizedBox(height: 12),
-                    if (needsSupport)
-                      FilledButton.icon(
-                        key: const Key('home-daily-companion-help'),
-                        onPressed: onNeedSupport,
-                        icon: const Icon(Icons.favorite_rounded),
-                        label: const Text('Encontrar apoio agora'),
-                      )
-                    else
-                      TextButton.icon(
-                        key: const Key('home-daily-companion-preferences'),
-                        onPressed: onManagePersonalization,
-                        icon: const Icon(Icons.tune_rounded),
-                        label: const Text('Ajustar personalização'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: foreground,
+                  if (!isLoading) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        TextButton.icon(
+                          key: const Key('home-daily-companion-open'),
+                          onPressed: () => _openReflectionDialog(
+                            context,
+                            title: title,
+                            message: message,
+                            question: question,
+                            personalized: personalized,
+                            needsSupport: needsSupport,
+                          ),
+                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                          label: const Text('Ler reflexão'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: foreground,
+                          ),
                         ),
-                      ),
-                  ],
-                  if (personalized) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Feito apenas com o que você permitiu. Não substitui cuidado profissional.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: foreground.withValues(alpha: .85),
-                      ),
+                        if (needsSupport)
+                          FilledButton.icon(
+                            key: const Key('home-daily-companion-help'),
+                            onPressed: onNeedSupport,
+                            icon: const Icon(Icons.favorite_rounded),
+                            label: const Text('Encontrar apoio agora'),
+                          ),
+                      ],
                     ),
                   ],
                 ],

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/core/time/local_day.dart';
+import 'package:iris/features/ai_support/data/daily_companion_repository.dart';
+import 'package:iris/features/ai_support/domain/daily_companion_message.dart';
 import 'package:iris/features/care_plan/patient_care_plan.dart';
 import 'package:iris/features/care_plan/patient_care_plan_repository.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_entry.dart';
@@ -177,6 +179,48 @@ void main() {
     );
   });
 
+  testWidgets('Home abre a reflexão completa em um diálogo', (tester) async {
+    const fullMessage =
+        'Talvez este seja um bom momento para observar o que você precisa, sem pressa.';
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 1,
+            moodScore: 4,
+            hasCheckIn: true,
+            hasDiaryEntry: false,
+          ),
+        ),
+        dailyCompanionDataSource: const _DailyCompanionSource(
+          DailyCompanionMessage(
+            status: DailyCompanionStatus.ready,
+            title: 'Um momento para si',
+            message: fullMessage,
+            reflectionQuestion: 'O que faria sentido para você agora?',
+          ),
+        ),
+      ),
+      size: const Size(500, 1000),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Uma reflexão para você'), findsOneWidget);
+    expect(find.text('Um momento para si'), findsNothing);
+    expect(find.text(fullMessage), findsNothing);
+
+    await tester.tap(find.byKey(const Key('home-daily-companion-open')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('home-daily-companion-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text(fullMessage), findsOneWidget);
+    expect(find.text('O que faria sentido para você agora?'), findsOneWidget);
+  });
+
   testWidgets('check-in nao salva respostas neutras implicitas', (
     tester,
   ) async {
@@ -323,6 +367,15 @@ class _TodayDataSource implements PatientTodayDataSource {
 
   @override
   Future<PatientTodaySummary> loadToday() async => summary;
+}
+
+class _DailyCompanionSource implements DailyCompanionDataSource {
+  const _DailyCompanionSource(this.message);
+
+  final DailyCompanionMessage message;
+
+  @override
+  Future<DailyCompanionMessage> loadToday() async => message;
 }
 
 class _RetryTodayDataSource implements PatientTodayDataSource {
