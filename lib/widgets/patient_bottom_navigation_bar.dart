@@ -50,9 +50,13 @@ class PatientBottomNavigationBar extends StatelessWidget {
     return Material(
       key: const Key('patient-floating-navigation'),
       color: colors.surface,
-      elevation: 8,
-      shadowColor: colors.shadow.withValues(alpha: .14),
-      borderRadius: BorderRadius.circular(26),
+      surfaceTintColor: Colors.transparent,
+      elevation: 12,
+      shadowColor: colors.shadow.withValues(alpha: .28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(26),
+        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .8)),
+      ),
       clipBehavior: Clip.antiAlias,
       child: SizedBox(
         height: 76,

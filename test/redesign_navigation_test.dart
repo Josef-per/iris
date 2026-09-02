@@ -218,7 +218,17 @@ void main() {
           find.byKey(const Key('patient-floating-navigation')),
         );
         expect(navigationSurface.color, AppTheme.light.colorScheme.surface);
-        expect(navigationSurface.elevation, greaterThan(0));
+        expect(navigationSurface.elevation, 12);
+        expect(
+          navigationSurface.shadowColor,
+          AppTheme.light.colorScheme.shadow.withValues(alpha: .28),
+        );
+        final navigationShape =
+            navigationSurface.shape! as RoundedRectangleBorder;
+        expect(
+          navigationShape.side.color,
+          AppTheme.light.colorScheme.outlineVariant.withValues(alpha: .8),
+        );
         expect(navigationSurface.clipBehavior, Clip.antiAlias);
 
         final selectedItem = tester.widget<AnimatedPhysicalModel>(
