@@ -37,6 +37,7 @@ qr-profissional-*.png
 .pub/
 /build/
 /coverage/
+/supabase/.temp/
 
 # Symbolication related
 app.*.symbols

@@ -57,5 +57,13 @@ run_sql /workspace/supabase/migrations/0009_patient_journal_improvements.sql
 run_sql /workspace/supabase/migrations/0009_patient_journal_improvements.sql
 run_sql /workspace/supabase/tests/clinical_data_integrity.sql
 run_sql /workspace/supabase/tests/patient_journal_improvements.sql
+# A camada de IA base permanece idempotente. A migration seguinte remove a
+# entrega por regras e habilita GPT-5 mini somente em desenvolvimento.
+run_sql /workspace/supabase/migrations/0010_ai_support_backend.sql
+run_sql /workspace/supabase/migrations/0010_ai_support_backend.sql
+run_sql /workspace/supabase/tests/ai_support_backend.sql
+run_sql /workspace/supabase/migrations/0011_ai_support_gpt5_mini_only.sql
+run_sql /workspace/supabase/migrations/0011_ai_support_gpt5_mini_only.sql
+run_sql /workspace/supabase/tests/ai_support_gpt5_mini_only.sql
 
-echo "Migrations e fluxo profissional validados."
+echo "Migrations, fluxo profissional e apoio por IA validados."

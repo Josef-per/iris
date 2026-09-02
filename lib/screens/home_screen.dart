@@ -1,28 +1,65 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/ai_support/data/daily_companion_repository.dart';
+import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
+import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
+import 'package:iris/features/ai_support/domain/daily_companion_message.dart';
+import 'package:iris/features/ai_support/domain/support_suggestion.dart';
+import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
+import 'package:iris/features/ai_support/presentation/after_journal_support_sheet.dart';
+import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
+import 'package:iris/features/ai_support/presentation/support_suggestion_screen.dart';
+import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
 import 'package:iris/features/support_exercises/presentation/support_flow_screen.dart';
+import 'package:iris/screens/lembretes_screen.dart';
+import 'package:iris/screens/patient_care_plan_screen.dart';
+import 'package:iris/screens/patient_history_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/registro_alimentar_bottom_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key, this.todayDataSource});
+  const HomeScreen({
+    super.key,
+    this.todayDataSource,
+    this.onOpenReminders,
+    this.onOpenCarePlan,
+    this.onOpenHistory,
+    this.onOpenSupportSuggestions,
+    this.aiSupportStore,
+    this.dailyCompanionDataSource,
+  });
 
   final PatientTodayDataSource? todayDataSource;
+  final VoidCallback? onOpenReminders;
+  final VoidCallback? onOpenCarePlan;
+  final VoidCallback? onOpenHistory;
+  final VoidCallback? onOpenSupportSuggestions;
+  final MockAiSupportStore? aiSupportStore;
+  final DailyCompanionDataSource? dailyCompanionDataSource;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final _authService = AuthService();
   final _profileRepository = ProfileRepository();
   late final Future<Profile?> _profileFuture;
   late final PatientTodayDataSource _todayDataSource;
   late Future<PatientTodaySummary> _todaySummaryFuture;
+  late final DailyCompanionDataSource _dailyCompanionDataSource;
+  late Future<DailyCompanionMessage> _dailyCompanionFuture;
+  Set<String> _lastCompanionConsentSources = const <String>{};
 
   @override
   void initState() {
@@ -30,9 +67,23 @@ class _HomeScreenState extends State<HomeScreen> {
     _profileFuture = _profileRepository.getCurrentUserProfile();
     _todayDataSource = widget.todayDataSource ?? PatientTodayRepository();
     _todaySummaryFuture = _todayDataSource.loadToday();
+    _dailyCompanionDataSource =
+        widget.dailyCompanionDataSource ??
+        (SupabaseConfig.isConfigured
+            ? SupabaseDailyCompanionRepository()
+            : const DisabledDailyCompanionRepository());
+    _dailyCompanionFuture = _dailyCompanionDataSource.loadToday();
+    _lastCompanionConsentSources = _companionConsentSources();
+    widget.aiSupportStore?.addListener(_onAiSupportStoreChanged);
   }
 
-  Future<void> _openBottomSheet(Widget child) async {
+  @override
+  void dispose() {
+    widget.aiSupportStore?.removeListener(_onAiSupportStoreChanged);
+    super.dispose();
+  }
+
+  Future<bool?> _openBottomSheet(Widget child) async {
     final saved = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -42,15 +93,230 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (_) => child,
     );
 
-    if (saved == true && mounted) {
+    if (saved != null && mounted) {
       _refreshTodaySummary();
     }
+    return saved;
+  }
+
+  Future<void> _openCheckInSheet() async {
+    final saved = await _openBottomSheet(const CheckInDiarioBottomSheet());
+    if (saved == true && mounted) {
+      _refreshDailyCompanion();
+      await _showAfterJournalSupport(
+        AiSupportRecommendationTrigger.afterCheckIn,
+      );
+    }
+  }
+
+  Future<void> _openEmotionalDiarySheet() async {
+    final saved = await _openBottomSheet(const DiarioEmocionalBottomSheet());
+    if (saved == true && mounted) {
+      _refreshDailyCompanion();
+      await _showAfterJournalSupport(AiSupportRecommendationTrigger.afterDiary);
+    }
+  }
+
+  Future<void> _showAfterJournalSupport(
+    AiSupportRecommendationTrigger trigger,
+  ) async {
+    final store = widget.aiSupportStore;
+    Future<SupportSuggestion?>? personalized;
+    if (store != null && store.isOnboarded && store.isPersonalizationEnabled) {
+      personalized = store.generatePersonalizedSuggestion(trigger: trigger);
+    }
+    await AfterJournalSupportSheet.show(
+      context,
+      personalizedSuggestion: personalized,
+      onOpenPersonalized: _openPersonalizedSuggestion,
+      onNotNow: () {
+        if (personalized == null || store == null) return;
+        unawaited(
+          personalized.then((suggestion) {
+            if (suggestion != null) {
+              store.recordFeedback(
+                SuggestionFeedbackType.dismissed,
+                suggestion: suggestion,
+              );
+            }
+          }),
+        );
+      },
+      onClosedWithoutPersonalized: () {
+        if (personalized == null || store == null) return;
+        unawaited(
+          personalized.then((suggestion) {
+            if (suggestion != null) {
+              store.cancelNotificationForSuggestion(suggestion);
+            }
+          }),
+        );
+      },
+    );
+  }
+
+  void _openPersonalizedSuggestion(SupportSuggestion suggestion) {
+    final store = widget.aiSupportStore;
+    if (store == null) return;
+    store.recordSuggestionOpenedInApp(suggestion);
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => SupportSuggestionScreen(
+          store: store,
+          suggestion: suggestion,
+          onManageData: _openSupportSuggestions,
+        ),
+      ),
+    );
+  }
+
+  void _openSupportSuggestions() {
+    if (widget.onOpenSupportSuggestions case final callback?) {
+      callback();
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AiSupportHubScreen(store: widget.aiSupportStore),
+      ),
+    );
   }
 
   void _refreshTodaySummary() {
     setState(() {
       _todaySummaryFuture = _todayDataSource.loadToday();
     });
+  }
+
+  void _refreshDailyCompanion() {
+    setState(() {
+      _dailyCompanionFuture = _dailyCompanionDataSource.loadToday();
+    });
+  }
+
+  Set<String> _companionConsentSources() {
+    final store = widget.aiSupportStore;
+    if (store == null || !store.isPersonalizationEnabled) {
+      return const <String>{};
+    }
+    return store.consent.grantedSources.map((source) => source.name).toSet();
+  }
+
+  void _onAiSupportStoreChanged() {
+    final sources = _companionConsentSources();
+    if (setEquals(sources, _lastCompanionConsentSources)) return;
+    _lastCompanionConsentSources = sources;
+    // A persistencia das preferencias e assincrona. Pequeno atraso evita uma
+    // leitura anterior a revogacao e remove do cartao qualquer texto derivado.
+    Future<void>.delayed(const Duration(milliseconds: 450), () {
+      if (mounted) _refreshDailyCompanion();
+    });
+  }
+
+  void _openImmediateSupport() {
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SupportFlowScreen()));
+  }
+
+  Future<void> _signOut(BuildContext sheetContext) async {
+    Navigator.pop(sheetContext);
+    try {
+      await _authService.signOut();
+    } catch (error) {
+      // O Supabase remove a sessão local antes de tentar invalidar o token no
+      // servidor. Se a tela ainda existir, a falha ocorreu antes da transição.
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
+    }
+  }
+
+  void _openMenu() {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.assignment_outlined),
+                title: const Text('Plano de cuidado'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (widget.onOpenCarePlan case final callback?) {
+                    callback();
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PatientCarePlanScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.history_rounded),
+                title: const Text('Meu histórico'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (widget.onOpenHistory case final callback?) {
+                    callback();
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const PatientHistoryScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                key: const Key('home-support-suggestions-menu'),
+                leading: const Icon(Icons.auto_awesome_outlined),
+                title: const Text('Sugestões de apoio'),
+                subtitle: const Text('Um apoio breve para o seu momento'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openSupportSuggestions();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.notifications_none_rounded),
+                title: const Text('Lembretes'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  if (widget.onOpenReminders case final callback?) {
+                    callback();
+                  } else {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const LembretesScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.logout_rounded),
+                title: const Text('Sair da conta'),
+                textColor: AppColors.danger,
+                iconColor: AppColors.danger,
+                onTap: () => _signOut(sheetContext),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -106,56 +372,24 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final wide = constraints.maxWidth >= 700;
-                      final cardWidth = wide
-                          ? (constraints.maxWidth - 14) / 2
-                          : constraints.maxWidth;
-                      return Wrap(
-                        spacing: 14,
-                        runSpacing: 14,
-                        children: [
-                          _SupportEntryCard(
-                            key: const Key('home-exercises-card'),
-                            width: cardWidth,
-                            icon: Icons.self_improvement_rounded,
-                            title: 'Exercícios',
-                            subtitle:
-                                'Práticas curtas para diferentes momentos.',
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SupportFlowScreen(
-                                  start: SupportFlowStart.catalog,
-                                ),
-                              ),
-                            ),
-                          ),
-                          _SupportEntryCard(
-                            key: const Key('home-not-ok-card'),
-                            width: cardWidth,
-                            icon: Icons.favorite_rounded,
-                            title: 'Não estou bem',
-                            subtitle: 'Encontre uma prática ou procure apoio.',
-                            highlighted: true,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SupportFlowScreen(),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+                  FutureBuilder<DailyCompanionMessage>(
+                    future: _dailyCompanionFuture,
+                    builder: (context, snapshot) => _DailyCompanionCard(
+                      companion: snapshot.data,
+                      isLoading:
+                          snapshot.connectionState == ConnectionState.waiting,
+                      onManagePersonalization: _openSupportSuggestions,
+                      onNeedSupport: _openImmediateSupport,
+                    ),
                   ),
                   const SizedBox(height: 28),
                   Text(
-                    'Cuidar de você hoje',
+                    'Registre seu dia',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Escolha uma atividade para registrar como foi o seu dia.',
+                    'Comece pelo check-in ou pelo diário emocional.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 18),
@@ -176,30 +410,26 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           _ActionCard(
                             width: width,
-                            icon: Icons.restaurant_menu_rounded,
-                            title: 'Registro de alimentação',
-                            subtitle: 'Registre uma refeição e como se sentiu.',
-                            onTap: () => _openBottomSheet(
-                              const RegistroAlimentarBottomSheet(),
-                            ),
-                          ),
-                          _ActionCard(
-                            width: width,
                             icon: Icons.fact_check_outlined,
-                            title: 'Registro do dia',
+                            title: 'Check-in diário',
                             subtitle:
                                 'Faça uma pausa e perceba como você está.',
-                            onTap: () => _openBottomSheet(
-                              const CheckInDiarioBottomSheet(),
-                            ),
+                            onTap: _openCheckInSheet,
                           ),
                           _ActionCard(
                             width: width,
                             icon: Icons.favorite_outline_rounded,
                             title: 'Diário emocional',
                             subtitle: 'Dê nome ao que você está sentindo.',
+                            onTap: _openEmotionalDiarySheet,
+                          ),
+                          _ActionCard(
+                            width: width,
+                            icon: Icons.restaurant_menu_rounded,
+                            title: 'Alimentação',
+                            subtitle: 'Registre uma refeição e como se sentiu.',
                             onTap: () => _openBottomSheet(
-                              const DiarioEmocionalBottomSheet(),
+                              const RegistroAlimentarBottomSheet(),
                             ),
                           ),
                         ],
@@ -207,55 +437,198 @@ class _HomeScreenState extends State<HomeScreen> {
                     },
                   ),
                   const SizedBox(height: 28),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.favorite_rounded,
-                              size: 18,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSecondaryContainer,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Mensagem do dia',
-                              style: TextStyle(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSecondaryContainer,
-                                fontWeight: FontWeight.w800,
+                  Text(
+                    'Apoio quando precisar',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 14),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final wide = constraints.maxWidth >= 700;
+                      final cardWidth = wide
+                          ? (constraints.maxWidth - 14) / 2
+                          : constraints.maxWidth;
+                      return Wrap(
+                        spacing: 14,
+                        runSpacing: 14,
+                        children: [
+                          _SupportEntryCard(
+                            key: const Key('home-support-suggestions-card'),
+                            width: cardWidth,
+                            icon: Icons.auto_awesome_outlined,
+                            title: 'Apoio para agora',
+                            subtitle: 'Uma sugestão breve, do seu jeito.',
+                            onTap: _openSupportSuggestions,
+                          ),
+                          _SupportEntryCard(
+                            key: const Key('home-exercises-card'),
+                            width: cardWidth,
+                            icon: Icons.self_improvement_rounded,
+                            title: 'Práticas breves',
+                            subtitle: 'Escolha algo simples para este momento.',
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(
+                                  start: SupportFlowStart.catalog,
+                                ),
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Você não precisa resolver tudo de uma vez. Cada pequeno passo já é um avanço. Seja gentil com você — um dia de cada vez já é suficiente.',
-                          style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSecondaryContainer,
-                            height: 1.45,
                           ),
-                        ),
-                      ],
-                    ),
+                          _SupportEntryCard(
+                            key: const Key('home-not-ok-card'),
+                            width: cardWidth,
+                            icon: Icons.favorite_rounded,
+                            title: 'Não estou bem',
+                            subtitle: 'Encontre apoio e opções de segurança.',
+                            highlighted: true,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DailyCompanionCard extends StatelessWidget {
+  const _DailyCompanionCard({
+    required this.companion,
+    required this.isLoading,
+    required this.onManagePersonalization,
+    required this.onNeedSupport,
+  });
+
+  final DailyCompanionMessage? companion;
+  final bool isLoading;
+  final VoidCallback onManagePersonalization;
+  final VoidCallback onNeedSupport;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final needsSupport = companion?.needsHumanSupport == true;
+    final personalized = companion?.isPersonalized == true;
+    final title = companion?.title ?? 'Seu momento de hoje';
+    final message =
+        companion?.message ??
+        (isLoading
+            ? 'Preparando um espaço breve para você...'
+            : 'Você não precisa resolver o dia inteiro agora. Qual seria um gesto pequeno de cuidado possível neste momento?');
+    final question = companion?.reflectionQuestion;
+    final background = needsSupport
+        ? theme.colorScheme.errorContainer
+        : theme.colorScheme.primaryContainer;
+    final foreground = needsSupport
+        ? theme.colorScheme.onErrorContainer
+        : theme.colorScheme.onPrimaryContainer;
+
+    return Semantics(
+      container: true,
+      label: 'Seu momento de hoje',
+      child: Container(
+        key: const Key('home-daily-companion-card'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: foreground.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                needsSupport ? Icons.favorite_rounded : Icons.wb_sunny_outlined,
+                color: foreground,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    message,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: foreground,
+                    ),
+                  ),
+                  if (question != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      question,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (needsSupport)
+                        FilledButton.icon(
+                          key: const Key('home-daily-companion-help'),
+                          onPressed: onNeedSupport,
+                          icon: const Icon(Icons.favorite_rounded),
+                          label: const Text('Encontrar apoio agora'),
+                        )
+                      else
+                        TextButton.icon(
+                          key: const Key('home-daily-companion-preferences'),
+                          onPressed: onManagePersonalization,
+                          icon: const Icon(Icons.tune_rounded),
+                          label: Text(
+                            personalized
+                                ? 'Ajustar o que considero'
+                                : 'Personalizar este momento',
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: foreground,
+                          ),
+                        ),
+                    ],
+                  ),
+                  if (personalized) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Feito apenas com o que você permitiu. Não substitui cuidado profissional.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: foreground.withValues(alpha: .85),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

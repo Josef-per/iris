@@ -23,6 +23,12 @@ enum SupportFlowStart {
 
   /// Entrada “Não estou bem” da Home: abre o menu de apoio em tela cheia.
   supportMenu,
+
+  /// Atalho explícito para a rede de apoio. Não seleciona nem aciona contatos.
+  supportNetwork,
+
+  /// Atalho explícito para a checagem de ajuda urgente.
+  safetyCheck,
 }
 
 /// Shell em tela cheia do fluxo de apoio.
@@ -34,11 +40,16 @@ class SupportFlowScreen extends StatefulWidget {
   const SupportFlowScreen({
     super.key,
     this.start = SupportFlowStart.supportMenu,
+    this.initialExerciseId,
     this.recommender,
     this.phoneLauncher = defaultPhoneLauncher,
   });
 
   final SupportFlowStart start;
+
+  /// Quando informado por uma sugestão aprovada, abre diretamente a prática.
+  /// A rota continua mostrando “Ajuda urgente”, mas não faz triagem automática.
+  final String? initialExerciseId;
   final ExerciseRecommender? recommender;
   final PhoneLauncher phoneLauncher;
 
@@ -80,9 +91,27 @@ class _SupportFlowScreenState extends State<SupportFlowScreen> {
   @override
   void initState() {
     super.initState();
-    _step = widget.start == SupportFlowStart.catalog
-        ? _FlowStep.recommendation
-        : _FlowStep.supportMenu;
+    final initialExerciseId = widget.initialExerciseId;
+    final initialExercise = initialExerciseId == null
+        ? null
+        : MockExerciseCatalog.byId(initialExerciseId);
+    if (initialExercise != null &&
+        initialExercise.reviewStatus == ExerciseReviewStatus.clinicallyReviewed) {
+      _session = SupportSession(
+        exerciseId: initialExercise.id,
+        exerciseTitle: initialExercise.title,
+        durationMinutes: initialExercise.durationMinutes,
+      );
+      _step = _FlowStep.player;
+      return;
+    }
+
+    _step = switch (widget.start) {
+      SupportFlowStart.catalog => _FlowStep.recommendation,
+      SupportFlowStart.supportMenu => _FlowStep.supportMenu,
+      SupportFlowStart.supportNetwork => _FlowStep.supportNetwork,
+      SupportFlowStart.safetyCheck => _FlowStep.safetyCheck,
+    };
   }
 
   void _go(_FlowStep step) => setState(() => _step = step);

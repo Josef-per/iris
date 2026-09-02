@@ -1,9 +1,28 @@
 # Plano de produto — IA de apoio baseada em diário e humor
 
-Status: proposta para validação de produto, clínica, privacidade e regulação  
+Status: fundação técnica implementada; rollout clínico ainda depende de validações externas
 Base: `plano_funcionalidade_exercicios.md`  
-Escopo inicial: front-end Flutter com dados fictícios e notificações simuladas  
+Escopo atual: Flutter conectado, notificações locais e backend com rollout seguro
 Público inicial recomendado: pessoas adultas em acompanhamento de transtornos alimentares  
+
+## Estado da implementação — agosto de 2026
+
+- Fase 1: preservada apenas como modo de demonstração e testes.
+- Fase 2: preferências persistidas, notificações Android/iOS e deep link por ID
+  opaco implementados; regras locais ficaram restritas à demonstração.
+- Fase 3: Edge Function, Responses API com saída estruturada, shadow mode,
+  auditoria mínima e kill switch implementados. No modo conectado, somente o
+  `gpt-5-mini` seleciona sugestões, sem fallback por regras; OpenAI permanece
+  desligada por padrão fora de desenvolvimento.
+- Fases 4 e 5: controles técnicos de piloto e produção limitada existem, mas
+  não estão liberados. Consentimento de piloto, aprovação clínica/jurídica,
+  avaliação independente e governança continuam sendo gates obrigatórios.
+
+A interface real foi reduzida a uma sugestão atual, preferências essenciais e
+acessos permanentes a práticas, “Não estou bem” e “Ajuda urgente”. A
+personalização prioriza o check-in do dia, a tendência recente, temas que a
+pessoa marca no diário e respostas às sugestões/notificações. O texto livre do
+diário, alimentação e sintomas continuam fora do recomendador geral.
 
 ## 1. Decisão de produto
 
@@ -22,7 +41,7 @@ dar instruções sobre alimentação/medicação nem escrever livremente para a 
 bloqueada. Ela seleciona conteúdos de um catálogo fechado, aprovado e
 versionado; o aplicativo monta a mensagem com templates fixos.
 
-### Objetivo do MVP
+### Objetivo inicial da Fase 1
 
 Demonstrar, com dados fictícios, como um registro de humor ou diário pode gerar
 uma sugestão de apoio explicável, discreta e controlável pelo paciente, sem
@@ -409,7 +428,7 @@ de envio.
 - compatibilidade com exclusões clínicas e sensoriais;
 - máximo de uma sugestão;
 - bloqueio de qualquer campo adicional;
-- fallback para regra local ou nenhuma sugestão;
+- saída inválida resulta em nenhuma sugestão;
 - registro de modelo, prompt, catálogo, reason codes e resultado da validação.
 
 ### Camada 4 — política de notificação
@@ -583,7 +602,7 @@ as sugestões em regras genéricas ou desativa a entrega.
 5. O detalhe personalizado exige abertura do app e mostra “Por que isto?”.
 6. A pessoa pode discordar, remover o sinal, pausar ou desligar em até dois toques.
 7. O recomendador retorna somente IDs/reason codes aceitos pelo schema.
-8. Saída inválida, ID aposentado ou baixa confiança resulta em fallback ou silêncio.
+8. Saída inválida, ID aposentado ou baixa confiança resulta em silêncio.
 9. Preferências de horário, frequência, conteúdo e acessibilidade são respeitadas.
 10. Nenhuma mensagem ou dado é realmente enviado no protótipo.
 11. “Falar com alguém” nunca escolhe contato nem afirma que enviou mensagem.
@@ -675,7 +694,7 @@ Não otimizar clique, retenção, número de diários ou dependência da IA.
 ### Métricas técnicas
 
 - saída inválida do modelo;
-- taxa de fallback e silêncio;
+- taxa de abstenção, rejeição e silêncio;
 - catálogo/modelo/template responsável por cada sugestão;
 - tempo de revogação e eliminação dos sinais;
 - candidatos expirados ou duplicados bloqueados.
@@ -698,7 +717,7 @@ Não otimizar clique, retenção, número de diários ou dependência da IA.
 - tela detalhada, explicação, correção e feedback;
 - integração visual com exercícios.
 
-### Fase 2 — regras locais, sem IA generativa
+### Fase 2 — infraestrutura local, sem entrega conectada por regras
 
 - notificações locais de templates fixos, após permissão real;
 - sem texto livre do diário;
@@ -717,7 +736,7 @@ Não otimizar clique, retenção, número de diários ou dependência da IA.
 - consentimento específico e amostra adulta acompanhada;
 - catálogo reduzido, frequência conservadora e monitoramento humano;
 - começar por seleção de templates; testar formulação limitada separadamente;
-- kill switch e fallback por regras;
+- kill switch que interrompe a entrega sem criar sugestão alternativa;
 - avaliação independente de dano, utilidade e privacidade.
 
 ### Fase 5 — produção limitada

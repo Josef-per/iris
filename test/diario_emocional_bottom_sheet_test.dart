@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_entry.dart';
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
+import 'package:iris/features/emotional_diary/emotional_diary_support_topics.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
 
 void main() {
@@ -13,6 +14,7 @@ void main() {
   Future<Future<bool?>> openDiarySheet(
     WidgetTester tester, {
     required EmotionalDiaryDataSource dataSource,
+    EmotionalDiarySupportTopicDataSource? supportTopics,
     Size size = const Size(500, 1000),
   }) async {
     tester.view.physicalSize = size;
@@ -34,8 +36,10 @@ void main() {
                     isScrollControlled: true,
                     useSafeArea: true,
                     backgroundColor: Colors.transparent,
-                    builder: (_) =>
-                        DiarioEmocionalBottomSheet(repository: dataSource),
+                    builder: (_) => DiarioEmocionalBottomSheet(
+                      repository: dataSource,
+                      supportTopics: supportTopics,
+                    ),
                   );
                   completer.complete(result);
                 },
@@ -126,6 +130,88 @@ void main() {
     expect(find.text('Texto salvo.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('salva até dois tópicos escolhidos pelo paciente', (
+    tester,
+  ) async {
+    final dataSource = _EmotionalDataSource(
+      record: {
+        'id': 'daily-record-id',
+        'diario_emocional': 'Hoje foi um dia intenso.',
+      },
+    );
+    final topics = _SupportTopicDataSource(
+      initial: const <String>{EmotionalDiarySupportTopic.overload},
+    );
+    final resultFuture = await openDiarySheet(
+      tester,
+      dataSource: dataSource,
+      supportTopics: topics,
+    );
+
+    expect(find.text('O que mais marcou hoje? (opcional)'), findsOneWidget);
+    expect(
+      tester
+          .widget<ChoiceChip>(
+            find.byKey(const Key('emotional-diary-topic-overload')),
+          )
+          .selected,
+      isTrue,
+    );
+
+    await tester.tap(find.byKey(const Key('emotional-diary-topic-loneliness')));
+    await tester.pump();
+
+    final thirdChoice = tester.widget<ChoiceChip>(
+      find.byKey(const Key('emotional-diary-topic-self_kindness')),
+    );
+    expect(thirdChoice.onSelected, isNull);
+
+    await tester.tap(find.byKey(const Key('emotional-diary-topic-overload')));
+    await tester.pump();
+    await tester.tap(
+      find.byKey(const Key('emotional-diary-topic-self_kindness')),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('emotional-diary-submit')));
+    await tester.pumpAndSettle();
+
+    expect(dataSource.savedContent, 'Hoje foi um dia intenso.');
+    expect(topics.savedRecordId, 'daily-record-id');
+    expect(topics.savedCodes, <String>{
+      EmotionalDiarySupportTopic.loneliness,
+      EmotionalDiarySupportTopic.selfKindness,
+    });
+    expect(await resultFuture, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('não bloqueia o diário quando tópicos estão indisponíveis', (
+    tester,
+  ) async {
+    final dataSource = _EmotionalDataSource(
+      record: {
+        'id': 'daily-record-id',
+        'diario_emocional': 'Meu registro continua disponível.',
+      },
+    );
+    final topics = _SupportTopicDataSource(loadError: Exception('offline'));
+    final resultFuture = await openDiarySheet(
+      tester,
+      dataSource: dataSource,
+      supportTopics: topics,
+    );
+
+    expect(find.text('O que mais marcou hoje? (opcional)'), findsNothing);
+    expect(find.text('Meu registro continua disponível.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('emotional-diary-submit')));
+    await tester.pumpAndSettle();
+
+    expect(dataSource.savedContent, 'Meu registro continua disponível.');
+    expect(await resultFuture, isTrue);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 class _EmotionalDataSource implements EmotionalDiaryDataSource {
@@ -134,6 +220,7 @@ class _EmotionalDataSource implements EmotionalDiaryDataSource {
   final Map<String, dynamic>? record;
   final Object? clearError;
   int clearCalls = 0;
+  String? savedContent;
 
   @override
   Future<void> clearDiaryEntry() async {
@@ -153,11 +240,39 @@ class _EmotionalDataSource implements EmotionalDiaryDataSource {
   }) async {}
 
   @override
-  Future<void> createDiaryEntry({required String content}) async {}
+  Future<void> createDiaryEntry({required String content}) async {
+    savedContent = content;
+  }
 
   @override
   Future<Map<String, dynamic>?> getTodayRecord() async => record;
 
   @override
   Future<List<EmotionalDiaryEntry>> listCurrentUserEntries() async => [];
+}
+
+class _SupportTopicDataSource implements EmotionalDiarySupportTopicDataSource {
+  _SupportTopicDataSource({this.initial = const <String>{}, this.loadError});
+
+  final Set<String> initial;
+  final Object? loadError;
+  String? savedRecordId;
+  Set<String>? savedCodes;
+
+  @override
+  Future<Set<String>> listConfirmedSupportTopics({
+    required String emotionalRecordId,
+  }) async {
+    if (loadError != null) throw loadError!;
+    return initial;
+  }
+
+  @override
+  Future<void> replaceConfirmedSupportTopics({
+    required String emotionalRecordId,
+    required Set<String> topicCodes,
+  }) async {
+    savedRecordId = emotionalRecordId;
+    savedCodes = Set<String>.of(topicCodes);
+  }
 }

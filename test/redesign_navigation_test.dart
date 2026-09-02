@@ -135,6 +135,7 @@ void main() {
         '/patient/reminders': PatientDestination.reminders,
         '/patient/history': PatientDestination.history,
         '/patient/care-plan': PatientDestination.carePlan,
+        '/patient/support-suggestions': PatientDestination.supportSuggestions,
         '/patient/profile': PatientDestination.profile,
       };
 

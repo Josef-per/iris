@@ -1,0 +1,10 @@
+project_id = "iris"
+
+[functions.ai-support-recommend]
+# O preflight web precisa chegar ao handler. Todas as requisicoes POST ainda
+# exigem Bearer token, validado com auth.getUser antes do uso do client admin.
+verify_jwt = false
+
+[functions.ai-daily-companion]
+# A funcao valida o Bearer token antes de qualquer leitura com service role.
+verify_jwt = false

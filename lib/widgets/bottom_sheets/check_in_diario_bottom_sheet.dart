@@ -180,14 +180,6 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      if (_needsSupport(comoSentiu, avaliacaoAlimentacao)) {
-        await showDialog<void>(
-          context: context,
-          builder: (_) => const _SupportDialog(),
-        );
-        if (!mounted) return;
-      }
-
       navigator.pop(true);
       messenger.showSnackBar(
         const SnackBar(content: Text('Registro do dia salvo.')),
@@ -198,15 +190,6 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
-  }
-
-  bool _needsSupport(int comoSentiu, int avaliacaoAlimentacao) {
-    if (comoSentiu <= 2 || avaliacaoAlimentacao <= 2) {
-      return true;
-    }
-    const criticalCodes = {'vomito_autoinduzido', 'compulsao', 'desmaio'};
-    return mentalSymptoms.any(criticalCodes.contains) ||
-        physicalSymptoms.any(criticalCodes.contains);
   }
 
   int _selectorIndexToScore(int index) => 5 - index;
@@ -483,82 +466,6 @@ class _CheckInLoadError extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _SupportDialog extends StatelessWidget {
-  const _SupportDialog();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return AlertDialog(
-      key: const Key('check-in-support-dialog'),
-      icon: const Icon(Icons.favorite_rounded, color: AppColors.deepPurple),
-      title: const Text('Você não está sozinho(a)'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Seu registro do dia foi salvo e poderá ser visto pela sua '
-              'equipe de cuidado. Enquanto isso, tente:',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            const _SupportTip(
-              icon: Icons.air_rounded,
-              text: 'Respirar devagar: inspire contando até 4 e solte até 6.',
-            ),
-            const SizedBox(height: 10),
-            const _SupportTip(
-              icon: Icons.people_alt_outlined,
-              text: 'Acionar alguém da sua rede de apoio.',
-            ),
-            const SizedBox(height: 10),
-            const _SupportTip(
-              icon: Icons.support_agent_rounded,
-              text: 'Procurar sua equipe de cuidado se o mal-estar persistir.',
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Se houver risco imediato à sua segurança, ligue para o SAMU '
-              '(192) ou para o CVV (188).',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        FilledButton(
-          key: const Key('check-in-support-close'),
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Entendi'),
-        ),
-      ],
-    );
-  }
-}
-
-class _SupportTip extends StatelessWidget {
-  const _SupportTip({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 20, color: AppColors.deepPurple),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text)),
-      ],
     );
   }
 }

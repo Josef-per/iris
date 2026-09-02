@@ -25,6 +25,8 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 
 - autenticação e cadastro;
 - diário emocional e registros alimentares;
+- sugestões de apoio opcionais a partir de check-ins, temas confirmados e
+  feedback anterior, com notificações locais discretas no celular;
 - leitura ou digitação de convite QR;
 - confirmação e vínculo com o profissional.
 
@@ -42,6 +44,8 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 - Flutter e Dart;
 - Supabase Auth;
 - PostgreSQL, Row Level Security e RPCs do Supabase;
+- Supabase Edge Functions e OpenAI Responses API sob rollout controlado;
+- notificações locais para Android e iOS;
 - `qr_flutter` e `mobile_scanner`.
 
 ## Configuração do Supabase
@@ -52,7 +56,10 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 2. `0005_patient_professional_link_rls.sql`;
 3. `0006_professional_backend.sql`;
 4. `0007_professional_invite_legacy_text_compat.sql`;
-5. `0008_clinical_data_integrity.sql`.
+5. `0008_clinical_data_integrity.sql`;
+6. `0009_patient_journal_improvements.sql`;
+7. `0010_ai_support_backend.sql`;
+8. `0011_ai_support_gpt5_mini_only.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -66,6 +73,34 @@ pelo aplicativo. A `0007` corrige a compatibilidade das RPCs de QR em bancos
 legados cujos campos de perfil ainda usam `varchar`. A `0008` cria o upsert
 emocional diário atômico, migra sintomas para códigos estáveis e aplica os
 contratos de escalas e agenda no banco.
+
+### Sugestões de apoio e OpenAI
+
+A experiência conectada usa somente sinais estruturados: check-in de humor,
+temas que o próprio paciente marcou, avaliação de práticas e interações com
+notificações. Texto livre do diário, alimentação e sintomas não entram no
+contrato do recomendador.
+
+A chave `OPENAI_API_KEY` nunca é lida pelo Flutter. Ela pode permanecer no
+`.env` da raiz como fonte local, mas deve ser copiada para o secret da Edge
+Function ou para `supabase/functions/.env`; não passe o `.env` inteiro ao
+Flutter. Para configurar o backend:
+
+1. aplique as migrations `0010_ai_support_backend.sql` e
+   `0011_ai_support_gpt5_mini_only.sql`;
+2. configure `OPENAI_API_KEY` como secret da Edge Function; o modelo aceito é
+   exclusivamente `gpt-5-mini`;
+3. implante `ai-support-recommend` conforme
+   `supabase/functions/ai-support-recommend/README.md`.
+
+No modo conectado não existe recomendação por regras nem fallback local: uma
+sugestão somente aparece quando o GPT-5 mini devolve uma seleção válida.
+Desenvolvimento nasce com entrega do modelo em 100%; staging e produção ficam
+com o modelo desligado e kill switch ativo até ativação explícita.
+
+A `0009` melhora a persistência do registro diário. A `0010` cria preferências,
+tópicos confirmados, eventos, sugestões, RLS, rollout e os RPCs do apoio
+personalizado. A `0011` torna o GPT-5 mini a única fonte de seleção conectada.
 
 Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
 de validar especialidade e registro, um administrador pode aprovar pelo SQL
@@ -150,15 +185,19 @@ No PowerShell, os mesmos argumentos podem ser informados após o nome do script:
 .\scripts\flutter_run.ps1 -d chrome
 ```
 
+Sem `-d`, o inicializador abre o Chrome e fixa a porta web em `8080`. Ao usar
+explicitamente `chrome`, `edge` ou `web-server`, a porta também permanece em
+`8080`; o script rejeita `--web-port` para evitar que a origem mude entre
+execuções. Para desenvolvimento web, use o inicializador em vez de executar
+`flutter run -d chrome` diretamente. Para callbacks de confirmação de e-mail
+ou recuperação de senha, cadastre também `http://localhost:8080` em
+**Authentication > URL Configuration** do projeto Supabase.
+
 Em ambientes sem interface gráfica, como GitHub Codespaces, o inicializador
 seleciona automaticamente o dispositivo `web-server`, publica em `0.0.0.0` e
 usa a porta `8080`. Nesse caso, o modo `release` é usado por padrão para evitar
 o carregamento lento dos centenas de módulos separados do modo debug pelo
-proxy. Abra essa porta pelo encaminhamento do ambiente. Para usar outra porta:
-
-```bash
-IRIS_WEB_PORT=3000 ./scripts/flutter_run.sh
-```
+proxy. Abra a porta `8080` pelo encaminhamento do ambiente.
 
 Uma escolha explícita de dispositivo continua sendo respeitada com `-d`.
 Para diagnosticar especificamente a versão web, ainda é possível solicitar

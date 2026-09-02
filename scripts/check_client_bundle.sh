@@ -14,7 +14,7 @@ if find "$bundle_dir" -type f -name '.env' -print -quit | grep -q .; then
 fi
 
 if grep -RIlE \
-  'SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|sb_secret_' \
+  'SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY|SERVICE_ROLE_KEY|sb_secret_|OPENAI_API_KEY|OPENAI_ORG_ID|sk-proj-' \
   "$bundle_dir" >/dev/null; then
   echo "Falha: marcador de segredo encontrado no bundle." >&2
   exit 1

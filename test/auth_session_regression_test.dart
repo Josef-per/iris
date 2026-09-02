@@ -299,6 +299,30 @@ void main() {
     expect(auth.signOutCalls, 1);
   });
 
+  testWidgets('verificacao de vinculo nao estoura em uma area minima', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1, 1);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final auth = _FakeAuthService();
+    final linkCheck = Completer<bool>();
+    addTearDown(auth.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PatientSessionGate(
+          authService: auth,
+          linkChecker: () => linkCheck.future,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('perfil invalido encerra automaticamente a sessao', (
     tester,
   ) async {

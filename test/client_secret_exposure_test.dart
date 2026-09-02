@@ -27,6 +27,9 @@ void main() {
       'SERVICE_ROLE_KEY',
       'sb_secret_',
       'service_role',
+      'OPENAI_API_KEY',
+      'OPENAI_ORG_ID',
+      'sk-proj-',
     ];
     final violations = <String>[];
 
@@ -84,6 +87,9 @@ void main() {
       'SUPABASE_SERVICE_ROLE_KEY',
       'SERVICE_ROLE_KEY',
       'sb_secret_',
+      'OPENAI_API_KEY',
+      'OPENAI_ORG_ID',
+      'sk-proj-',
     ];
     final exposedFiles = <String>[];
     final exposedMarkers = <String>[];
