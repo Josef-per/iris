@@ -4,7 +4,7 @@ import { corsHeadersFor } from "../_shared/cors.ts";
 
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
-const promptVersion = "daily-companion-v3";
+const promptVersion = "daily-companion-v4";
 const maxDiaryCharacters = 1800;
 const visibleRolloutModes = new Set(["pilot", "limited"]);
 
@@ -64,6 +64,11 @@ type CompanionMessage = {
   reflectionQuestion: string | null;
 };
 
+type CompanionPoint = {
+  label: string;
+  text: string;
+};
+
 type Context = {
   sources: string[];
   record: TodayRecord | null;
@@ -101,15 +106,15 @@ medicacao, tratamento ou mudancas alimentares. Nao use urgencia, culpa, promessa
 imperativo ou frases como "faca", "tente", "reserve um minuto" e "permita-se".
 Nao mencione IA, fontes, analise, prontuario ou ausencia de risco.
 
-Crie um titulo especifico ao tema, sem repetir "Uma reflexao para voce". A
-mensagem deve trazer uma unica orientacao, poder ser ignorada sem culpa e usar
-este Markdown restrito: um paragrafo curto seguido de uma linha em branco e um
-ou dois itens no formato "- **Rotulo curto:** texto". Use os itens para separar,
-por exemplo, o que merece atencao agora do que pode esperar. Nao use cabecalhos,
-links, imagens, citacoes, codigo, HTML ou listas numeradas. Retorne
-reflectionQuestion como null: a orientacao deve ser completa por si mesma. Se o
-contexto nao sustentar personalizacao concreta, nao invente detalhes; use apenas
-o humor ou topico efetivamente fornecido.
+Crie um titulo especifico ao tema, sem repetir "Uma reflexao para voce". Preencha
+introduction com um unico paragrafo de 20 a 180 caracteres. Preencha points com
+um ou dois itens; cada item deve ter label, com 2 a 28 caracteres e sem dois
+pontos no final, e text, com 12 a 110 caracteres. Use os itens para separar, por
+exemplo, o que merece atencao agora do que pode esperar. Os campos devem conter
+somente texto simples: nao escreva Markdown, cabecalhos, links, imagens, citacoes,
+codigo, HTML ou listas. Nao gere pergunta final: a orientacao deve ser completa
+por si mesma. Se o contexto nao sustentar personalizacao concreta, nao invente
+detalhes; use apenas o humor ou topico efetivamente fornecido.
 `.trim();
 
 Deno.serve(async (request) => {
@@ -498,20 +503,42 @@ async function requestMessage(input: {
               additionalProperties: false,
               properties: {
                 title: { type: "string" },
-                message: { type: "string" },
-                reflectionQuestion: { type: "null" },
+                introduction: { type: "string" },
+                points: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    additionalProperties: false,
+                    properties: {
+                      label: { type: "string" },
+                      text: { type: "string" },
+                    },
+                    required: ["label", "text"],
+                  },
+                },
               },
-              required: ["title", "message", "reflectionQuestion"],
+              required: ["title", "introduction", "points"],
             },
           },
         },
         metadata: { feature: "iris_daily_companion", prompt_version: promptVersion },
       }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(JSON.stringify({
+        code: "daily_companion_model_http_error",
+        status: response.status,
+      }));
+      return null;
+    }
     const payload: unknown = await response.json();
-    return validateMessage(extractOutput(payload));
+    const message = validateMessage(extractOutput(payload));
+    if (message === null) {
+      console.error(JSON.stringify({ code: "daily_companion_model_output_invalid" }));
+    }
+    return message;
   } catch {
+    console.error(JSON.stringify({ code: "daily_companion_model_request_failed" }));
     return null;
   } finally {
     clearTimeout(timeout);
@@ -537,11 +564,36 @@ function extractOutput(value: unknown): unknown {
 
 function validateMessage(value: unknown): CompanionMessage | null {
   if (!isRecord(value) || Object.keys(value).length !== 3) return null;
-  const title = cleanText(value.title, 3, 80);
-  const message = cleanMarkdownMessage(value.message, 20, 480);
-  if (title === null || message === null || value.reflectionQuestion !== null) {
+  const title = cleanPlainField(value.title, 3, 80);
+  const introduction = cleanPlainField(value.introduction, 20, 180);
+  if (title === null || introduction === null || !Array.isArray(value.points)) {
     return null;
   }
+  if (value.points.length < 1 || value.points.length > 2) return null;
+
+  const points: CompanionPoint[] = [];
+  for (const valuePoint of value.points) {
+    if (!isRecord(valuePoint) || Object.keys(valuePoint).length !== 2) {
+      return null;
+    }
+    const rawLabel = cleanPlainField(valuePoint.label, 2, 29);
+    const text = cleanPlainField(valuePoint.text, 12, 110);
+    const label = rawLabel?.replace(/:+$/, "").trim() ?? null;
+    if (
+      label === null ||
+      label.length < 2 ||
+      label.length > 28 ||
+      text === null
+    ) return null;
+    points.push({ label, text });
+  }
+
+  const message = cleanMarkdownMessage(
+    `${introduction}\n\n${points.map((point) => `- **${point.label}:** ${point.text}`).join("\n")}`,
+    20,
+    480,
+  );
+  if (message === null) return null;
   if (containsProhibitedDailyCompanionContent(`${title} ${message}`)) {
     return null;
   }
@@ -594,6 +646,16 @@ function cleanText(value: unknown, minimum: number, maximum: number): string | n
   if (typeof value !== "string") return null;
   const text = value.replace(/\s+/g, " ").trim();
   return text.length >= minimum && text.length <= maximum ? text : null;
+}
+
+function cleanPlainField(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): string | null {
+  const text = cleanText(value, minimum, maximum);
+  if (text === null || /[*_`\[\]<>]/.test(text)) return null;
+  return text;
 }
 
 function cleanMarkdownMessage(

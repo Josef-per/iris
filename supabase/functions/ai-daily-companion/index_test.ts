@@ -18,13 +18,22 @@ function relationshipDirective(): RegExp {
 test("reflexao diaria pede orientacao concreta sem exercicios", () => {
   assert.match(source, /orientacao-reflexao personalizada/);
   assert.match(source, /A reflexao nao e um exercicio/);
-  assert.match(source, /Markdown restrito/);
+  assert.match(source, /Os campos devem conter\s+somente texto simples/);
   assert.match(source, /cleanMarkdownMessage/);
-  assert.match(source, /Retorne\s+reflectionQuestion como null/);
-  assert.match(source, /promptVersion = "daily-companion-v3"/);
-  assert.match(source, /reflectionQuestion: \{ type: "null" \}/);
-  assert.match(source, /value\.reflectionQuestion !== null/);
+  assert.match(source, /promptVersion = "daily-companion-v4"/);
+  assert.match(source, /introduction: \{ type: "string" \}/);
+  assert.match(source, /required: \["title", "introduction", "points"\]/);
+  assert.match(source, /`- \*\*\$\{point\.label\}:\*\* \$\{point\.text\}`/);
+  assert.match(source, /reflectionQuestion: null/);
   assert.match(source, /containsProhibitedDailyCompanionContent/);
+});
+
+test("servidor monta markdown a partir de campos simples", () => {
+  assert.match(source, /cleanPlainField\(value\.introduction, 20, 180\)/);
+  assert.match(source, /cleanPlainField\(valuePoint\.label, 2, 29\)/);
+  assert.match(source, /cleanPlainField\(valuePoint\.text, 12, 110\)/);
+  assert.match(source, /\/\[\*_`\\\[\\\]<>\]\//);
+  assert.match(source, /daily_companion_model_output_invalid/);
 });
 
 test("bloqueia prescricao de afastamento da familia", () => {

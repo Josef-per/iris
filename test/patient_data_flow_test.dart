@@ -235,6 +235,37 @@ void main() {
     expect(find.byKey(const Key('home-daily-companion-dialog')), findsNothing);
   });
 
+  testWidgets('Home não apresenta fallback genérico como reflexão', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 1,
+            moodScore: 4,
+            hasCheckIn: true,
+            hasDiaryEntry: true,
+          ),
+        ),
+        dailyCompanionDataSource: const _DailyCompanionSource(
+          DailyCompanionMessage(status: DailyCompanionStatus.notAvailable),
+        ),
+      ),
+      size: const Size(500, 1000),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reflexão indisponível no momento'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsOneWidget);
+    expect(find.byKey(const Key('home-daily-companion-open')), findsNothing);
+    expect(
+      find.textContaining('Você não precisa resolver o dia inteiro'),
+      findsNothing,
+    );
+  });
+
   testWidgets('check-in nao salva respostas neutras implicitas', (
     tester,
   ) async {

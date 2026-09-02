@@ -275,6 +275,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           isLoading:
                               snapshot.connectionState ==
                               ConnectionState.waiting,
+                          hasError: snapshot.hasError,
+                          onRetry: _refreshDailyCompanion,
                           onManagePersonalization: _openSupportSuggestions,
                           onNeedSupport: _openImmediateSupport,
                         ),
@@ -432,12 +434,16 @@ class _DailyCompanionCard extends StatelessWidget {
   const _DailyCompanionCard({
     required this.companion,
     required this.isLoading,
+    required this.hasError,
+    required this.onRetry,
     required this.onManagePersonalization,
     required this.onNeedSupport,
   });
 
   final DailyCompanionMessage? companion;
   final bool isLoading;
+  final bool hasError;
+  final VoidCallback onRetry;
   final VoidCallback onManagePersonalization;
   final VoidCallback onNeedSupport;
 
@@ -538,16 +544,27 @@ class _DailyCompanionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final status = companion?.status;
     final needsSupport = companion?.needsHumanSupport == true;
     final personalized = companion?.isPersonalized == true;
-    final title = needsSupport
+    final waiting = status == DailyCompanionStatus.waitingForContext;
+    final notEnabled = status == DailyCompanionStatus.notEnabled;
+    final unavailable =
+        hasError ||
+        (!isLoading &&
+            (companion == null || status == DailyCompanionStatus.notAvailable));
+    final title = isLoading
+        ? 'Preparando sua reflexão'
+        : needsSupport
         ? 'Um cuidado importante agora'
-        : companion?.title ?? 'Uma reflexão para você';
-    final message =
-        companion?.message ??
-        (isLoading
-            ? 'Preparando um espaço breve para você...'
-            : 'Você não precisa resolver o dia inteiro agora. Qual seria um gesto pequeno de cuidado possível neste momento?');
+        : personalized
+        ? companion!.title!
+        : waiting
+        ? 'Reflexão aguardando seu registro'
+        : notEnabled
+        ? 'Personalização desativada'
+        : 'Reflexão indisponível no momento';
+    final message = companion?.message ?? '';
     final question = companion?.reflectionQuestion;
     final background = needsSupport
         ? theme.colorScheme.errorContainer
@@ -559,7 +576,13 @@ class _DailyCompanionCard extends StatelessWidget {
         ? 'Preparando uma reflexão breve...'
         : needsSupport
         ? 'Há opções de apoio disponíveis para este momento.'
-        : 'Um convite breve para observar seu momento, no seu ritmo.';
+        : personalized
+        ? 'Uma reflexão feita a partir dos dados que você permitiu.'
+        : waiting
+        ? 'Salve seu check-in ou diário e ela aparecerá aqui.'
+        : notEnabled
+        ? 'Ative a personalização e escolha quais dados podem ser usados.'
+        : 'Não foi possível preparar sua reflexão agora.';
 
     return Semantics(
       container: true,
@@ -613,22 +636,50 @@ class _DailyCompanionCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        TextButton.icon(
-                          key: const Key('home-daily-companion-open'),
-                          onPressed: () => _openReflectionDialog(
-                            context,
-                            title: title,
-                            message: message,
-                            question: question,
-                            personalized: personalized,
-                            needsSupport: needsSupport,
+                        if (personalized || needsSupport)
+                          TextButton.icon(
+                            key: const Key('home-daily-companion-open'),
+                            onPressed: () => _openReflectionDialog(
+                              context,
+                              title: title,
+                              message: message,
+                              question: question,
+                              personalized: personalized,
+                              needsSupport: needsSupport,
+                            ),
+                            icon: const Icon(
+                              Icons.open_in_new_rounded,
+                              size: 18,
+                            ),
+                            label: const Text('Ler reflexão'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: foreground,
+                            ),
                           ),
-                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                          label: const Text('Ler reflexão'),
-                          style: TextButton.styleFrom(
-                            foregroundColor: foreground,
+                        if (waiting || unavailable)
+                          TextButton.icon(
+                            key: const Key('home-daily-companion-retry'),
+                            onPressed: onRetry,
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: Text(
+                              unavailable ? 'Tentar novamente' : 'Atualizar',
+                            ),
+                            style: TextButton.styleFrom(
+                              foregroundColor: foreground,
+                            ),
                           ),
-                        ),
+                        if (notEnabled)
+                          TextButton.icon(
+                            key: const Key(
+                              'home-daily-companion-manage-personalization',
+                            ),
+                            onPressed: onManagePersonalization,
+                            icon: const Icon(Icons.tune_rounded, size: 18),
+                            label: const Text('Gerenciar personalização'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: foreground,
+                            ),
+                          ),
                         if (needsSupport)
                           FilledButton.icon(
                             key: const Key('home-daily-companion-help'),
