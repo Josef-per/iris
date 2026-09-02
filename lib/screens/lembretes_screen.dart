@@ -214,7 +214,7 @@ class _LembretesScreenState extends State<LembretesScreen> {
         ),
         SliverToBoxAdapter(
           child: AppResponsive(
-            maxWidth: 860,
+            maxWidth: 680,
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
             child: FutureBuilder<List<PatientReminder>>(
               future: _remindersFuture,
@@ -293,19 +293,27 @@ class _LembretesScreenState extends State<LembretesScreen> {
                           : Padding(
                               key: ValueKey(_editingId ?? 'new-reminder'),
                               padding: const EdgeInsets.only(bottom: 28),
-                              child: AppReminderForm(
-                                initialType: _toAppType(_newReminderType),
-                                initialValue: _editingReminder == null
-                                    ? null
-                                    : AppReminderDraft(
-                                        type: _toAppType(
-                                          _editingReminder!.type,
-                                        ),
-                                        title: _editingReminder!.title,
-                                        time: _editingReminder!.time,
-                                      ),
-                                onCancel: _closeForm,
-                                onSubmit: _saveReminder,
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 560,
+                                  ),
+                                  child: AppReminderForm(
+                                    initialType: _toAppType(_newReminderType),
+                                    initialValue: _editingReminder == null
+                                        ? null
+                                        : AppReminderDraft(
+                                            type: _toAppType(
+                                              _editingReminder!.type,
+                                            ),
+                                            title: _editingReminder!.title,
+                                            time: _editingReminder!.time,
+                                          ),
+                                    onCancel: _closeForm,
+                                    onSubmit: _saveReminder,
+                                  ),
+                                ),
                               ),
                             ),
                     ),
@@ -313,7 +321,6 @@ class _LembretesScreenState extends State<LembretesScreen> {
                       title: 'Refeições',
                       icon: Icons.restaurant_rounded,
                       reminders: meals,
-                      onAdd: () => _openCreate(PatientReminderType.refeicao),
                       onToggle: _toggleReminder,
                       onEdit: _openEdit,
                       onDelete: _confirmDelete,
@@ -323,7 +330,6 @@ class _LembretesScreenState extends State<LembretesScreen> {
                       title: 'Medicamentos',
                       icon: Icons.medication_rounded,
                       reminders: medications,
-                      onAdd: () => _openCreate(PatientReminderType.medicamento),
                       onToggle: _toggleReminder,
                       onEdit: _openEdit,
                       onDelete: _confirmDelete,
@@ -347,7 +353,6 @@ class _ReminderSection extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.reminders,
-    required this.onAdd,
     required this.onToggle,
     required this.onEdit,
     required this.onDelete,
@@ -356,7 +361,6 @@ class _ReminderSection extends StatelessWidget {
   final String title;
   final IconData icon;
   final List<PatientReminder> reminders;
-  final VoidCallback onAdd;
   final void Function(PatientReminder, bool) onToggle;
   final ValueChanged<PatientReminder> onEdit;
   final ValueChanged<PatientReminder> onDelete;
@@ -393,12 +397,6 @@ class _ReminderSection extends StatelessWidget {
                   'Nenhum lembrete de ${title.toLowerCase()}.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                TextButton.icon(
-                  onPressed: onAdd,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Adicionar'),
                 ),
               ],
             ),

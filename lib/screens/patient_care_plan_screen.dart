@@ -52,7 +52,7 @@ class _PatientCarePlanScreenState extends State<PatientCarePlanScreen> {
         ),
         SliverToBoxAdapter(
           child: AppResponsive(
-            maxWidth: 860,
+            maxWidth: 760,
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
             child: FutureBuilder<List<PatientCarePlan>>(
               future: _plansFuture,
@@ -124,91 +124,153 @@ class _CarePlanCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final semanticColors = AppSemanticColors.of(context);
+    final hasContent =
+        plan.guidance != null ||
+        plan.goals.isNotEmpty ||
+        plan.medications.isNotEmpty ||
+        plan.crisisSteps.isNotEmpty;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.verified_outlined, color: colors.primary, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Compartilhado pela sua equipe · Atualizado em ${_formatDate(plan.updatedAt)}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        if (plan.crisisSteps.isNotEmpty) ...[
+          const SizedBox(height: 18),
+          _PlanSectionCard(
+            icon: Icons.health_and_safety_outlined,
+            title: 'Passos em momento de crise',
+            color: colors.primaryContainer.withValues(alpha: .55),
+            child: Column(
+              children: [
+                for (var index = 0; index < plan.crisisSteps.length; index++)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      radius: 13,
+                      backgroundColor: colors.primary,
+                      foregroundColor: colors.onPrimary,
+                      child: Text('${index + 1}'),
+                    ),
+                    title: Text(plan.crisisSteps[index]),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (plan.guidance != null) ...[
+          const SizedBox(height: 14),
+          _PlanSectionCard(
+            icon: Icons.favorite_outline_rounded,
+            title: 'Orientações',
+            child: Text(plan.guidance!, style: const TextStyle(height: 1.5)),
+          ),
+        ],
+        if (plan.goals.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _PlanSectionCard(
+            icon: Icons.flag_outlined,
+            title: 'Metas',
+            child: Column(
+              children: [
+                for (final goal in plan.goals)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      goal.isCompleted
+                          ? Icons.check_circle_rounded
+                          : Icons.radio_button_unchecked_rounded,
+                      color: goal.isCompleted
+                          ? semanticColors.success
+                          : colors.primary,
+                    ),
+                    title: Text(goal.description),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (plan.medications.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _PlanSectionCard(
+            icon: Icons.medication_outlined,
+            title: 'Medicações',
+            child: Column(
+              children: [
+                for (final medication in plan.medications)
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Icons.medication_liquid_outlined,
+                      color: colors.primary,
+                    ),
+                    title: Text(medication.name),
+                    subtitle: Text(_medicationDetails(medication)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+        if (!hasContent) ...[
+          const SizedBox(height: 18),
+          AppSurface(
+            child: Text(
+              'Este plano ainda não possui orientações cadastradas.',
+              style: TextStyle(color: colors.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _PlanSectionCard extends StatelessWidget {
+  const _PlanSectionCard({
+    required this.icon,
+    required this.title,
+    required this.child,
+    this.color,
+  });
+
+  final IconData icon;
+  final String title;
+  final Widget child;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return AppSurface(
+      padding: const EdgeInsets.all(20),
+      color: color,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.favorite_rounded, color: colors.primary),
+              Icon(icon, color: colors.primary, size: 22),
               const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Atualizado em ${_formatDate(plan.updatedAt)}',
-                  style: TextStyle(
-                    color: colors.onSurfaceVariant,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+              Expanded(child: _SectionTitle(title)),
             ],
           ),
-          if (plan.guidance != null) ...[
-            const SizedBox(height: 22),
-            const _SectionTitle('Orientações'),
-            const SizedBox(height: 8),
-            Text(plan.guidance!, style: const TextStyle(height: 1.45)),
-          ],
-          if (plan.goals.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            const _SectionTitle('Metas'),
-            const SizedBox(height: 8),
-            for (final goal in plan.goals)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  goal.isCompleted
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  color: goal.isCompleted
-                      ? semanticColors.success
-                      : colors.primary,
-                ),
-                title: Text(goal.description),
-              ),
-          ],
-          if (plan.medications.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            const _SectionTitle('Medicações'),
-            const SizedBox(height: 8),
-            for (final medication in plan.medications)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.medication_outlined, color: colors.primary),
-                title: Text(medication.name),
-                subtitle: Text(_medicationDetails(medication)),
-              ),
-          ],
-          if (plan.crisisSteps.isNotEmpty) ...[
-            const SizedBox(height: 22),
-            const _SectionTitle('Passos em momento de crise'),
-            const SizedBox(height: 8),
-            for (var index = 0; index < plan.crisisSteps.length; index++)
-              ListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                leading: CircleAvatar(
-                  radius: 13,
-                  backgroundColor: colors.primaryContainer,
-                  foregroundColor: colors.onPrimaryContainer,
-                  child: Text('${index + 1}'),
-                ),
-                title: Text(plan.crisisSteps[index]),
-              ),
-          ],
-          if (plan.guidance == null &&
-              plan.goals.isEmpty &&
-              plan.medications.isEmpty &&
-              plan.crisisSteps.isEmpty)
-            Padding(
-              padding: EdgeInsets.only(top: 18),
-              child: Text(
-                'Este plano ainda não possui orientações cadastradas.',
-                style: TextStyle(color: colors.onSurfaceVariant),
-              ),
-            ),
+          const SizedBox(height: 10),
+          child,
         ],
       ),
     );

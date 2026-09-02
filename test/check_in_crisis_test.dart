@@ -71,20 +71,23 @@ void main() {
   testWidgets(
     'humor difícil não infere apoio ou abre checagem automaticamente',
     (tester) async {
-    final dataSource = _EmotionalDataSource(record: null);
-    final resultFuture = await openCheckInSheet(tester, dataSource: dataSource);
+      final dataSource = _EmotionalDataSource(record: null);
+      final resultFuture = await openCheckInSheet(
+        tester,
+        dataSource: dataSource,
+      );
 
-    await tester.tap(inMoodGrid('Muito\ndifícil'));
-    await tester.pumpAndSettle();
-    await tester.tap(inFoodGrid('Muito\ndifícil'));
-    await tester.pumpAndSettle();
-    await submitCheckIn(tester);
+      await tester.tap(inMoodGrid('Muito\ndifícil'));
+      await tester.pumpAndSettle();
+      await tester.tap(inFoodGrid('Muito\ndifícil'));
+      await tester.pumpAndSettle();
+      await submitCheckIn(tester);
 
-    expect(dataSource.createCheckInCalls, 1);
-    expect(find.byKey(const Key('check-in-support-dialog')), findsNothing);
-    expect(find.text('Registro do dia salvo.'), findsOneWidget);
-    expect(await resultFuture, isTrue);
-    expect(tester.takeException(), isNull);
+      expect(dataSource.createCheckInCalls, 1);
+      expect(find.byKey(const Key('check-in-support-dialog')), findsNothing);
+      expect(find.text('Registro do dia salvo.'), findsOneWidget);
+      expect(await resultFuture, isTrue);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -99,6 +102,8 @@ void main() {
     await tester.tap(inFoodGrid('Tranquila'));
     await tester.pumpAndSettle();
 
+    await tester.tap(find.byKey(const Key('check-in-optional-details')));
+    await tester.pumpAndSettle();
     final desmaio = find.text('Desmaio');
     await tester.ensureVisible(desmaio);
     await tester.tap(desmaio);

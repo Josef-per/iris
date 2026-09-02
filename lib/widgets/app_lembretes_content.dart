@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:iris/core/theme/app_theme.dart';
 
 enum AppReminderMenuAction { edit, delete }
 
@@ -47,7 +46,7 @@ class AppLembretesContent extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: AppColors.lavender.withValues(alpha: .55),
+                color: theme.colorScheme.primaryContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: theme.colorScheme.primary, size: 24),

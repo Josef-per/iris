@@ -14,19 +14,13 @@ class PatientBottomNavigationBar extends StatelessWidget {
   static const _items = <_PatientNavigationItem>[
     _PatientNavigationItem(
       destination: PatientDestination.home,
-      label: 'Home',
+      label: 'Hoje',
       icon: Icons.home_outlined,
       selectedIcon: Icons.home_rounded,
     ),
     _PatientNavigationItem(
-      destination: PatientDestination.reminders,
-      label: 'Lembretes',
-      icon: Icons.notifications_none_rounded,
-      selectedIcon: Icons.notifications_rounded,
-    ),
-    _PatientNavigationItem(
       destination: PatientDestination.history,
-      label: 'Histórico',
+      label: 'Registros',
       icon: Icons.history_rounded,
       selectedIcon: Icons.history_rounded,
     ),
@@ -48,6 +42,11 @@ class PatientBottomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final effectiveDestination = switch (selectedDestination) {
+      PatientDestination.reminders ||
+      PatientDestination.supportSuggestions => PatientDestination.home,
+      _ => selectedDestination,
+    };
     return Material(
       color: colors.surface,
       elevation: 8,
@@ -62,13 +61,67 @@ class PatientBottomNavigationBar extends StatelessWidget {
               Expanded(
                 child: _PatientNavigationButton(
                   item: item,
-                  selected: selectedDestination == item.destination,
+                  selected: effectiveDestination == item.destination,
                   onPressed: () => onDestinationSelected(item.destination),
                 ),
               ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class PatientNavigationRail extends StatelessWidget {
+  const PatientNavigationRail({
+    super.key,
+    required this.selectedDestination,
+    required this.onDestinationSelected,
+  });
+
+  final PatientDestination selectedDestination;
+  final ValueChanged<PatientDestination> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveDestination = switch (selectedDestination) {
+      PatientDestination.reminders ||
+      PatientDestination.supportSuggestions => PatientDestination.home,
+      _ => selectedDestination,
+    };
+    final selectedIndex = PatientBottomNavigationBar._items.indexWhere(
+      (item) => item.destination == effectiveDestination,
+    );
+
+    return NavigationRail(
+      extended: true,
+      minExtendedWidth: 224,
+      groupAlignment: -.72,
+      selectedIndex: selectedIndex < 0 ? 0 : selectedIndex,
+      onDestinationSelected: (index) => onDestinationSelected(
+        PatientBottomNavigationBar._items[index].destination,
+      ),
+      leading: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+        child: Row(
+          children: [
+            Icon(
+              Icons.favorite_rounded,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 10),
+            Text('Íris', style: Theme.of(context).textTheme.titleLarge),
+          ],
+        ),
+      ),
+      destinations: [
+        for (final item in PatientBottomNavigationBar._items)
+          NavigationRailDestination(
+            icon: Icon(item.icon),
+            selectedIcon: Icon(item.selectedIcon),
+            label: Text(item.label),
+          ),
+      ],
     );
   }
 }

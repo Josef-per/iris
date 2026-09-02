@@ -215,11 +215,15 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
                         icon: _isSigningOut
                             ? const SizedBox.square(
                                 dimension: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.logout_rounded),
                         label: Text(
-                          _isSigningOut ? 'Saindo...' : 'Sair e trocar de conta',
+                          _isSigningOut
+                              ? 'Saindo...'
+                              : 'Sair e trocar de conta',
                         ),
                       ),
                     ],
@@ -258,29 +262,48 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
               aiSupportStore: _aiSupportStore,
               onOpenReminders: () =>
                   _openDestination(PatientDestination.reminders),
-              onOpenCarePlan: () =>
-                  _openDestination(PatientDestination.carePlan),
-              onOpenHistory: () => _openDestination(PatientDestination.history),
               onOpenSupportSuggestions: () =>
                   _openDestination(PatientDestination.supportSuggestions),
             ),
           };
-          return Scaffold(
-            body: content,
-            bottomNavigationBar: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.fromLTRB(12, 6, 12, 10),
-              child: Center(
-                heightFactor: 1,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: PatientBottomNavigationBar(
-                    selectedDestination: route.destination,
-                    onDestinationSelected: _openDestination,
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth >= 1000) {
+                return Scaffold(
+                  body: Row(
+                    children: [
+                      PatientNavigationRail(
+                        selectedDestination: route.destination,
+                        onDestinationSelected: _openDestination,
+                      ),
+                      VerticalDivider(
+                        width: 1,
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      Expanded(child: content),
+                    ],
+                  ),
+                );
+              }
+
+              return Scaffold(
+                body: content,
+                bottomNavigationBar: SafeArea(
+                  top: false,
+                  minimum: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                  child: Center(
+                    heightFactor: 1,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 480),
+                      child: PatientBottomNavigationBar(
+                        selectedDestination: route.destination,
+                        onDestinationSelected: _openDestination,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         }
 

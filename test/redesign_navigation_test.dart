@@ -176,48 +176,67 @@ void main() {
   });
 
   group('PatientBottomNavigationBar', () {
-    testWidgets('exibe os cinco destinos com áreas de toque adequadas', (
+    testWidgets(
+      'exibe quatro destinos principais com áreas de toque adequadas',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 160);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        PatientDestination? selected;
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              bottomNavigationBar: PatientBottomNavigationBar(
+                selectedDestination: PatientDestination.carePlan,
+                onDestinationSelected: (destination) {
+                  selected = destination;
+                },
+              ),
+            ),
+          ),
+        );
+
+        for (final destination in const [
+          PatientDestination.home,
+          PatientDestination.history,
+          PatientDestination.carePlan,
+          PatientDestination.profile,
+        ]) {
+          final button = find.byKey(Key('patient-nav-${destination.name}'));
+          expect(button, findsOneWidget);
+          expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
+        }
+        expect(find.byIcon(Icons.assignment_rounded), findsOneWidget);
+
+        await tester.tap(find.byKey(const Key('patient-nav-profile')));
+        expect(selected, PatientDestination.profile);
+
+        await tester.tap(find.byKey(const Key('patient-nav-home')));
+        expect(selected, PatientDestination.home);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('rotas de apoio e lembretes mantêm Hoje selecionado', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(320, 160);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      PatientDestination? selected;
-
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.light,
           home: Scaffold(
             bottomNavigationBar: PatientBottomNavigationBar(
-              selectedDestination: PatientDestination.carePlan,
-              onDestinationSelected: (destination) {
-                selected = destination;
-              },
+              selectedDestination: PatientDestination.supportSuggestions,
+              onDestinationSelected: (_) {},
             ),
           ),
         ),
       );
 
-      for (final destination in const [
-        PatientDestination.home,
-        PatientDestination.reminders,
-        PatientDestination.history,
-        PatientDestination.carePlan,
-        PatientDestination.profile,
-      ]) {
-        final button = find.byKey(Key('patient-nav-${destination.name}'));
-        expect(button, findsOneWidget);
-        expect(tester.getSize(button).height, greaterThanOrEqualTo(48));
-      }
-      expect(find.byIcon(Icons.assignment_rounded), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('patient-nav-profile')));
-      expect(selected, PatientDestination.profile);
-
-      await tester.tap(find.byKey(const Key('patient-nav-home')));
-      expect(selected, PatientDestination.home);
-      expect(tester.takeException(), isNull);
+      expect(find.byIcon(Icons.home_rounded), findsOneWidget);
+      expect(find.byKey(const Key('patient-nav-reminders')), findsNothing);
     });
   });
 
