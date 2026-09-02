@@ -464,7 +464,13 @@ class _DailyCompanionCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(message, style: Theme.of(context).textTheme.bodyLarge),
+                if (personalized && !needsSupport)
+                  _RestrictedMarkdownText(
+                    key: const Key('home-daily-companion-markdown'),
+                    source: message,
+                  )
+                else
+                  Text(message, style: Theme.of(context).textTheme.bodyLarge),
                 if (question != null) ...[
                   const SizedBox(height: 18),
                   Container(
@@ -495,17 +501,25 @@ class _DailyCompanionCard extends StatelessWidget {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Fechar'),
-          ),
           if (personalized && !needsSupport)
             TextButton(
+              key: const Key('home-daily-companion-manage-data'),
               onPressed: () {
                 Navigator.pop(dialogContext);
                 onManagePersonalization();
               },
-              child: const Text('Ajustar personalização'),
+              child: const Text('Gerenciar meus dados'),
+            ),
+          if (!needsSupport)
+            FilledButton(
+              key: const Key('home-daily-companion-complete'),
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Concluir'),
+            ),
+          if (needsSupport)
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Fechar'),
             ),
           if (needsSupport)
             FilledButton.icon(
@@ -632,6 +646,82 @@ class _DailyCompanionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _RestrictedMarkdownText extends StatelessWidget {
+  const _RestrictedMarkdownText({super.key, required this.source});
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context) {
+    final textStyle = Theme.of(context).textTheme.bodyLarge;
+    final lines = source.replaceAll(RegExp(r'\r\n?'), '\n').split('\n');
+    final children = <Widget>[];
+    var pendingSpace = false;
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty) {
+        pendingSpace = children.isNotEmpty;
+        continue;
+      }
+      if (pendingSpace) {
+        children.add(const SizedBox(height: 12));
+        pendingSpace = false;
+      } else if (children.isNotEmpty) {
+        children.add(const SizedBox(height: 6));
+      }
+      if (line.startsWith('- ')) {
+        children.add(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('•', style: textStyle),
+              const SizedBox(width: 8),
+              Expanded(child: _MarkdownInlineText(line.substring(2))),
+            ],
+          ),
+        );
+      } else {
+        children.add(_MarkdownInlineText(line));
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: children,
+    );
+  }
+}
+
+class _MarkdownInlineText extends StatelessWidget {
+  const _MarkdownInlineText(this.source);
+
+  final String source;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).textTheme.bodyLarge;
+    final spans = <InlineSpan>[];
+    final bold = RegExp(r'\*\*([^*\n]+)\*\*');
+    var cursor = 0;
+    for (final match in bold.allMatches(source)) {
+      if (match.start > cursor) {
+        spans.add(TextSpan(text: source.substring(cursor, match.start)));
+      }
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: base?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      );
+      cursor = match.end;
+    }
+    if (cursor < source.length) {
+      spans.add(TextSpan(text: source.substring(cursor)));
+    }
+    return Text.rich(TextSpan(style: base, children: spans));
   }
 }
 

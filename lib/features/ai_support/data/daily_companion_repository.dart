@@ -53,7 +53,9 @@ DailyCompanionMessage decodeDailyCompanionMessage(Map<String, Object?> data) {
     return DailyCompanionMessage(status: status);
   }
   final title = _cleanText(data['title'], minimum: 3, maximum: 80);
-  final message = _cleanText(data['message'], minimum: 20, maximum: 480);
+  final message = status == DailyCompanionStatus.ready
+      ? _cleanMarkdownText(data['message'], minimum: 20, maximum: 480)
+      : _cleanText(data['message'], minimum: 20, maximum: 480);
   final question = data['reflectionQuestion'] == null
       ? null
       : _cleanText(data['reflectionQuestion'], minimum: 8, maximum: 240);
@@ -70,8 +72,34 @@ DailyCompanionMessage decodeDailyCompanionMessage(Map<String, Object?> data) {
   );
 }
 
-String? _cleanText(Object? value, {required int minimum, required int maximum}) {
+String? _cleanText(
+  Object? value, {
+  required int minimum,
+  required int maximum,
+}) {
   if (value is! String) return null;
   final text = value.replaceAll(RegExp(r'\s+'), ' ').trim();
   return text.length >= minimum && text.length <= maximum ? text : null;
+}
+
+String? _cleanMarkdownText(
+  Object? value, {
+  required int minimum,
+  required int maximum,
+}) {
+  if (value is! String) return null;
+  final text = value
+      .replaceAll(RegExp(r'\r\n?'), '\n')
+      .split('\n')
+      .map((line) => line.trim())
+      .join('\n')
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+  if (text.length < minimum || text.length > maximum) return null;
+  final unsupported = RegExp(
+    r'(!?\[[^\]]*\]\(|`|<\/?[a-z][^>]*>|^#{1,6}\s|^>\s|^\d+[.)]\s)',
+    caseSensitive: false,
+    multiLine: true,
+  );
+  return unsupported.hasMatch(text) ? null : text;
 }

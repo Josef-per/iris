@@ -11,6 +11,11 @@ sequências de passos. Também não prescreve afastamento, redução de contato,
 confronto ou ruptura de relações; situações relacionais recebem apenas uma
 forma de organizar a decisão, preservando autonomia e acesso a apoio.
 
+O campo `message` usa Markdown restrito: um parágrafo e um ou dois itens com
+ênfase em negrito. O servidor rejeita cabeçalhos, links, imagens, citações,
+código, HTML e listas numeradas. O aplicativo renderiza apenas parágrafos,
+negrito e listas, sem abrir links nem interpretar conteúdo arbitrário.
+
 Quando o diário autorizado contém linguagem explícita de
 suicídio ou autoagressão, a geração é interrompida e o aplicativo apresenta a
 rota de apoio humano. Esse bloqueio não constitui avaliação clínica de risco.

@@ -4,7 +4,7 @@ import { corsHeadersFor } from "../_shared/cors.ts";
 
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
-const promptVersion = "daily-companion-v2";
+const promptVersion = "daily-companion-v3";
 const maxDiaryCharacters = 1800;
 const visibleRolloutModes = new Set(["pilot", "limited"]);
 
@@ -102,10 +102,14 @@ imperativo ou frases como "faca", "tente", "reserve um minuto" e "permita-se".
 Nao mencione IA, fontes, analise, prontuario ou ausencia de risco.
 
 Crie um titulo especifico ao tema, sem repetir "Uma reflexao para voce". A
-mensagem deve ter uma ou duas frases curtas, trazer uma unica orientacao e poder
-ser ignorada sem culpa. Retorne reflectionQuestion como null: a orientacao deve
-ser completa por si mesma. Se o contexto nao sustentar personalizacao concreta,
-nao invente detalhes; use apenas o humor ou topico efetivamente fornecido.
+mensagem deve trazer uma unica orientacao, poder ser ignorada sem culpa e usar
+este Markdown restrito: um paragrafo curto seguido de uma linha em branco e um
+ou dois itens no formato "- **Rotulo curto:** texto". Use os itens para separar,
+por exemplo, o que merece atencao agora do que pode esperar. Nao use cabecalhos,
+links, imagens, citacoes, codigo, HTML ou listas numeradas. Retorne
+reflectionQuestion como null: a orientacao deve ser completa por si mesma. Se o
+contexto nao sustentar personalizacao concreta, nao invente detalhes; use apenas
+o humor ou topico efetivamente fornecido.
 `.trim();
 
 Deno.serve(async (request) => {
@@ -495,7 +499,7 @@ async function requestMessage(input: {
               properties: {
                 title: { type: "string" },
                 message: { type: "string" },
-                reflectionQuestion: { type: ["string", "null"] },
+                reflectionQuestion: { type: "null" },
               },
               required: ["title", "message", "reflectionQuestion"],
             },
@@ -534,7 +538,7 @@ function extractOutput(value: unknown): unknown {
 function validateMessage(value: unknown): CompanionMessage | null {
   if (!isRecord(value) || Object.keys(value).length !== 3) return null;
   const title = cleanText(value.title, 3, 80);
-  const message = cleanText(value.message, 20, 480);
+  const message = cleanMarkdownMessage(value.message, 20, 480);
   if (title === null || message === null || value.reflectionQuestion !== null) {
     return null;
   }
@@ -590,6 +594,41 @@ function cleanText(value: unknown, minimum: number, maximum: number): string | n
   if (typeof value !== "string") return null;
   const text = value.replace(/\s+/g, " ").trim();
   return text.length >= minimum && text.length <= maximum ? text : null;
+}
+
+function cleanMarkdownMessage(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): string | null {
+  if (typeof value !== "string") return null;
+  const text = value
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (text.length < minimum || text.length > maximum) return null;
+  if (/(!?\[[^\]]*\]\(|`|<\/?[a-z][^>]*>|^#{1,6}\s|^>\s|^\d+[.)]\s)/im.test(text)) {
+    return null;
+  }
+
+  const lines = text.split("\n").filter((line) => line !== "");
+  const bullets = lines.filter((line) => line.startsWith("- "));
+  const paragraphs = lines.filter((line) => !line.startsWith("- "));
+  if (
+    paragraphs.length !== 1 ||
+    bullets.length < 1 ||
+    bullets.length > 2 ||
+    !bullets.every((line) => /^- \*\*[^*\n]{1,40}:\*\*\s+\S/.test(line))
+  ) {
+    return null;
+  }
+
+  const withoutBold = text.replace(/\*\*[^*\n]+\*\*/g, "");
+  if (withoutBold.includes("*") || withoutBold.includes("_")) return null;
+  return text;
 }
 
 function nullableText(value: unknown): string | null {

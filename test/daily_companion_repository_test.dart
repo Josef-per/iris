@@ -9,7 +9,8 @@ void main() {
       'title': 'Um passo de cada vez',
       'message':
           'Talvez seja suficiente escolher um próximo passo pequeno e observar como ele fica para você.',
-      'reflectionQuestion': 'O que poderia deixar os próximos minutos um pouco mais possíveis?',
+      'reflectionQuestion':
+          'O que poderia deixar os próximos minutos um pouco mais possíveis?',
     });
 
     expect(message.status, DailyCompanionStatus.ready);
@@ -32,6 +33,34 @@ void main() {
         'status': 'ready',
         'title': 'Oi',
         'message': 'Curta demais',
+        'reflectionQuestion': null,
+      }),
+      throwsFormatException,
+    );
+  });
+
+  test('preserva o markdown restrito da reflexão', () {
+    const markdown =
+        'Talvez ajude separar o que precisa de atenção agora do que pode esperar:\n\n'
+        '- **Agora:** uma prioridade possível.\n'
+        '- **Depois:** decisões que não são urgentes.';
+    final message = decodeDailyCompanionMessage(<String, Object?>{
+      'status': 'ready',
+      'title': 'Uma prioridade de cada vez',
+      'message': markdown,
+      'reflectionQuestion': null,
+    });
+
+    expect(message.message, markdown);
+  });
+
+  test('rejeita links no markdown da reflexão', () {
+    expect(
+      () => decodeDailyCompanionMessage(<String, Object?>{
+        'status': 'ready',
+        'title': 'Uma prioridade de cada vez',
+        'message':
+            'Talvez ajude organizar uma prioridade.\n\n- **Agora:** [abra este link](https://example.com).',
         'reflectionQuestion': null,
       }),
       throwsFormatException,

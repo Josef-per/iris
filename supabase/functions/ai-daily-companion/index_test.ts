@@ -18,8 +18,11 @@ function relationshipDirective(): RegExp {
 test("reflexao diaria pede orientacao concreta sem exercicios", () => {
   assert.match(source, /orientacao-reflexao personalizada/);
   assert.match(source, /A reflexao nao e um exercicio/);
-  assert.match(source, /Retorne reflectionQuestion como null/);
-  assert.match(source, /promptVersion = "daily-companion-v2"/);
+  assert.match(source, /Markdown restrito/);
+  assert.match(source, /cleanMarkdownMessage/);
+  assert.match(source, /Retorne\s+reflectionQuestion como null/);
+  assert.match(source, /promptVersion = "daily-companion-v3"/);
+  assert.match(source, /reflectionQuestion: \{ type: "null" \}/);
   assert.match(source, /value\.reflectionQuestion !== null/);
   assert.match(source, /containsProhibitedDailyCompanionContent/);
 });

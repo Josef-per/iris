@@ -181,7 +181,9 @@ void main() {
 
   testWidgets('Home abre a reflexão completa em um diálogo', (tester) async {
     const fullMessage =
-        'Talvez este seja um bom momento para observar o que você precisa, sem pressa.';
+        'Talvez ajude separar o que precisa de atenção agora do que pode esperar:\n\n'
+        '- **Agora:** uma prioridade possível.\n'
+        '- **Depois:** decisões que não são urgentes.';
     await _pumpPatientWidget(
       tester,
       HomeScreen(
@@ -198,7 +200,7 @@ void main() {
             status: DailyCompanionStatus.ready,
             title: 'Um momento para si',
             message: fullMessage,
-            reflectionQuestion: 'O que faria sentido para você agora?',
+            reflectionQuestion: null,
           ),
         ),
       ),
@@ -207,7 +209,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Um momento para si'), findsOneWidget);
-    expect(find.text(fullMessage), findsNothing);
+    expect(
+      find.byKey(const Key('home-daily-companion-markdown')),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(const Key('home-daily-companion-open')));
     await tester.pumpAndSettle();
@@ -216,8 +221,18 @@ void main() {
       find.byKey(const Key('home-daily-companion-dialog')),
       findsOneWidget,
     );
-    expect(find.text(fullMessage), findsOneWidget);
-    expect(find.text('O que faria sentido para você agora?'), findsOneWidget);
+    expect(
+      find.byKey(const Key('home-daily-companion-markdown')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Agora:', findRichText: true), findsOneWidget);
+    expect(find.text('Concluir'), findsOneWidget);
+    expect(find.text('Gerenciar meus dados'), findsOneWidget);
+    expect(find.text('Ajustar personalização'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('home-daily-companion-complete')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-daily-companion-dialog')), findsNothing);
   });
 
   testWidgets('check-in nao salva respostas neutras implicitas', (
