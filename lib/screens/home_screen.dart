@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/ai_support/data/daily_companion_repository.dart';
@@ -14,14 +13,11 @@ import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
 import 'package:iris/features/ai_support/presentation/after_journal_support_sheet.dart';
 import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart';
 import 'package:iris/features/ai_support/presentation/support_suggestion_screen.dart';
-import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
 import 'package:iris/features/support_exercises/presentation/support_flow_screen.dart';
 import 'package:iris/screens/lembretes_screen.dart';
-import 'package:iris/screens/patient_care_plan_screen.dart';
-import 'package:iris/screens/patient_history_screen.dart';
 import 'package:iris/widgets/app_responsive.dart';
 import 'package:iris/widgets/bottom_sheets/check_in_diario_bottom_sheet.dart';
 import 'package:iris/widgets/bottom_sheets/diario_emocional_bottom_sheet.dart';
@@ -32,8 +28,6 @@ class HomeScreen extends StatefulWidget {
     super.key,
     this.todayDataSource,
     this.onOpenReminders,
-    this.onOpenCarePlan,
-    this.onOpenHistory,
     this.onOpenSupportSuggestions,
     this.aiSupportStore,
     this.dailyCompanionDataSource,
@@ -41,8 +35,6 @@ class HomeScreen extends StatefulWidget {
 
   final PatientTodayDataSource? todayDataSource;
   final VoidCallback? onOpenReminders;
-  final VoidCallback? onOpenCarePlan;
-  final VoidCallback? onOpenHistory;
   final VoidCallback? onOpenSupportSuggestions;
   final MockAiSupportStore? aiSupportStore;
   final DailyCompanionDataSource? dailyCompanionDataSource;
@@ -52,7 +44,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _authService = AuthService();
   final _profileRepository = ProfileRepository();
   late final Future<Profile?> _profileFuture;
   late final PatientTodayDataSource _todayDataSource;
@@ -219,106 +210,6 @@ class _HomeScreenState extends State<HomeScreen> {
     ).push(MaterialPageRoute<void>(builder: (_) => const SupportFlowScreen()));
   }
 
-  Future<void> _signOut(BuildContext sheetContext) async {
-    Navigator.pop(sheetContext);
-    try {
-      await _authService.signOut();
-    } catch (error) {
-      // O Supabase remove a sessão local antes de tentar invalidar o token no
-      // servidor. Se a tela ainda existir, a falha ocorreu antes da transição.
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
-    }
-  }
-
-  void _openMenu() {
-    showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.assignment_outlined),
-                title: const Text('Plano de cuidado'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onOpenCarePlan case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PatientCarePlanScreen(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.history_rounded),
-                title: const Text('Meu histórico'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onOpenHistory case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const PatientHistoryScreen(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                key: const Key('home-support-suggestions-menu'),
-                leading: const Icon(Icons.auto_awesome_outlined),
-                title: const Text('Sugestões de apoio'),
-                subtitle: const Text('Um apoio breve para o seu momento'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _openSupportSuggestions();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.notifications_none_rounded),
-                title: const Text('Lembretes'),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  if (widget.onOpenReminders case final callback?) {
-                    callback();
-                  } else {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const LembretesScreen(),
-                      ),
-                    );
-                  }
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.logout_rounded),
-                title: const Text('Sair da conta'),
-                textColor: AppColors.danger,
-                iconColor: AppColors.danger,
-                onTap: () => _signOut(sheetContext),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -326,9 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
         slivers: [
           SliverToBoxAdapter(
             child: AppGradientHeader(
+              padding: EdgeInsets.zero,
               child: AppResponsive(
-                padding: EdgeInsets.zero,
-                maxWidth: 1120,
+                padding: const EdgeInsets.fromLTRB(20, 22, 20, 32),
+                maxWidth: 960,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final greeting = _PatientGreeting(
@@ -367,19 +259,26 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           SliverToBoxAdapter(
             child: AppResponsive(
-              maxWidth: 1120,
+              maxWidth: 960,
               padding: const EdgeInsets.fromLTRB(20, 24, 20, 36),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  FutureBuilder<DailyCompanionMessage>(
-                    future: _dailyCompanionFuture,
-                    builder: (context, snapshot) => _DailyCompanionCard(
-                      companion: snapshot.data,
-                      isLoading:
-                          snapshot.connectionState == ConnectionState.waiting,
-                      onManagePersonalization: _openSupportSuggestions,
-                      onNeedSupport: _openImmediateSupport,
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 680),
+                      child: FutureBuilder<DailyCompanionMessage>(
+                        future: _dailyCompanionFuture,
+                        builder: (context, snapshot) => _DailyCompanionCard(
+                          companion: snapshot.data,
+                          isLoading:
+                              snapshot.connectionState ==
+                              ConnectionState.waiting,
+                          onManagePersonalization: _openSupportSuggestions,
+                          onNeedSupport: _openImmediateSupport,
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -395,15 +294,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 18),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final columns = constraints.maxWidth >= 800
-                          ? 3
+                      final columns = constraints.maxWidth >= 840
+                          ? 4
                           : constraints.maxWidth >= 560
                           ? 2
                           : 1;
                       const gap = 14.0;
-                      final width =
+                      final availableWidth =
                           (constraints.maxWidth - gap * (columns - 1)) /
                           columns;
+                      final width = columns == 1
+                          ? constraints.maxWidth
+                          : availableWidth.clamp(0, 300).toDouble();
                       return Wrap(
                         spacing: gap,
                         runSpacing: gap,
@@ -432,11 +334,28 @@ class _HomeScreenState extends State<HomeScreen> {
                               const RegistroAlimentarBottomSheet(),
                             ),
                           ),
+                          _ActionCard(
+                            width: width,
+                            icon: Icons.notifications_none_rounded,
+                            title: 'Lembretes',
+                            subtitle: 'Organize sua rotina sem cobranças.',
+                            onTap: () {
+                              if (widget.onOpenReminders case final callback?) {
+                                callback();
+                              } else {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const LembretesScreen(),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ],
                       );
                     },
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 32),
                   Text(
                     'Apoio quando precisar',
                     style: Theme.of(context).textTheme.titleLarge,
@@ -444,14 +363,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 14),
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final wide = constraints.maxWidth >= 700;
-                      final cardWidth = wide
-                          ? (constraints.maxWidth - 14) / 2
-                          : constraints.maxWidth;
+                      final columns = constraints.maxWidth >= 840
+                          ? 3
+                          : constraints.maxWidth >= 560
+                          ? 2
+                          : 1;
+                      const gap = 14.0;
+                      final availableWidth =
+                          (constraints.maxWidth - gap * (columns - 1)) /
+                          columns;
+                      final cardWidth = columns == 1
+                          ? constraints.maxWidth
+                          : availableWidth.clamp(0, 300).toDouble();
                       return Wrap(
-                        spacing: 14,
-                        runSpacing: 14,
+                        spacing: gap,
+                        runSpacing: gap,
                         children: [
+                          _SupportEntryCard(
+                            key: const Key('home-not-ok-card'),
+                            width: cardWidth,
+                            icon: Icons.favorite_rounded,
+                            title: 'Não estou bem',
+                            subtitle: 'Encontre apoio e opções de segurança.',
+                            highlighted: true,
+                            onTap: () => Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const SupportFlowScreen(),
+                              ),
+                            ),
+                          ),
                           _SupportEntryCard(
                             key: const Key('home-support-suggestions-card'),
                             width: cardWidth,
@@ -471,19 +411,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 builder: (_) => const SupportFlowScreen(
                                   start: SupportFlowStart.catalog,
                                 ),
-                              ),
-                            ),
-                          ),
-                          _SupportEntryCard(
-                            key: const Key('home-not-ok-card'),
-                            width: cardWidth,
-                            icon: Icons.favorite_rounded,
-                            title: 'Não estou bem',
-                            subtitle: 'Encontre apoio e opções de segurança.',
-                            highlighted: true,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const SupportFlowScreen(),
                               ),
                             ),
                           ),
@@ -539,41 +466,43 @@ class _DailyCompanionCard extends StatelessWidget {
       child: Container(
         key: const Key('home-daily-companion-card'),
         width: double.infinity,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(18),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(
                 color: foreground.withValues(alpha: .12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 needsSupport ? Icons.favorite_rounded : Icons.wb_sunny_outlined,
                 color: foreground,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     title,
-                    style: theme.textTheme.titleLarge?.copyWith(
+                    style: theme.textTheme.titleMedium?.copyWith(
                       color: foreground,
                     ),
                   ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 4),
                   Text(
                     message,
-                    style: theme.textTheme.bodyLarge?.copyWith(
+                    maxLines: needsSupport ? null : 3,
+                    overflow: needsSupport ? null : TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
                       color: foreground,
                     ),
                   ),
@@ -587,34 +516,26 @@ class _DailyCompanionCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (needsSupport)
-                        FilledButton.icon(
-                          key: const Key('home-daily-companion-help'),
-                          onPressed: onNeedSupport,
-                          icon: const Icon(Icons.favorite_rounded),
-                          label: const Text('Encontrar apoio agora'),
-                        )
-                      else
-                        TextButton.icon(
-                          key: const Key('home-daily-companion-preferences'),
-                          onPressed: onManagePersonalization,
-                          icon: const Icon(Icons.tune_rounded),
-                          label: Text(
-                            personalized
-                                ? 'Ajustar o que considero'
-                                : 'Personalizar este momento',
-                          ),
-                          style: TextButton.styleFrom(
-                            foregroundColor: foreground,
-                          ),
+                  if (needsSupport || personalized) ...[
+                    const SizedBox(height: 12),
+                    if (needsSupport)
+                      FilledButton.icon(
+                        key: const Key('home-daily-companion-help'),
+                        onPressed: onNeedSupport,
+                        icon: const Icon(Icons.favorite_rounded),
+                        label: const Text('Encontrar apoio agora'),
+                      )
+                    else
+                      TextButton.icon(
+                        key: const Key('home-daily-companion-preferences'),
+                        onPressed: onManagePersonalization,
+                        icon: const Icon(Icons.tune_rounded),
+                        label: const Text('Ajustar personalização'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: foreground,
                         ),
-                    ],
-                  ),
+                      ),
+                  ],
                   if (personalized) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -640,33 +561,47 @@ class _StatusCard extends StatelessWidget {
     required this.icon,
     required this.value,
     required this.label,
+    this.compact = false,
   });
   final IconData icon;
   final String value;
   final String label;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
       label: '$label: $value',
       child: Container(
-        height: 106,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        height: compact ? 56 : 96,
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 14 : 10,
+          vertical: compact ? 8 : 10,
+        ),
         decoration: BoxDecoration(
           color: AppColors.white.withValues(alpha: .14),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.white.withValues(alpha: .18)),
         ),
         child: ExcludeSemantics(
-          child: Column(
-            children: [
-              Icon(icon, color: AppColors.white, size: 22),
-              const SizedBox(height: 7),
-              Expanded(
-                child: Center(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(
+          child: compact
+              ? Row(
+                  children: [
+                    Icon(icon, color: AppColors.white, size: 21),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
                       value,
                       maxLines: 1,
                       style: const TextStyle(
@@ -675,20 +610,38 @@ class _StatusCard extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                  ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    Icon(icon, color: AppColors.white, size: 21),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: Center(
+                        child: Text(
+                          value,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AppColors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppColors.white,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 2),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: const TextStyle(color: AppColors.white, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
         ),
       ),
     );
@@ -761,35 +714,51 @@ class _TodayStatusCards extends StatelessWidget {
 
     return Column(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: _StatusCard(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 520;
+            final cards = [
+              _StatusCard(
                 key: const Key('patient-today-meals'),
                 icon: Icons.restaurant_rounded,
                 value: values[0],
-                label: 'Refeições hoje',
+                label: 'Registros de alimentação',
+                compact: compact,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatusCard(
+              _StatusCard(
                 key: const Key('patient-today-mood'),
                 icon: Icons.favorite_outline_rounded,
                 value: values[1],
-                label: 'Humor hoje',
+                label: 'Como me senti',
+                compact: compact,
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _StatusCard(
+              _StatusCard(
                 key: const Key('patient-today-check-in'),
                 icon: Icons.fact_check_outlined,
                 value: values[2],
-                label: 'Registro do dia',
+                label: 'Check-in de hoje',
+                compact: compact,
               ),
-            ),
-          ],
+            ];
+            if (compact) {
+              return Column(
+                children: [
+                  for (var index = 0; index < cards.length; index++) ...[
+                    cards[index],
+                    if (index < cards.length - 1) const SizedBox(height: 8),
+                  ],
+                ],
+              );
+            }
+            return Row(
+              children: [
+                for (var index = 0; index < cards.length; index++) ...[
+                  Expanded(child: cards[index]),
+                  if (index < cards.length - 1) const SizedBox(width: 10),
+                ],
+              ],
+            );
+          },
         ),
         if (error != null) ...[
           const SizedBox(height: 8),
@@ -931,7 +900,7 @@ class _ActionCard extends StatelessWidget {
       constraints: BoxConstraints(
         minWidth: width,
         maxWidth: width,
-        minHeight: 150,
+        minHeight: 118,
       ),
       child: Material(
         color: theme.colorScheme.surface,

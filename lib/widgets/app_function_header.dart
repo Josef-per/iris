@@ -8,7 +8,7 @@ class AppFunctionHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.description,
-    this.maxWidth = 860,
+    this.maxWidth = 760,
     this.footer,
   });
 
@@ -25,7 +25,7 @@ class AppFunctionHeader extends StatelessWidget {
         bottom: false,
         child: AppResponsive(
           maxWidth: maxWidth,
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+          padding: const EdgeInsets.fromLTRB(20, 22, 20, 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

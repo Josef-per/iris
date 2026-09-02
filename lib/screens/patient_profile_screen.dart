@@ -57,12 +57,12 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         SliverToBoxAdapter(
           child: AppFunctionHeader(
             title: 'Perfil',
-            description: 'Seus dados e configurações da conta.',
+            description: 'Seu perfil e preferências do aplicativo.',
           ),
         ),
         SliverToBoxAdapter(
           child: AppResponsive(
-            maxWidth: 860,
+            maxWidth: 680,
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
             child: FutureBuilder<Profile?>(
               future: _profileFuture,
@@ -102,50 +102,97 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                 }
 
                 final name = snapshot.data?.displayName.trim();
-                return AppSurface(
-                  child: Column(
-                    children: [
-                      CircleAvatar(
-                        radius: 34,
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.primaryContainer,
-                        foregroundColor: Theme.of(
-                          context,
-                        ).colorScheme.onPrimaryContainer,
-                        child: const Icon(Icons.person_rounded, size: 38),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(
-                        name == null || name.isEmpty ? 'Paciente' : name,
-                        style: Theme.of(context).textTheme.titleLarge,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 28),
-                      const Divider(),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _isSigningOut ? null : _signOut,
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.danger,
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AppSurface(
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 30,
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primaryContainer,
+                            foregroundColor: Theme.of(
+                              context,
+                            ).colorScheme.onPrimaryContainer,
+                            child: const Icon(Icons.person_rounded, size: 32),
                           ),
-                          icon: _isSigningOut
-                              ? const SizedBox.square(
-                                  dimension: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.logout_rounded),
-                          label: Text(
-                            _isSigningOut ? 'Saindo...' : 'Sair da conta',
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name == null || name.isEmpty
+                                      ? 'Paciente'
+                                      : name,
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  'Conta de paciente',
+                                  style: Theme.of(context).textTheme.bodyMedium,
+                                ),
+                              ],
+                            ),
                           ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppSurface(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: ValueListenableBuilder<ThemeMode>(
+                        valueListenable: AppThemeController.mode,
+                        builder: (context, mode, _) => SwitchListTile(
+                          secondary: const Icon(Icons.dark_mode_outlined),
+                          title: const Text('Modo escuro'),
+                          subtitle: const Text(
+                            'Reduza o brilho e use cores mais confortáveis.',
+                          ),
+                          value: mode == ThemeMode.dark,
+                          onChanged: AppThemeController.setDarkMode,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 16),
+                    AppSurface(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.shield_outlined),
+                            title: const Text('Privacidade e cuidado'),
+                            subtitle: const Text(
+                              'Seus registros são compartilhados apenas conforme os vínculos e permissões do aplicativo.',
+                            ),
+                          ),
+                          const Divider(),
+                          OutlinedButton.icon(
+                            onPressed: _isSigningOut ? null : _signOut,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.danger,
+                              side: const BorderSide(color: AppColors.danger),
+                            ),
+                            icon: _isSigningOut
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.logout_rounded),
+                            label: Text(
+                              _isSigningOut ? 'Saindo...' : 'Sair da conta',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

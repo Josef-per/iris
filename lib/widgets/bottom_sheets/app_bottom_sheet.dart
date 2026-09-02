@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
 
 class AppBottomSheet extends StatelessWidget {
-  const AppBottomSheet({super.key, required this.child, this.onClose});
+  const AppBottomSheet({
+    super.key,
+    required this.child,
+    this.onClose,
+    this.footer,
+  });
 
   final Widget child;
+  final Widget? footer;
 
   /// Chamado quando o usuário fecha o sheet pelo botão fechar. Quando omitido,
   /// o sheet apenas é fechado.
@@ -85,6 +91,25 @@ class AppBottomSheet extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (footer != null) ...[
+                      Divider(
+                        color: Theme.of(context).colorScheme.outlineVariant,
+                      ),
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          horizontalPadding,
+                          12,
+                          horizontalPadding,
+                          16,
+                        ),
+                        child: Center(
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 760),
+                            child: footer!,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -146,7 +146,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Cuidar de você hoje'), findsOneWidget);
+    expect(find.text('Registre seu dia'), findsOneWidget);
+  });
+
+  testWidgets('Home limita a largura do card de apoio em telas grandes', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 1,
+            moodScore: 4,
+            hasCheckIn: true,
+            hasDiaryEntry: false,
+          ),
+        ),
+      ),
+      size: const Size(1400, 1000),
+    );
+    await tester.pumpAndSettle();
+
+    final companion = find.byKey(const Key('home-daily-companion-card'));
+    expect(companion, findsOneWidget);
+    expect(tester.getSize(companion).width, lessThanOrEqualTo(680));
+    expect(
+      tester.getTopLeft(companion).dy,
+      lessThan(tester.getTopLeft(find.text('Registre seu dia')).dy),
+    );
   });
 
   testWidgets('check-in nao salva respostas neutras implicitas', (

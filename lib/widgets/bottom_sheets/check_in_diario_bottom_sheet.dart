@@ -28,6 +28,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
 
   bool _isLoading = false;
   bool _isLoadingTodayRecord = true;
+  bool _showOptionalDetails = false;
   String? _loadErrorMessage;
   String? _errorMessage;
 
@@ -132,6 +133,8 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
               PatientSymptoms.physical,
             ),
           );
+        _showOptionalDetails =
+            mentalSymptoms.isNotEmpty || physicalSymptoms.isNotEmpty;
         _isLoadingTodayRecord = false;
       });
     } catch (error) {
@@ -229,6 +232,22 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AppBottomSheet(
+      footer: _isLoadingTodayRecord || _loadErrorMessage != null
+          ? null
+          : SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                key: const Key('check-in-submit'),
+                onPressed: _isLoading ? null : _submit,
+                icon: _isLoading
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_isLoading ? 'Salvando...' : 'Salvar check-in'),
+              ),
+            ),
       child: _isLoadingTodayRecord
           ? const _SheetLoading()
           : _loadErrorMessage != null
@@ -248,7 +267,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Registre seus pensamentos, emoções e experiências do dia.',
+                  'Uma pausa rápida para perceber como você está. Os detalhes são opcionais.',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
@@ -272,35 +291,56 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                AppSymptomsCard(
-                  title: 'Marque o que você sentiu hoje',
-                  symptoms: PatientSymptoms.emotional
-                      .map((symptom) => symptom.label)
-                      .toList(growable: false),
-                  selected: PatientSymptoms.selectedIndexes(
-                    mentalSymptoms,
-                    PatientSymptoms.emotional,
+                OutlinedButton.icon(
+                  key: const Key('check-in-optional-details'),
+                  onPressed: _isLoading
+                      ? null
+                      : () => setState(
+                          () => _showOptionalDetails = !_showOptionalDetails,
+                        ),
+                  icon: Icon(
+                    _showOptionalDetails
+                        ? Icons.expand_less_rounded
+                        : Icons.add_rounded,
                   ),
-                  onTap: (index) => _toggleSymptom(
-                    mentalSymptoms,
-                    PatientSymptoms.emotional[index].code,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                AppSymptomsCard(
-                  title: 'Marque os sinais que você notou no seu corpo',
-                  symptoms: PatientSymptoms.physical
-                      .map((symptom) => symptom.label)
-                      .toList(growable: false),
-                  selected: PatientSymptoms.selectedIndexes(
-                    physicalSymptoms,
-                    PatientSymptoms.physical,
-                  ),
-                  onTap: (index) => _toggleSymptom(
-                    physicalSymptoms,
-                    PatientSymptoms.physical[index].code,
+                  label: Text(
+                    _showOptionalDetails
+                        ? 'Ocultar detalhes opcionais'
+                        : 'Adicionar sensações e sinais (opcional)',
                   ),
                 ),
+                if (_showOptionalDetails) ...[
+                  const SizedBox(height: 16),
+                  AppSymptomsCard(
+                    title: 'O que você sentiu hoje?',
+                    symptoms: PatientSymptoms.emotional
+                        .map((symptom) => symptom.label)
+                        .toList(growable: false),
+                    selected: PatientSymptoms.selectedIndexes(
+                      mentalSymptoms,
+                      PatientSymptoms.emotional,
+                    ),
+                    onTap: (index) => _toggleSymptom(
+                      mentalSymptoms,
+                      PatientSymptoms.emotional[index].code,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  AppSymptomsCard(
+                    title: 'Quais sinais você notou no corpo?',
+                    symptoms: PatientSymptoms.physical
+                        .map((symptom) => symptom.label)
+                        .toList(growable: false),
+                    selected: PatientSymptoms.selectedIndexes(
+                      physicalSymptoms,
+                      PatientSymptoms.physical,
+                    ),
+                    onTap: (index) => _toggleSymptom(
+                      physicalSymptoms,
+                      PatientSymptoms.physical[index].code,
+                    ),
+                  ),
+                ],
                 if (_errorMessage != null) ...[
                   const SizedBox(height: 16),
                   Semantics(
@@ -315,21 +355,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                     ),
                   ),
                 ],
-                const SizedBox(height: 24),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.icon(
-                    key: const Key('check-in-submit'),
-                    onPressed: _isLoading ? null : _submit,
-                    icon: _isLoading
-                        ? const SizedBox.square(
-                            dimension: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check_rounded),
-                    label: Text(_isLoading ? 'Salvando...' : 'Confirmar'),
-                  ),
-                ),
+                const SizedBox(height: 12),
               ],
             ),
     );

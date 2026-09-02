@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/core/time/local_day.dart';
 import 'package:iris/features/patient_history/patient_history.dart';
 import 'package:iris/widgets/app_responsive.dart';
@@ -22,6 +21,7 @@ class PatientHistoryScreen extends StatefulWidget {
 class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
   late final PatientHistoryDataSource _dataSource;
   late Future<List<PatientHistoryEntry>> _historyFuture;
+  PatientHistoryKind? _selectedKind;
 
   @override
   void initState() {
@@ -48,7 +48,7 @@ class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
         ),
         SliverToBoxAdapter(
           child: AppResponsive(
-            maxWidth: 860,
+            maxWidth: 760,
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 48),
             child: FutureBuilder<List<PatientHistoryEntry>>(
               future: _historyFuture,
@@ -88,7 +88,32 @@ class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
                   );
                 }
 
-                return _HistoryTimeline(entries: entries);
+                final filtered = _selectedKind == null
+                    ? entries
+                    : entries
+                          .where((entry) => entry.kind == _selectedKind)
+                          .toList(growable: false);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _HistoryFilters(
+                      selected: _selectedKind,
+                      onSelected: (kind) => setState(() {
+                        _selectedKind = kind;
+                      }),
+                    ),
+                    const SizedBox(height: 18),
+                    if (filtered.isEmpty)
+                      const _HistoryMessage(
+                        icon: Icons.filter_alt_off_outlined,
+                        title: 'Nenhum registro neste filtro',
+                        message:
+                            'Escolha outro tipo para continuar explorando.',
+                      )
+                    else
+                      _HistoryTimeline(entries: filtered),
+                  ],
+                );
               },
             ),
           ),
@@ -98,6 +123,43 @@ class _PatientHistoryScreenState extends State<PatientHistoryScreen> {
 
     if (widget.embeddedInNavigationShell) return content;
     return Scaffold(body: content);
+  }
+}
+
+class _HistoryFilters extends StatelessWidget {
+  const _HistoryFilters({required this.selected, required this.onSelected});
+
+  final PatientHistoryKind? selected;
+  final ValueChanged<PatientHistoryKind?> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          FilterChip(
+            label: const Text('Todos'),
+            selected: selected == null,
+            onSelected: (_) => onSelected(null),
+          ),
+          const SizedBox(width: 8),
+          FilterChip(
+            label: const Text('Emoções'),
+            avatar: const Icon(Icons.favorite_outline_rounded, size: 18),
+            selected: selected == PatientHistoryKind.emotional,
+            onSelected: (_) => onSelected(PatientHistoryKind.emotional),
+          ),
+          const SizedBox(width: 8),
+          FilterChip(
+            label: const Text('Alimentação'),
+            avatar: const Icon(Icons.restaurant_rounded, size: 18),
+            selected: selected == PatientHistoryKind.food,
+            onSelected: (_) => onSelected(PatientHistoryKind.food),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -168,7 +230,7 @@ class _HistoryCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: AppColors.lavender.withValues(alpha: .55),
+              color: theme.colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(entry.icon, color: theme.colorScheme.primary, size: 24),
