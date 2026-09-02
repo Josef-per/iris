@@ -185,21 +185,19 @@ No PowerShell, os mesmos argumentos podem ser informados após o nome do script:
 .\scripts\flutter_run.ps1 -d chrome
 ```
 
-Ao usar `chrome`, `edge` ou `web-server`, o inicializador fixa a porta web em
-`8080` por padrão. Para desenvolvimento web, use esses comandos em vez de
-`flutter run -d chrome` diretamente. Para callbacks de confirmação de e-mail ou
-recuperação de senha, cadastre também `http://localhost:8080` em
+Sem `-d`, o inicializador abre o Chrome e fixa a porta web em `8080`. Ao usar
+explicitamente `chrome`, `edge` ou `web-server`, a porta também permanece em
+`8080`; o script rejeita `--web-port` para evitar que a origem mude entre
+execuções. Para desenvolvimento web, use o inicializador em vez de executar
+`flutter run -d chrome` diretamente. Para callbacks de confirmação de e-mail
+ou recuperação de senha, cadastre também `http://localhost:8080` em
 **Authentication > URL Configuration** do projeto Supabase.
 
 Em ambientes sem interface gráfica, como GitHub Codespaces, o inicializador
 seleciona automaticamente o dispositivo `web-server`, publica em `0.0.0.0` e
 usa a porta `8080`. Nesse caso, o modo `release` é usado por padrão para evitar
 o carregamento lento dos centenas de módulos separados do modo debug pelo
-proxy. Abra essa porta pelo encaminhamento do ambiente. Para usar outra porta:
-
-```bash
-IRIS_WEB_PORT=3000 ./scripts/flutter_run.sh
-```
+proxy. Abra a porta `8080` pelo encaminhamento do ambiente.
 
 Uma escolha explícita de dispositivo continua sendo respeitada com `-d`.
 Para diagnosticar especificamente a versão web, ainda é possível solicitar

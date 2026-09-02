@@ -8,6 +8,8 @@ import 'package:iris/features/support_exercises/presentation/support_flow_screen
 ///
 /// Os acessos de segurança são sempre estáticos. Quando autorizado, uma
 /// sugestão estruturada pode aparecer sem analisar o texto livre do diário.
+/// A reflexão de texto livre, quando consentida, é tratada separadamente no
+/// cartão "Seu momento de hoje" da Home.
 class AfterJournalSupportSheet extends StatelessWidget {
   const AfterJournalSupportSheet({
     super.key,

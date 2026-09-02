@@ -279,14 +279,14 @@ class _DataStep extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Não é terapia nem monitoramento de crise. A Íris só escolhe conteúdos revisados e não avisa ninguém.',
+          'Não é terapia nem monitoramento de crise. A Íris não avisa ninguém e você escolhe exatamente o que pode ser considerado.',
         ),
         const SizedBox(height: 16),
         SwitchListTile.adaptive(
           key: const Key('ai-support-personalization-switch'),
           contentPadding: EdgeInsets.zero,
           title: const Text('Personalizar para mim'),
-          subtitle: const Text('O texto livre do diário nunca é usado.'),
+          subtitle: const Text('Você escolhe quais dados a Íris pode considerar.'),
           value: personalizationEnabled,
           onChanged: onPersonalizationChanged,
         ),
@@ -304,15 +304,29 @@ class _DataStep extends StatelessWidget {
                   label: Text(_shortSourceLabel(source)),
                   selected: sources.contains(source),
                   onSelected: (enabled) => onSourceChanged(source, enabled),
-                ),
+              ),
             ],
           ),
+          if (sources.contains(SupportSignalSource.diaryText)) ...[
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.secondaryContainer,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Text(
+                'Ao escolher Meu diário (texto livre), uma entrada recente pode ser usada no servidor para criar uma reflexão de hoje. Não é diagnóstico nem monitoramento, e você pode desligar ou excluir esse dado derivado quando quiser.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
           if (!hasPrimaryPatientSupportSource(sources)) ...[
             const SizedBox(height: 10),
             Text(
               sources.isEmpty
                   ? 'Escolha pelo menos uma opção.'
-                  : 'Escolha Meus check-ins ou Temas que eu marcar para a sugestão ter um sinal atual.',
+                  : 'Escolha Meus check-ins, Temas que eu marcar ou Meu diário para ter um ponto de partida.',
               style: TextStyle(color: theme.colorScheme.error),
             ),
           ],
@@ -547,6 +561,7 @@ class _GenericPreview extends StatelessWidget {
 String _shortSourceLabel(SupportSignalSource source) => switch (source) {
   SupportSignalSource.moodHistory => 'Meus check-ins',
   SupportSignalSource.diaryTags => 'Temas que eu marcar',
+  SupportSignalSource.diaryText => 'Meu diário (texto livre)',
   SupportSignalSource.exerciseFeedback => 'Práticas que avaliei',
   SupportSignalSource.notificationInteractions => 'Lembretes que abri',
 };

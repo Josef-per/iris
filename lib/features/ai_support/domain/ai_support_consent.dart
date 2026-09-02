@@ -1,10 +1,12 @@
 /// Fontes estruturadas que podem participar das sugestões de apoio.
 ///
-/// Texto livre do diário não faz parte desta enumeração e, portanto, não pode
-/// ser habilitado por esta camada do protótipo.
+/// `diaryText` exige um consentimento separado: ele pode ser enviado somente
+/// para a reflexão diária no servidor e nunca vira um sinal local ou uma tag
+/// inferida. As outras fontes continuam estruturadas.
 enum SupportSignalSource {
   moodHistory,
   diaryTags,
+  diaryText,
   exerciseFeedback,
   notificationInteractions,
 }
@@ -16,6 +18,7 @@ enum SupportSignalSource {
 const connectedAiSupportSources = <SupportSignalSource>{
   SupportSignalSource.moodHistory,
   SupportSignalSource.diaryTags,
+  SupportSignalSource.diaryText,
   SupportSignalSource.notificationInteractions,
 };
 

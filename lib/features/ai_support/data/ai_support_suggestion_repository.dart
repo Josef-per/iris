@@ -99,6 +99,7 @@ SupportSuggestionCategory? _categoryFromWire(String? value) => switch (value) {
 SupportSignalSource? _sourceFromWire(String value) => switch (value) {
   'mood_history' => SupportSignalSource.moodHistory,
   'diary_topics' => SupportSignalSource.diaryTags,
+  'diary_text' => SupportSignalSource.diaryText,
   'exercise_feedback' => SupportSignalSource.exerciseFeedback,
   'notification_interactions' => SupportSignalSource.notificationInteractions,
   _ => null,

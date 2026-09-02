@@ -85,7 +85,6 @@ $irisFlutterArguments = @($args)
 $irisRunArguments = @()
 $irisDeviceWasSelected = $false
 $irisBuildModeWasSelected = $false
-$irisWebPortWasSelected = $false
 $irisUsesWebDevice = $false
 $irisExpectsDeviceId = $false
 
@@ -120,7 +119,10 @@ foreach ($irisArgument in $irisFlutterArguments) {
     }
 
     if ($irisArgument -eq '--web-port' -or $irisArgument -like '--web-port=*') {
-        $irisWebPortWasSelected = $true
+        [Console]::Error.WriteLine(
+            'A porta web e fixa em 8080; remova o argumento --web-port.'
+        )
+        exit 2
     }
 }
 
@@ -145,15 +147,17 @@ if ($irisIsHeadless -and -not $irisDeviceWasSelected) {
         'Ambiente sem interface grafica; iniciando a versao web otimizada.'
     )
 }
-
-$irisWebPort = $env:IRIS_WEB_PORT
-if ([string]::IsNullOrEmpty($irisWebPort)) {
-    $irisWebPort = '8080'
+elseif (-not $irisDeviceWasSelected) {
+    $irisRunArguments += @('-d', 'chrome')
+    $irisUsesWebDevice = $true
+    [Console]::Error.WriteLine(
+        'Nenhum dispositivo informado; iniciando a versao web no Chrome.'
+    )
 }
 
-if ((($irisIsHeadless -and -not $irisDeviceWasSelected) -or $irisUsesWebDevice) -and -not $irisWebPortWasSelected) {
-    $irisRunArguments += "--web-port=$irisWebPort"
-    [Console]::Error.WriteLine("Versao web usando a porta fixa $irisWebPort.")
+if (($irisIsHeadless -and -not $irisDeviceWasSelected) -or $irisUsesWebDevice) {
+    $irisRunArguments += '--web-port=8080'
+    [Console]::Error.WriteLine('Versao web usando a porta fixa 8080.')
 }
 
 $irisCommandArguments = @(

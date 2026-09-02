@@ -11,12 +11,14 @@ const patientAvailableSupportCategories = <SupportSuggestionCategory>[
 const patientAvailableSupportSources = <SupportSignalSource>[
   SupportSignalSource.moodHistory,
   SupportSignalSource.diaryTags,
+  SupportSignalSource.diaryText,
   SupportSignalSource.notificationInteractions,
 ];
 
 const primaryPatientSupportSources = <SupportSignalSource>{
   SupportSignalSource.moodHistory,
   SupportSignalSource.diaryTags,
+  SupportSignalSource.diaryText,
 };
 
 bool hasPrimaryPatientSupportSource(Iterable<SupportSignalSource> sources) {
@@ -27,6 +29,7 @@ extension SupportSignalSourceLabels on SupportSignalSource {
   String get label => switch (this) {
     SupportSignalSource.moodHistory => 'Humor dos últimos dias',
     SupportSignalSource.diaryTags => 'Tags escolhidas no diário',
+    SupportSignalSource.diaryText => 'Texto livre do meu diário',
     SupportSignalSource.exerciseFeedback =>
       'Avaliação de exercícios concluídos',
     SupportSignalSource.notificationInteractions =>
@@ -38,6 +41,8 @@ extension SupportSignalSourceLabels on SupportSignalSource {
       'Usado somente para notar uma tendência simples em check-ins estruturados.',
     SupportSignalSource.diaryTags =>
       'Usado apenas quando você escolhe e confirma uma tag da lista fechada.',
+    SupportSignalSource.diaryText =>
+      'Enviado de forma segura para criar uma reflexão curta. Não é usado para diagnóstico, monitoramento ou treinar a IA.',
     SupportSignalSource.exerciseFeedback =>
       'Evita repetir logo uma prática marcada como não útil.',
     SupportSignalSource.notificationInteractions =>

@@ -6,7 +6,7 @@ import 'package:iris/features/ai_support/domain/notification_preferences.dart';
 
 void main() {
   test(
-    'codifica somente preferências estruturadas e força entrega silenciosa',
+    'codifica consentimento, sem incluir o texto livre do diário',
     () {
       final encoded = encodeAiSupportSettings(
         patientId: 'patient-1',
@@ -15,6 +15,7 @@ void main() {
           grantedSources: <SupportSignalSource>{
             SupportSignalSource.moodHistory,
             SupportSignalSource.diaryTags,
+            SupportSignalSource.diaryText,
           },
         ),
         preferences: const AiSupportPreferences(
@@ -34,6 +35,7 @@ void main() {
       );
 
       expect(encoded['fontes_consentidas'], <String>[
+        'diary_text',
         'diary_topics',
         'mood_history',
       ]);
@@ -41,6 +43,7 @@ void main() {
       expect(encoded['som_ativo'], isFalse);
       expect(encoded['vibracao_ativa'], isFalse);
       expect(encoded.keys, isNot(contains('diario_emocional')));
+      expect(encoded.values, isNot(contains('conteúdo privado')));
     },
   );
 

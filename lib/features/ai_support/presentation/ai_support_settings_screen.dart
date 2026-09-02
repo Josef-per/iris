@@ -263,11 +263,6 @@ class AiSupportSettingsScreen extends StatelessWidget {
                         onChanged: (value) =>
                             _setSource(context, source, value),
                       ),
-                    const ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.lock_outline_rounded),
-                      title: Text('Texto livre do diário não é usado'),
-                    ),
                   ],
                 ),
                 ExpansionTile(

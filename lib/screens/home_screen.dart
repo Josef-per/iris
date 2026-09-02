@@ -1,10 +1,14 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/ai_support/data/daily_companion_repository.dart';
 import 'package:iris/features/ai_support/data/mock_ai_support_store.dart';
 import 'package:iris/features/ai_support/data/remote_ai_recommender.dart';
+import 'package:iris/features/ai_support/domain/daily_companion_message.dart';
 import 'package:iris/features/ai_support/domain/support_suggestion.dart';
 import 'package:iris/features/ai_support/domain/suggestion_feedback.dart';
 import 'package:iris/features/ai_support/presentation/after_journal_support_sheet.dart';
@@ -32,6 +36,7 @@ class HomeScreen extends StatefulWidget {
     this.onOpenHistory,
     this.onOpenSupportSuggestions,
     this.aiSupportStore,
+    this.dailyCompanionDataSource,
   });
 
   final PatientTodayDataSource? todayDataSource;
@@ -40,6 +45,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback? onOpenHistory;
   final VoidCallback? onOpenSupportSuggestions;
   final MockAiSupportStore? aiSupportStore;
+  final DailyCompanionDataSource? dailyCompanionDataSource;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -51,6 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
   late final Future<Profile?> _profileFuture;
   late final PatientTodayDataSource _todayDataSource;
   late Future<PatientTodaySummary> _todaySummaryFuture;
+  late final DailyCompanionDataSource _dailyCompanionDataSource;
+  late Future<DailyCompanionMessage> _dailyCompanionFuture;
+  Set<String> _lastCompanionConsentSources = const <String>{};
 
   @override
   void initState() {
@@ -58,6 +67,20 @@ class _HomeScreenState extends State<HomeScreen> {
     _profileFuture = _profileRepository.getCurrentUserProfile();
     _todayDataSource = widget.todayDataSource ?? PatientTodayRepository();
     _todaySummaryFuture = _todayDataSource.loadToday();
+    _dailyCompanionDataSource =
+        widget.dailyCompanionDataSource ??
+        (SupabaseConfig.isConfigured
+            ? SupabaseDailyCompanionRepository()
+            : const DisabledDailyCompanionRepository());
+    _dailyCompanionFuture = _dailyCompanionDataSource.loadToday();
+    _lastCompanionConsentSources = _companionConsentSources();
+    widget.aiSupportStore?.addListener(_onAiSupportStoreChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.aiSupportStore?.removeListener(_onAiSupportStoreChanged);
+    super.dispose();
   }
 
   Future<bool?> _openBottomSheet(Widget child) async {
@@ -79,6 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openCheckInSheet() async {
     final saved = await _openBottomSheet(const CheckInDiarioBottomSheet());
     if (saved == true && mounted) {
+      _refreshDailyCompanion();
       await _showAfterJournalSupport(
         AiSupportRecommendationTrigger.afterCheckIn,
       );
@@ -88,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openEmotionalDiarySheet() async {
     final saved = await _openBottomSheet(const DiarioEmocionalBottomSheet());
     if (saved == true && mounted) {
+      _refreshDailyCompanion();
       await _showAfterJournalSupport(AiSupportRecommendationTrigger.afterDiary);
     }
   }
@@ -161,6 +186,37 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _todaySummaryFuture = _todayDataSource.loadToday();
     });
+  }
+
+  void _refreshDailyCompanion() {
+    setState(() {
+      _dailyCompanionFuture = _dailyCompanionDataSource.loadToday();
+    });
+  }
+
+  Set<String> _companionConsentSources() {
+    final store = widget.aiSupportStore;
+    if (store == null || !store.isPersonalizationEnabled) {
+      return const <String>{};
+    }
+    return store.consent.grantedSources.map((source) => source.name).toSet();
+  }
+
+  void _onAiSupportStoreChanged() {
+    final sources = _companionConsentSources();
+    if (setEquals(sources, _lastCompanionConsentSources)) return;
+    _lastCompanionConsentSources = sources;
+    // A persistencia das preferencias e assincrona. Pequeno atraso evita uma
+    // leitura anterior a revogacao e remove do cartao qualquer texto derivado.
+    Future<void>.delayed(const Duration(milliseconds: 450), () {
+      if (mounted) _refreshDailyCompanion();
+    });
+  }
+
+  void _openImmediateSupport() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => const SupportFlowScreen()),
+    );
   }
 
   Future<void> _signOut(BuildContext sheetContext) async {
@@ -316,6 +372,17 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  FutureBuilder<DailyCompanionMessage>(
+                    future: _dailyCompanionFuture,
+                    builder: (context, snapshot) => _DailyCompanionCard(
+                      companion: snapshot.data,
+                      isLoading:
+                          snapshot.connectionState == ConnectionState.waiting,
+                      onManagePersonalization: _openSupportSuggestions,
+                      onNeedSupport: _openImmediateSupport,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
                   Text(
                     'Registre seu dia',
                     style: Theme.of(context).textTheme.titleLarge,
@@ -429,6 +496,138 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _DailyCompanionCard extends StatelessWidget {
+  const _DailyCompanionCard({
+    required this.companion,
+    required this.isLoading,
+    required this.onManagePersonalization,
+    required this.onNeedSupport,
+  });
+
+  final DailyCompanionMessage? companion;
+  final bool isLoading;
+  final VoidCallback onManagePersonalization;
+  final VoidCallback onNeedSupport;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final needsSupport = companion?.needsHumanSupport == true;
+    final personalized = companion?.isPersonalized == true;
+    final title = companion?.title ?? 'Seu momento de hoje';
+    final message = companion?.message ??
+        (isLoading
+            ? 'Preparando um espaço breve para você...'
+            : 'Você não precisa resolver o dia inteiro agora. Qual seria um gesto pequeno de cuidado possível neste momento?');
+    final question = companion?.reflectionQuestion;
+    final background = needsSupport
+        ? theme.colorScheme.errorContainer
+        : theme.colorScheme.primaryContainer;
+    final foreground = needsSupport
+        ? theme.colorScheme.onErrorContainer
+        : theme.colorScheme.onPrimaryContainer;
+
+    return Semantics(
+      container: true,
+      label: 'Seu momento de hoje',
+      child: Container(
+        key: const Key('home-daily-companion-card'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: foreground.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(
+                needsSupport
+                    ? Icons.favorite_rounded
+                    : Icons.wb_sunny_outlined,
+                color: foreground,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      color: foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    message,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: foreground,
+                    ),
+                  ),
+                  if (question != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      question,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: foreground,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (needsSupport)
+                        FilledButton.icon(
+                          key: const Key('home-daily-companion-help'),
+                          onPressed: onNeedSupport,
+                          icon: const Icon(Icons.favorite_rounded),
+                          label: const Text('Encontrar apoio agora'),
+                        )
+                      else
+                        TextButton.icon(
+                          key: const Key('home-daily-companion-preferences'),
+                          onPressed: onManagePersonalization,
+                          icon: const Icon(Icons.tune_rounded),
+                          label: Text(
+                            personalized
+                                ? 'Ajustar o que considero'
+                                : 'Personalizar este momento',
+                          ),
+                          style: TextButton.styleFrom(foregroundColor: foreground),
+                        ),
+                    ],
+                  ),
+                  if (personalized) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Feito apenas com o que você permitiu. Não substitui cuidado profissional.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: foreground.withValues(alpha: .85),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

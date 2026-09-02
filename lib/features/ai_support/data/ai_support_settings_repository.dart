@@ -47,7 +47,7 @@ class SupabaseAiSupportSettingsRepository
            timeZoneName ?? (() => LocalDay.timeZone((clock ?? DateTime.now)()));
 
   static const table = 'preferencias_ia_apoio';
-  static const consentVersion = 'support-consent-v1';
+  static const consentVersion = 'support-consent-v2';
 
   final SupabaseClient? _clientOverride;
   final UserRepository _users;
@@ -214,6 +214,7 @@ SavedAiSupportSettings decodeAiSupportSettings(Map<String, dynamic> row) {
 String _sourceToWire(SupportSignalSource source) => switch (source) {
   SupportSignalSource.moodHistory => 'mood_history',
   SupportSignalSource.diaryTags => 'diary_topics',
+  SupportSignalSource.diaryText => 'diary_text',
   SupportSignalSource.exerciseFeedback => 'exercise_feedback',
   SupportSignalSource.notificationInteractions => 'notification_interactions',
 };
@@ -221,6 +222,7 @@ String _sourceToWire(SupportSignalSource source) => switch (source) {
 SupportSignalSource? _sourceFromWire(String value) => switch (value) {
   'mood_history' => SupportSignalSource.moodHistory,
   'diary_topics' => SupportSignalSource.diaryTags,
+  'diary_text' => SupportSignalSource.diaryText,
   'exercise_feedback' => SupportSignalSource.exerciseFeedback,
   'notification_interactions' => SupportSignalSource.notificationInteractions,
   _ => null,
