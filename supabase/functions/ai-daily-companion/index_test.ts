@@ -2,9 +2,18 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { containsProhibitedDailyCompanionContent } from "../_shared/daily_companion_safety.ts";
-
 const source = readFileSync(new URL("./index.ts", import.meta.url), "utf8");
+
+function relationshipDirective(): RegExp {
+  const block = source.match(
+    /const consequentialRelationshipDirective = new RegExp\(\s*\[([\s\S]*?)\]\.join\("\|"\),\s*"i",\s*\);/,
+  );
+  assert.notEqual(block, null);
+  const patterns = [...block![1].matchAll(/String\.raw`([^`]*)`/g)]
+    .map((match) => match[1]);
+  assert.ok(patterns.length > 0);
+  return new RegExp(patterns.join("|"), "i");
+}
 
 test("reflexao diaria pede orientacao concreta sem exercicios", () => {
   assert.match(source, /orientacao-reflexao personalizada/);
@@ -20,7 +29,7 @@ test("bloqueia prescricao de afastamento da familia", () => {
     Criar um limite temporario com a familia. Talvez seja util dizer a familia
     que vai reduzir contatos por alguns dias e so retomar quando se sentir mais capaz.
   `;
-  assert.equal(containsProhibitedDailyCompanionContent(unsafe), true);
+  assert.equal(relationshipDirective().test(unsafe), true);
 });
 
 test("aceita reflexao relacional que preserva escolha", () => {
@@ -30,7 +39,7 @@ test("aceita reflexao relacional que preserva escolha", () => {
     precisa resolver os dois ao mesmo tempo; decisoes maiores sobre a familia
     podem esperar ate ficar mais claro o que voce precisa dessa relacao.
   `;
-  assert.equal(containsProhibitedDailyCompanionContent(safe), false);
+  assert.equal(relationshipDirective().test(safe), false);
 });
 
 test("humor so entra nas fontes quando existe pontuacao numerica", () => {
