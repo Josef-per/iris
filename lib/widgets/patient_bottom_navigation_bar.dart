@@ -41,25 +41,33 @@ class PatientBottomNavigationBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final effectiveDestination = switch (selectedDestination) {
       PatientDestination.reminders ||
       PatientDestination.supportSuggestions => PatientDestination.home,
       _ => selectedDestination,
     };
-    return SizedBox(
+    return Material(
       key: const Key('patient-floating-navigation'),
-      height: 76,
-      child: Row(
-        children: [
-          for (final item in _items)
-            Expanded(
-              child: _PatientNavigationButton(
-                item: item,
-                selected: effectiveDestination == item.destination,
-                onPressed: () => onDestinationSelected(item.destination),
+      color: colors.surface,
+      elevation: 8,
+      shadowColor: colors.shadow.withValues(alpha: .14),
+      borderRadius: BorderRadius.circular(26),
+      clipBehavior: Clip.antiAlias,
+      child: SizedBox(
+        height: 76,
+        child: Row(
+          children: [
+            for (final item in _items)
+              Expanded(
+                child: _PatientNavigationButton(
+                  item: item,
+                  selected: effectiveDestination == item.destination,
+                  onPressed: () => onDestinationSelected(item.destination),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

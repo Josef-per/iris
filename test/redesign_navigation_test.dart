@@ -214,6 +214,12 @@ void main() {
           find.byKey(const Key('patient-floating-navigation')),
           findsOneWidget,
         );
+        final navigationSurface = tester.widget<Material>(
+          find.byKey(const Key('patient-floating-navigation')),
+        );
+        expect(navigationSurface.color, AppTheme.light.colorScheme.surface);
+        expect(navigationSurface.elevation, greaterThan(0));
+        expect(navigationSurface.clipBehavior, Clip.antiAlias);
 
         final selectedItem = tester.widget<AnimatedPhysicalModel>(
           find
