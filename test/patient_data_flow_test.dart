@@ -206,8 +206,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Uma reflexão para você'), findsOneWidget);
-    expect(find.text('Um momento para si'), findsNothing);
+    expect(find.text('Um momento para si'), findsOneWidget);
     expect(find.text(fullMessage), findsNothing);
 
     await tester.tap(find.byKey(const Key('home-daily-companion-open')));

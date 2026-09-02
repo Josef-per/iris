@@ -5,6 +5,16 @@ validar o usuário, o paciente, a personalização e cada fonte consentida no
 servidor. O aplicativo envia um objeto vazio: textos e sinais nunca trafegam
 do cliente para a função.
 
+A reflexão é uma orientação personalizada de uma ou duas frases, formulada
+como possibilidade. Ela não recomenda exercícios, técnicas guiadas, rotinas ou
+sequências de passos. Também não prescreve afastamento, redução de contato,
+confronto ou ruptura de relações; situações relacionais recebem apenas uma
+forma de organizar a decisão, preservando autonomia e acesso a apoio.
+
+Quando o diário autorizado contém linguagem explícita de
+suicídio ou autoagressão, a geração é interrompida e o aplicativo apresenta a
+rota de apoio humano. Esse bloqueio não constitui avaliação clínica de risco.
+
 O texto livre é limitado a 1.800 caracteres, não é registrado em logs e a
 chamada à OpenAI usa `store: false`. A resposta é JSON validado e expira em
 36 horas. Editar/apagar o diário, revogar `diary_text` ou excluir os dados de

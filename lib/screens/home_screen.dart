@@ -528,7 +528,7 @@ class _DailyCompanionCard extends StatelessWidget {
     final personalized = companion?.isPersonalized == true;
     final title = needsSupport
         ? 'Um cuidado importante agora'
-        : 'Uma reflexão para você';
+        : companion?.title ?? 'Uma reflexão para você';
     final message =
         companion?.message ??
         (isLoading

@@ -65,5 +65,10 @@ run_sql /workspace/supabase/tests/ai_support_backend.sql
 run_sql /workspace/supabase/migrations/0011_ai_support_gpt5_mini_only.sql
 run_sql /workspace/supabase/migrations/0011_ai_support_gpt5_mini_only.sql
 run_sql /workspace/supabase/tests/ai_support_gpt5_mini_only.sql
+run_sql /workspace/supabase/migrations/0012_daily_companion.sql
+run_sql /workspace/supabase/migrations/0012_daily_companion.sql
+run_sql /workspace/supabase/migrations/0013_daily_companion_refresh.sql
+run_sql /workspace/supabase/migrations/0013_daily_companion_refresh.sql
+run_sql /workspace/supabase/tests/daily_companion.sql
 
 echo "Migrations, fluxo profissional e apoio por IA validados."
