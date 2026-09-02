@@ -214,9 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openImmediateSupport() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => const SupportFlowScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(builder: (_) => const SupportFlowScreen()));
   }
 
   Future<void> _signOut(BuildContext sheetContext) async {
@@ -520,7 +520,8 @@ class _DailyCompanionCard extends StatelessWidget {
     final needsSupport = companion?.needsHumanSupport == true;
     final personalized = companion?.isPersonalized == true;
     final title = companion?.title ?? 'Seu momento de hoje';
-    final message = companion?.message ??
+    final message =
+        companion?.message ??
         (isLoading
             ? 'Preparando um espaço breve para você...'
             : 'Você não precisa resolver o dia inteiro agora. Qual seria um gesto pequeno de cuidado possível neste momento?');
@@ -554,9 +555,7 @@ class _DailyCompanionCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                needsSupport
-                    ? Icons.favorite_rounded
-                    : Icons.wb_sunny_outlined,
+                needsSupport ? Icons.favorite_rounded : Icons.wb_sunny_outlined,
                 color: foreground,
               ),
             ),
@@ -610,7 +609,9 @@ class _DailyCompanionCard extends StatelessWidget {
                                 ? 'Ajustar o que considero'
                                 : 'Personalizar este momento',
                           ),
-                          style: TextButton.styleFrom(foregroundColor: foreground),
+                          style: TextButton.styleFrom(
+                            foregroundColor: foreground,
+                          ),
                         ),
                     ],
                   ),
