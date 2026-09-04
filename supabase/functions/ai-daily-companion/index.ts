@@ -502,16 +502,34 @@ async function requestMessage(input: {
               type: "object",
               additionalProperties: false,
               properties: {
-                title: { type: "string" },
-                introduction: { type: "string" },
+                title: {
+                  type: "string",
+                  minLength: 3,
+                  maxLength: 80,
+                },
+                introduction: {
+                  type: "string",
+                  minLength: 20,
+                  maxLength: 180,
+                },
                 points: {
                   type: "array",
+                  minItems: 1,
+                  maxItems: 2,
                   items: {
                     type: "object",
                     additionalProperties: false,
                     properties: {
-                      label: { type: "string" },
-                      text: { type: "string" },
+                      label: {
+                        type: "string",
+                        minLength: 2,
+                        maxLength: 28,
+                      },
+                      text: {
+                        type: "string",
+                        minLength: 12,
+                        maxLength: 110,
+                      },
                     },
                     required: ["label", "text"],
                   },
