@@ -287,7 +287,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
               }
 
               return Scaffold(
-                extendBody: true,
+                key: const Key('patient-navigation-shell'),
                 body: content,
                 bottomNavigationBar: SafeArea(
                   top: false,

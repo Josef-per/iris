@@ -323,6 +323,38 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('navegacao do paciente nao sobrepoe o fim do conteudo', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final auth = _FakeAuthService();
+    addTearDown(auth.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PatientSessionGate(
+          authService: auth,
+          linkChecker: () async => true,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final shell = tester.widget<Scaffold>(
+      find.byKey(const Key('patient-navigation-shell')),
+    );
+
+    expect(shell.extendBody, isFalse);
+    expect(
+      find.byKey(const Key('patient-floating-navigation')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('perfil invalido encerra automaticamente a sessao', (
     tester,
   ) async {
