@@ -666,6 +666,9 @@ class _DailyCompanionCard extends StatelessWidget {
                             ),
                             style: TextButton.styleFrom(
                               foregroundColor: foreground,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                              ),
                             ),
                           ),
                         if (notEnabled)

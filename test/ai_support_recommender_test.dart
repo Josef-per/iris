@@ -156,6 +156,22 @@ void main() {
   });
 
   group('AiSupportRecommendationValidator', () {
+    test('aceita prática alternativa com motivo de check-in estável', () {
+      final result = const AiSupportRecommendationValidator().validate(
+        const AiSupportRecommendationProposal(
+          suggestionTemplateId: 'exercise_difficult_checkins_v1',
+          exerciseId: 'anchor-present',
+          reasonCodes: {SupportReasonCode.todaySteadyCheckIn},
+          confidenceBand: ConfidenceBand.high,
+        ),
+        preferences: preferences,
+        usedSources: {SupportSignalSource.moodHistory},
+        createdAt: now,
+      );
+      expect(result.isAccepted, isTrue);
+      expect(result.suggestion?.exerciseId, 'anchor-present');
+    });
+
     test('rejeita schema com campo extra em saída não confiável', () {
       final result = const AiSupportRecommendationValidator()
           .validateUntrustedPayload(

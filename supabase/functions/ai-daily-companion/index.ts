@@ -5,6 +5,7 @@ import { corsHeadersFor } from "../_shared/cors.ts";
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
 const promptVersion = "daily-companion-v4";
+const functionVersion = "daily-companion-v5";
 const maxDiaryCharacters = 1800;
 const visibleRolloutModes = new Set(["pilot", "limited"]);
 
@@ -62,6 +63,12 @@ type CompanionMessage = {
   title: string;
   message: string;
   reflectionQuestion: string | null;
+};
+
+type MessageAttempt = {
+  message: CompanionMessage | null;
+  reasonCode: string;
+  retryable: boolean;
 };
 
 type CompanionPoint = {
@@ -219,19 +226,22 @@ Deno.serve(async (request) => {
       return jsonResponse(200, { status: "not_available" }, corsHeaders);
     }
 
-    const generated = await requestMessage({
+    const generated = await generateMessage({
       context,
       model,
     });
-    if (generated === null) {
-      return jsonResponse(200, { status: "not_available" }, corsHeaders);
+    if (generated.message === null) {
+      return jsonResponse(200, {
+        status: "not_available",
+        reasonCode: generated.reasonCode,
+      }, corsHeaders);
     }
 
     const persisted = await persistMessage(admin, {
       patientId,
       localDay: today,
       recordId: context.record?.id ?? null,
-      message: generated,
+      message: generated.message,
       sources: context.sources,
       model,
     });
@@ -383,7 +393,7 @@ async function loadContext(
   const diaryText = sources.has("diary_text")
     ? truncate(nullableText(record?.diario_emocional), maxDiaryCharacters)
     : null;
-  const usedSources = <string>[];
+  const usedSources: string[] = [];
   if (
     sources.has("mood_history") &&
     typeof record?.como_sentiu === "number"
@@ -397,7 +407,7 @@ async function loadContext(
   return {
     sources: usedSources,
     record,
-    mood: moodBand(record?.como_sentiu),
+    mood: sources.has("mood_history") ? moodBand(record?.como_sentiu) : null,
     topics,
     diaryText,
   };
@@ -466,12 +476,27 @@ async function stableBucket(patientId: string, salt: string): Promise<number> {
   return new DataView(bytes.buffer).getUint32(0) % 100;
 }
 
+async function generateMessage(input: {
+  context: Context;
+  model: string;
+}): Promise<MessageAttempt> {
+  // Uma resposta incompleta ou fora do formato nao deve deixar a reflexao
+  // permanentemente vazia depois de o check-in invalidar o texto anterior.
+  // Ha no maximo duas tentativas, sempre com o mesmo contexto autorizado e
+  // com todas as validacoes; nunca reaproveitamos a reflexao invalidada.
+  let attempt = await requestMessage(input);
+  if (attempt.message === null && attempt.retryable) {
+    attempt = await requestMessage(input);
+  }
+  return attempt;
+}
+
 async function requestMessage(input: {
   context: Context;
   model: string;
-}): Promise<CompanionMessage | null> {
+}): Promise<MessageAttempt> {
   const apiKey = Deno.env.get("OPENAI_API_KEY")?.trim() ?? "";
-  if (apiKey === "") return null;
+  if (apiKey === "") return messageFailure("model_secret_missing", false);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 8000);
   try {
@@ -547,20 +572,36 @@ async function requestMessage(input: {
         code: "daily_companion_model_http_error",
         status: response.status,
       }));
-      return null;
+      return messageFailure(
+        response.status === 429 ? "model_rate_limited" : "model_http_error",
+        response.status >= 500,
+      );
     }
     const payload: unknown = await response.json();
-    const message = validateMessage(extractOutput(payload));
+    if (!isRecord(payload) || payload.status !== "completed") {
+      return messageFailure("model_incomplete", true);
+    }
+    const output = extractOutput(payload);
+    if (output === null) return messageFailure("model_no_output", false);
+    const message = validateMessage(output);
     if (message === null) {
       console.error(JSON.stringify({ code: "daily_companion_model_output_invalid" }));
+      return messageFailure("model_output_invalid", true);
     }
-    return message;
+    return { message, reasonCode: "accepted", retryable: false };
   } catch {
     console.error(JSON.stringify({ code: "daily_companion_model_request_failed" }));
-    return null;
+    return messageFailure(
+      controller.signal.aborted ? "model_timeout" : "model_request_failed",
+      true,
+    );
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function messageFailure(reasonCode: string, retryable: boolean): MessageAttempt {
+  return { message: null, reasonCode, retryable };
 }
 
 function extractOutput(value: unknown): unknown {
@@ -757,7 +798,7 @@ function jsonResponse(
   body: Record<string, unknown>,
   extraHeaders: Record<string, string> = {},
 ): Response {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify({ ...body, functionVersion }), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",

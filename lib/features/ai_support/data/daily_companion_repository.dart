@@ -27,7 +27,9 @@ class SupabaseDailyCompanionRepository implements DailyCompanionDataSource {
   Future<DailyCompanionMessage> loadToday() async {
     final response = await _client.functions
         .invoke('ai-daily-companion', body: const <String, Object?>{})
-        .timeout(const Duration(seconds: 12));
+        // O servidor pode repetir uma geracao rejeitada (2 x 8 s), alem
+        // de autenticar, consultar o contexto e persistir o resultado.
+        .timeout(const Duration(seconds: 30));
     final raw = response.data;
     if (raw is! Map) {
       throw const FormatException('Resposta da reflexao diaria invalida.');

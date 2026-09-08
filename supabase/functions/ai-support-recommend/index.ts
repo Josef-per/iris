@@ -24,6 +24,7 @@ const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
 const activePromptVersion = "selection-v2";
 const activeCatalogVersion = "support-v2";
+const functionVersion = "support-selection-v3";
 const allowedTriggers = new Set([
   "manual",
   "after_checkin",
@@ -1168,7 +1169,7 @@ function jsonResponse(
   body: Record<string, unknown>,
   extraHeaders: Record<string, string> = {},
 ): Response {
-  return new Response(JSON.stringify(body), {
+  return new Response(JSON.stringify({ ...body, functionVersion }), {
     status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",

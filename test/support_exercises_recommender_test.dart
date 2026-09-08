@@ -37,6 +37,32 @@ void main() {
   }
 
   group('MockExerciseRecommender', () {
+    test('todas as escolhas de prática curta resolvem conteúdo disponível', () {
+      final recommender = MockExerciseRecommender();
+      for (final need in SupportNeed.values) {
+        for (final time in SupportTime.values) {
+          for (final format in SupportFormat.values) {
+            for (final avoidBreathing in [false, true]) {
+              final result = recommender.recommend(
+                RecommendationContext(
+                  need: need,
+                  time: time,
+                  format: format,
+                  preferences: AccessibilityPreferences(
+                    avoidBreathing: avoidBreathing,
+                  ),
+                ),
+              );
+              final content = format == SupportFormat.video
+                  ? MockVideoCatalog.byId(result.contentId)
+                  : MockExerciseCatalog.byId(result.contentId);
+              expect(content, isNotNull, reason: '$need / $time / $format');
+            }
+          }
+        }
+      }
+    });
+
     test('mesma entrada produz sempre a mesma recomendação', () {
       const context = RecommendationContext(
         need: SupportNeed.present,

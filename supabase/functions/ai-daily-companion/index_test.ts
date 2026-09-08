@@ -87,7 +87,7 @@ test("humor so entra nas fontes quando existe pontuacao numerica", () => {
 
 test("linguagem explicita de crise desvia antes da chamada ao modelo", () => {
   const crisisGate = source.indexOf("hasCrisisLanguage(context.diaryText)");
-  const modelCall = source.indexOf("const generated = await requestMessage");
+  const modelCall = source.indexOf("const generated = await generateMessage");
   assert.notEqual(crisisGate, -1);
   assert.notEqual(modelCall, -1);
   assert.ok(crisisGate < modelCall);

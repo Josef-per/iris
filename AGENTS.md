@@ -1,0 +1,1 @@
+# Depois das alterações faça commit seguindo o conventional commits, em PT-BR

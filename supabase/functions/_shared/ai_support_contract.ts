@@ -70,6 +70,7 @@ export const supportTemplates: readonly TemplateDefinition[] = [
       "RECENT_DIFFICULT_CHECKINS",
       "PREFERS_SHORT_PRACTICE",
       "TODAY_DIFFICULT_CHECKIN",
+      "TODAY_STEADY_CHECKIN",
       "PREFERRED_FROM_PAST_INTERACTIONS",
     ],
   },
@@ -187,7 +188,7 @@ const modifierReasonCodes = new Set<SupportReasonCode>([
 export function eligibleTemplates(
   context: SelectionContext,
 ): readonly TemplateDefinition[] {
-  return catalogEligibleTemplates(context).flatMap((template) => {
+  const eligible = catalogEligibleTemplates(context).flatMap((template) => {
     // A lista e enviada diretamente ao modelo. Portanto, alem de o template
     // estar liberado pelas preferencias, cada motivo exposto precisa estar
     // comprovado por uma fonte consentida neste contexto concreto.
@@ -199,6 +200,12 @@ export function eligibleTemplates(
     }
     return [{ ...template, allowedReasonCodes: evidencedReasonCodes }];
   });
+  const fresh = eligible.filter((template) =>
+    !context.recentTemplateIds.includes(template.id)
+  );
+  // Priorize variedade, mas uma busca explicita pode voltar a uma pratica
+  // ainda compativel. Feedback negativo continua sendo um bloqueio.
+  return fresh.length > 0 ? fresh : eligible;
 }
 
 function catalogEligibleTemplates(
@@ -206,7 +213,10 @@ function catalogEligibleTemplates(
 ): readonly TemplateDefinition[] {
   return supportTemplates.filter((template) => {
     if (!context.allowedCategories.includes(template.category)) return false;
-    if (context.recentTemplateIds.includes(template.id)) return false;
+    if (
+      context.recentTemplateIds.includes(template.id) &&
+      context.trigger !== "manual" && context.trigger !== "notification_open"
+    ) return false;
     if (context.interactions.recentNegativeTemplateIds.includes(template.id)) {
       return false;
     }

@@ -74,6 +74,10 @@ test("usa apoio generico para check-in estavel sem inferir sobrecarga", () => {
     })),
     [
       {
+        id: "exercise_difficult_checkins_v1",
+        reasonCodes: ["PREFERS_SHORT_PRACTICE", "TODAY_STEADY_CHECKIN"],
+      },
+      {
         id: "reflection_self_kindness_v1",
         reasonCodes: ["TODAY_STEADY_CHECKIN"],
       },
@@ -300,4 +304,29 @@ test("cliente fornece somente idempotencia e gatilho fechado", () => {
   assert.match(edgeFunctionSource, /trigger:\s*string/);
   assert.match(edgeFunctionSource, /mode:\s*row\.modo/);
   assert.match(edgeFunctionSource, /proposal:\s*\{/);
+});
+
+
+test("check-in estavel mantem alternativa apos rejeitar a reflexao", () => {
+  const input = context({ dailyCheckIn: { moodBand: "steady" } });
+  input.interactions.recentNegativeTemplateIds = ["reflection_self_kindness_v1"];
+  const options = eligibleTemplates(input);
+  assert.deepEqual(options.map((item) => item.id), ["exercise_difficult_checkins_v1"]);
+  assert.equal(validateSelection({
+    decision: "suggest", suggestionTemplateId: options[0].id,
+    exerciseId: "anchor-present", reasonCodes: ["TODAY_STEADY_CHECKIN"], confidenceBand: "high",
+  }, input).accepted, true);
+});
+
+test("busca manual pode repetir apoio compativel sem ignorar rejeicoes", () => {
+  const input = context({
+    dailyCheckIn: { moodBand: "steady" },
+    recentTemplateIds: ["reflection_self_kindness_v1", "exercise_difficult_checkins_v1"],
+  });
+  assert.equal(eligibleTemplates(input).length, 2);
+  assert.equal(eligibleTemplates({ ...input, trigger: "after_checkin" }).length, 0);
+  input.interactions.recentNegativeTemplateIds = ["reflection_self_kindness_v1"];
+  assert.deepEqual(eligibleTemplates(input).map((item) => item.id), ["exercise_difficult_checkins_v1"]);
+  input.interactions.recentNegativeTemplateIds.push("exercise_difficult_checkins_v1");
+  assert.equal(eligibleTemplates(input).length, 0);
 });

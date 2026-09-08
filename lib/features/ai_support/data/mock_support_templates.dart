@@ -114,7 +114,7 @@ abstract final class MockSupportTemplateCatalog {
     SupportSuggestionTemplate(
       id: 'exercise_difficult_checkins_v1',
       category: SupportSuggestionCategory.exercise,
-      version: '1.1',
+      version: '1.2',
       status: SupportContentStatus.approved,
       inAppTitle: 'Dois minutos para voltar ao presente',
       inAppBody:
@@ -122,6 +122,7 @@ abstract final class MockSupportTemplateCatalog {
       genericNotificationTemplateId: 'notification_pause_gentle_v1',
       allowedReasonCodes: <SupportReasonCode>{
         SupportReasonCode.todayDifficultCheckIn,
+        SupportReasonCode.todaySteadyCheckIn,
         SupportReasonCode.recentDifficultCheckIns,
         SupportReasonCode.prefersShortPractice,
         SupportReasonCode.preferredFromPastInteractions,
