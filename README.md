@@ -170,6 +170,20 @@ No Windows, execute a versão PowerShell:
 .\scripts\flutter_run.ps1
 ```
 
+No Windows, o dispositivo padrão é `web-server`, na porta fixa 8080. Aguarde
+o servidor ficar pronto e abra http://localhost:8080 no navegador. Esse modo
+evita a falha `Failed to launch browser` porque não depende da inicialização
+automática do Chrome pelo Flutter.
+
+O modo `web-server` tem suporte limitado à depuração. Para usar a depuração
+integrada com um navegador compatível, selecione-o explicitamente:
+
+```powershell
+.\scripts\flutter_run.ps1 -d chrome
+# Ou, no Windows:
+.\scripts\flutter_run.ps1 -d edge
+```
+
 Ele lê somente `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY` (ou a chave
 `SUPABASE_ANON_KEY` legada) do `.env`. Qualquer chave secreta presente no
 arquivo é ignorada e nunca é encaminhada ao aplicativo. Argumentos adicionais
@@ -185,7 +199,8 @@ No PowerShell, os mesmos argumentos podem ser informados após o nome do script:
 .\scripts\flutter_run.ps1 -d chrome
 ```
 
-Sem `-d`, o inicializador abre o Chrome e fixa a porta web em `8080`. Ao usar
+Sem `-d`, o inicializador usa `web-server` no Windows e abre o Chrome nos
+demais ambientes com interface gráfica, sempre na porta web `8080`. Ao usar
 explicitamente `chrome`, `edge` ou `web-server`, a porta também permanece em
 `8080`; o script rejeita `--web-port` para evitar que a origem mude entre
 execuções. Para desenvolvimento web, use o inicializador em vez de executar

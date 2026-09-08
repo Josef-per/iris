@@ -147,6 +147,16 @@ if ($irisIsHeadless -and -not $irisDeviceWasSelected) {
         'Ambiente sem interface grafica; iniciando a versao web otimizada.'
     )
 }
+elseif ($irisIsWindows -and -not $irisDeviceWasSelected) {
+    $irisRunArguments += @('-d', 'web-server')
+    $irisUsesWebDevice = $true
+    [Console]::Error.WriteLine(
+        'Nenhum dispositivo informado; iniciando a versao web sem controlar o Chrome.'
+    )
+    [Console]::Error.WriteLine(
+        'Quando o servidor estiver pronto, abra http://localhost:8080 no navegador.'
+    )
+}
 elseif (-not $irisDeviceWasSelected) {
     $irisRunArguments += @('-d', 'chrome')
     $irisUsesWebDevice = $true
