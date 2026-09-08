@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/navigation/iris_router.dart';
@@ -11,13 +10,13 @@ import 'package:iris/features/professional/data/supabase_professional_workspace_
 import 'package:iris/features/professional/presentation/professional_clinical_workspace_view.dart';
 import 'package:iris/features/professional/presentation/professional_dashboard_view.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
+import 'package:iris/features/professional/presentation/professional_invite_dialog.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/professional/presentation/professional_patient_detail_view.dart';
 import 'package:iris/features/professional/presentation/professional_patients_view.dart';
 import 'package:iris/features/professional/presentation/professional_settings_view.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
 import 'package:iris/features/professional/professional_repository.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 class ProfessionalHomeScreen extends StatefulWidget {
   const ProfessionalHomeScreen({super.key, this.backend});
@@ -453,7 +452,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     await showDialog<void>(
       context: context,
       useRootNavigator: false,
-      builder: (context) => _ProfessionalInviteDialog(
+      builder: (context) => ProfessionalInviteDialog(
         createInvite: _professionalRepository.createLinkInvite,
         revokeInvite: _professionalRepository.revokeLinkInvite,
       ),
@@ -889,164 +888,6 @@ class _ProfessionalWorkspaceError extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ProfessionalInviteDialog extends StatefulWidget {
-  const _ProfessionalInviteDialog({
-    required this.createInvite,
-    required this.revokeInvite,
-  });
-
-  final Future<ProfessionalLinkInvite> Function() createInvite;
-  final Future<void> Function(String inviteId) revokeInvite;
-
-  @override
-  State<_ProfessionalInviteDialog> createState() =>
-      _ProfessionalInviteDialogState();
-}
-
-class _ProfessionalInviteDialogState extends State<_ProfessionalInviteDialog> {
-  late Future<ProfessionalLinkInvite> _inviteFuture;
-  bool _revoking = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _inviteFuture = widget.createInvite();
-  }
-
-  void _retry() {
-    setState(() => _inviteFuture = widget.createInvite());
-  }
-
-  Future<void> _revoke(ProfessionalLinkInvite invite) async {
-    if (_revoking) return;
-    setState(() => _revoking = true);
-    try {
-      await widget.revokeInvite(invite.id);
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      Navigator.pop(context);
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Convite revogado.')),
-      );
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _revoking = false);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(AppErrorMessages.from(error))));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Vincular paciente'),
-      content: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380, minHeight: 260),
-        child: FutureBuilder<ProfessionalLinkInvite>(
-          future: _inviteFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.error_outline_rounded,
-                    size: 42,
-                    color: AppColors.danger,
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    AppErrorMessages.from(snapshot.error!),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 18),
-                  FilledButton.tonalIcon(
-                    onPressed: _retry,
-                    icon: const Icon(Icons.refresh_rounded),
-                    label: const Text('Tentar novamente'),
-                  ),
-                ],
-              );
-            }
-
-            final invite = snapshot.data!;
-            final hour = invite.expiresAt.hour.toString().padLeft(2, '0');
-            final minute = invite.expiresAt.minute.toString().padLeft(2, '0');
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Peça ao paciente para escanear o QR Code.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 18),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: AppColors.lavender),
-                  ),
-                  child: QrImageView(
-                    data: invite.payload,
-                    size: 210,
-                    backgroundColor: AppColors.white,
-                    eyeStyle: const QrEyeStyle(color: AppColors.ink),
-                    dataModuleStyle: const QrDataModuleStyle(
-                      color: AppColors.ink,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  'Válido até $hour:$minute',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 8),
-                TextButton.icon(
-                  onPressed: () async {
-                    await Clipboard.setData(
-                      ClipboardData(text: invite.payload),
-                    );
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Código copiado.')),
-                    );
-                  },
-                  icon: const Icon(Icons.copy_rounded),
-                  label: const Text('Copiar código'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _revoking ? null : () => _revoke(invite),
-                  icon: _revoking
-                      ? const SizedBox.square(
-                          dimension: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.block_rounded),
-                  label: Text(_revoking ? 'Revogando...' : 'Revogar convite'),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _revoking ? null : () => Navigator.pop(context),
-          child: const Text('Fechar'),
-        ),
-      ],
     );
   }
 }
