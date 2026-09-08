@@ -666,9 +666,6 @@ class _DailyCompanionCard extends StatelessWidget {
                             ),
                             style: TextButton.styleFrom(
                               foregroundColor: foreground,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                              ),
                             ),
                           ),
                         if (notEnabled)
@@ -825,13 +822,17 @@ class _StatusCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      value,
-                      maxLines: 1,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      flex: 2,
+                      child: Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],

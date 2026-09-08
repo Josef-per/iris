@@ -148,3 +148,20 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   assert.equal(updated.functionVersion, "daily-companion-v5");
   assert.deepEqual(moods, [null, "steady", "steady"]);
 });
+
+test("recusa explicita do modelo nao e repetida nem exibe texto acompanhante", async () => {
+  let calls = 0;
+  const runtime = loadEdgeRuntime("ai-daily-companion", {
+    fetch() {
+      calls++;
+      return Response.json({ status: "completed", output: [{ content: [
+        { type: "refusal", refusal: "recusa fictícia" },
+        { type: "output_text", text: JSON.stringify(validOutput) },
+      ] }] });
+    },
+  });
+  const result = await runtime.generateMessage({ context, model: "gpt-5-mini" });
+  assert.equal(calls, 1);
+  assert.equal(result.message, null);
+  assert.equal(result.reasonCode, "model_refusal");
+});

@@ -581,8 +581,9 @@ async function requestMessage(input: {
     if (!isRecord(payload) || payload.status !== "completed") {
       return messageFailure("model_incomplete", true);
     }
+    if (hasRefusal(payload)) return messageFailure("model_refusal", false);
     const output = extractOutput(payload);
-    if (output === null) return messageFailure("model_no_output", false);
+    if (output === null) return messageFailure("model_output_invalid", true);
     const message = validateMessage(output);
     if (message === null) {
       console.error(JSON.stringify({ code: "daily_companion_model_output_invalid" }));
@@ -602,6 +603,13 @@ async function requestMessage(input: {
 
 function messageFailure(reasonCode: string, retryable: boolean): MessageAttempt {
   return { message: null, reasonCode, retryable };
+}
+
+function hasRefusal(value: Record<string, unknown>): boolean {
+  return Array.isArray(value.output) && value.output.some((item) =>
+    isRecord(item) && Array.isArray(item.content) &&
+    item.content.some((content) => isRecord(content) && content.type === "refusal")
+  );
 }
 
 function extractOutput(value: unknown): unknown {

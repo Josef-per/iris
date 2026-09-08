@@ -73,3 +73,35 @@ da reflexão diária. Um valor como `AI_SUPPORT_ALLOWED_ORIGINS=OPENAI_TIMEOUT_M
 secrets da função remota. Após atualizar o secret, repita o teste acima e
 recarregue o aplicativo autenticado. CORS aprovado, por si só, não comprova
 que a sessão e a geração funcionam.
+
+## Atualização após diário e check-in
+
+Na investigação de 08/09/2026, a função publicada ainda usava um schema sem
+`minLength`, `maxLength`, `minItems` e `maxItems`, embora o validador local já
+exigisse esses limites. A cópia publicada foi comparada com o repositório e
+atualizada. Após o deploy, a sequência diário → humor estável → mudança de
+humor retornou `ready` nas três etapas com conta fictícia.
+
+Alterar o humor invalida a reflexão anterior (migration `0013`). A função faz
+até duas tentativas para recuperar falhas transitórias ou uma resposta fora
+do formato; cada chamada ao modelo tem limite de 8 segundos. O cliente aguarda
+até 30 segundos, incluindo autenticação, contexto e persistência. Recusas
+explícitas, erro de autenticação e limite de uso do modelo não são repetidos.
+Uma reflexão invalidada nunca é reapresentada como resultado novo.
+
+As respostas identificam a versão em `functionVersion` (`daily-companion-v5`).
+Falhas de geração também retornam `reasonCode`, sem diário, prompt ou resposta
+bruta: `model_timeout`, `model_output_invalid`, `model_incomplete`,
+`model_refusal`, `model_rate_limited`, `model_http_error`,
+`model_request_failed` ou `model_secret_missing`. Isso permite diferenciar
+falha técnica e versão desatualizada sem expor conteúdo pessoal.
+
+Teste de regressão do handler e da geração, com fronteiras simuladas:
+
+```sh
+node supabase/functions/ai-daily-companion/generation_test.ts
+```
+
+Atualizar o Flutter não publica esta função: é necessário executar o deploy
+indicado acima. Para validar a atualização, testar diário → check-in → alteração
+de humor com conta fictícia e conferir `functionVersion` na resposta.

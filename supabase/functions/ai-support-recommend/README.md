@@ -192,3 +192,23 @@ Referências:
 - [Práticas de segurança](https://developers.openai.com/api/docs/guides/safety-best-practices)
 - [Autorização de Edge Functions](https://supabase.com/docs/guides/functions/auth-headers)
 - [Secrets de Edge Functions](https://supabase.com/docs/guides/functions/secrets)
+
+## Catálogo, feedback e repetição
+
+O check-in estável também pode selecionar a prática existente “Ancorar no
+presente”. Assim, rejeitar a reflexão de autogentileza não elimina a única
+alternativa compatível, quando exercícios estão autorizados.
+
+Uma busca manual ou abertura por notificação prioriza conteúdo ainda não
+mostrado, mas pode selecionar novamente uma opção compatível se as demais já
+foram usadas. Disparos automáticos após diário/check-in continuam respeitando
+o intervalo de 24 horas. Feedback negativo, consentimento, duração e exclusões
+continuam bloqueando conteúdo em todos os disparos.
+
+A resposta identifica esta implementação como `functionVersion:
+support-selection-v3`. O aplicativo também precisa ser atualizado para que seu
+validador reconheça o motivo de check-in estável associado à prática.
+
+```sh
+node supabase/functions/_shared/ai_support_contract_test.ts
+```
