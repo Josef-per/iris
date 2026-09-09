@@ -3,6 +3,7 @@ import test from "node:test";
 import { loadEdgeRuntime } from "../_shared/edge_test_runtime.ts";
 
 const validOutput = {
+  needsHumanSupport: false,
   title: "Uma prioridade possível",
   introduction: "Talvez uma prioridade pequena ajude a organizar o que merece atenção hoje.",
   points: [{ label: "Agora", text: "Uma escolha possível pode ser suficiente por enquanto." }],
@@ -96,18 +97,23 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   let record: Record<string, unknown> | null = null;
   let cached: Record<string, unknown> | null = null;
   let calls = 0;
+  let modelNeedsSupport = false;
   const moods: unknown[] = [];
   const preferences = { personalizacao_ativa: true, fontes_consentidas: ["diary_text", "mood_history"], fuso_horario: "UTC" };
   const admin = {
     auth: { getUser: () => ({ data: { user: { id: "user" } }, error: null }) },
     from(table: string) {
       const query = {
-        select() { return query; }, eq() { return query; }, gt() { return query; },
+        filters: {} as Record<string, unknown>,
+        select() { return query; },
+        eq(key: string, value: unknown) { query.filters[key] = value; return query; },
+        gt() { return query; },
         maybeSingle() {
           const tables: Record<string, unknown> = {
             pacientes: { id: "patient" }, preferencias_ia_apoio: preferences,
             rollout_ia_apoio: { apoio_ativo: true, mensagem_diaria_ativa: true, openai_ativa: true, kill_switch: false, modo: "limited", modelo: "gpt-5-mini", percentual_entrega: 100 },
-            registros_emocionais: record, mensagens_diarias_ia: cached,
+            registros_emocionais: record,
+            mensagens_diarias_ia: cached?.versao_prompt === query.filters.versao_prompt ? cached : null,
           };
           assert.ok(Object.hasOwn(tables, table), table);
           return { data: tables[table], error: null };
@@ -128,6 +134,7 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
     fetch(_url: string, init: RequestInit) {
       calls++;
       moods.push(JSON.parse(JSON.parse(init.body as string).input).mood);
+      if (modelNeedsSupport) return response({ needsHumanSupport: true, title: null, introduction: null, points: null });
       return response(calls === 2 ? { ...validOutput, points: [] } : validOutput);
     },
   });
@@ -145,8 +152,25 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   cached = null; // mesmo efeito da migration 0013 ao salvar o check-in
   const updated = await load();
   assert.equal(updated.status, "ready");
-  assert.equal(updated.functionVersion, "daily-companion-v5");
+  assert.equal(updated.functionVersion, "daily-companion-v6");
   assert.deepEqual(moods, [null, "steady", "steady"]);
+
+  cached!.versao_prompt = "daily-companion-v4";
+  assert.equal((await load()).status, "ready");
+  assert.equal(calls, 4, "cache antigo e regenerado com o contrato atual");
+
+  record.diario_emocional = "Estou pensando em me matar.";
+  assert.equal((await load()).status, "needs_human_support");
+  assert.equal(calls, 4, "crise explicita tem prioridade mesmo se houver cache");
+
+  record.diario_emocional = "Texto fictício sem os termos do filtro local.";
+  cached = null;
+  modelNeedsSupport = true;
+  const support = await load();
+  assert.equal(support.status, "needs_human_support");
+  assert.equal(support.reflectionQuestion, null);
+  assert.equal(calls, 5, "encaminhamento pelo modelo nao dispara nova geracao");
+  assert.equal(cached, null, "encaminhamento humano nao vira reflexao em cache");
 });
 
 test("recusa explicita do modelo nao e repetida nem exibe texto acompanhante", async () => {
@@ -164,4 +188,57 @@ test("recusa explicita do modelo nao e repetida nem exibe texto acompanhante", a
   assert.equal(calls, 1);
   assert.equal(result.message, null);
   assert.equal(result.reasonCode, "model_refusal");
+});
+
+test("aceita frases completas acima do limite antigo sem cortar o texto", async () => {
+  const output = {
+    ...validOutput,
+    introduction: "Pode ser que você esteja buscando segurança e algum alívio imediato após uma situação difícil.",
+    points: [
+      { label: "Uma prioridade possível", text: "Talvez reconhecer o que precisa de atenção neste momento ajude a organizar as escolhas, enquanto as decisões menos urgentes podem esperar até que suas necessidades estejam mais claras." },
+      { label: "Apoio disponível", text: "Pode ser útil considerar quais pessoas da sua rede de apoio conhecem o que você está vivendo e com quem você se sentiria à vontade para conversar sobre suas necessidades neste momento." },
+    ],
+  };
+  const runtime = loadEdgeRuntime("ai-daily-companion", { fetch() { return response(output); } });
+  const result = await runtime.generateMessage({ context, model: "gpt-5-mini" });
+  assert.equal(result.reasonCode, "accepted");
+  assert.ok(result.message.message.length > 480);
+  for (const point of output.points) assert.ok(result.message.message.includes(point.text));
+});
+
+test("repete trechos cortados ou com reticencias e preserva a frase completa", async () => {
+  for (const fragment of [
+    "Se houver risco atual, considerar contactar serviços de emergência ou alguém de confiança para estar fisically",
+    "Talvez buscar informar um profissional, amigo próximo e tbm",
+    "Talvez seja possível considerar...",
+    "Talvez seja possível considerar…",
+  ]) {
+    for (const field of ["introduction", "text"]) {
+      let calls = 0;
+      const runtime = loadEdgeRuntime("ai-daily-companion", {
+        fetch() {
+          calls++;
+          return response(calls > 1 ? validOutput : {
+            ...validOutput,
+            ...(field === "introduction" ? { introduction: fragment } : { points: [{ label: "Agora", text: fragment }] }),
+          });
+        },
+      });
+      const result = await runtime.generateMessage({ context, model: "gpt-5-mini" });
+      assert.equal(calls, 2);
+      assert.equal(result.reasonCode, "accepted");
+      assert.ok(!result.message.message.includes(fragment));
+    }
+  }
+});
+
+test("sinalizacao de apoio humano prevalece sobre texto acompanhante invalido", async () => {
+  let calls = 0;
+  const runtime = loadEdgeRuntime("ai-daily-companion", {
+    fetch() { calls++; return response({ ...validOutput, needsHumanSupport: true, introduction: "Cortado" }); },
+  });
+  const result = await runtime.generateMessage({ context, model: "gpt-5-mini" });
+  assert.equal(calls, 1);
+  assert.equal(result.message, null);
+  assert.equal(result.reasonCode, "needs_human_support");
 });

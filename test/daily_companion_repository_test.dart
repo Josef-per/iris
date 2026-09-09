@@ -54,6 +54,23 @@ void main() {
     expect(message.message, markdown);
   });
 
+  test(
+    'preserva textos longos e rejeita mensagens acima de 1200 caracteres',
+    () {
+      final fullMessage = '${'Uma frase completa. ' * 58}Fim da reflexão.';
+      final payload = <String, Object?>{
+        'status': 'ready',
+        'title': 'Uma prioridade possível',
+        'message': fullMessage,
+        'reflectionQuestion': null,
+      };
+      expect(fullMessage.length, greaterThan(480));
+      expect(decodeDailyCompanionMessage(payload).message, fullMessage);
+      payload['message'] = 'a' * 1201;
+      expect(() => decodeDailyCompanionMessage(payload), throwsFormatException);
+    },
+  );
+
   test('rejeita links no markdown da reflexão', () {
     expect(
       () => decodeDailyCompanionMessage(<String, Object?>{

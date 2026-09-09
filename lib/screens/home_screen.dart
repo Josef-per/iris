@@ -204,10 +204,13 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _openImmediateSupport() {
-    Navigator.of(
-      context,
-    ).push(MaterialPageRoute<void>(builder: (_) => const SupportFlowScreen()));
+  void _openSupportNetwork() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) =>
+            const SupportFlowScreen(start: SupportFlowStart.supportNetwork),
+      ),
+    );
   }
 
   @override
@@ -278,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           hasError: snapshot.hasError,
                           onRetry: _refreshDailyCompanion,
                           onManagePersonalization: _openSupportSuggestions,
-                          onNeedSupport: _openImmediateSupport,
+                          onNeedSupport: _openSupportNetwork,
                         ),
                       ),
                     ),
@@ -636,7 +639,7 @@ class _DailyCompanionCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        if (personalized || needsSupport)
+                        if (personalized && !needsSupport)
                           TextButton.icon(
                             key: const Key('home-daily-companion-open'),
                             onPressed: () => _openReflectionDialog(
@@ -656,7 +659,7 @@ class _DailyCompanionCard extends StatelessWidget {
                               foregroundColor: foreground,
                             ),
                           ),
-                        if (waiting || unavailable)
+                        if (!needsSupport && (waiting || unavailable))
                           TextButton.icon(
                             key: const Key('home-daily-companion-retry'),
                             onPressed: onRetry,

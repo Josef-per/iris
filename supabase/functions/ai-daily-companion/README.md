@@ -5,7 +5,7 @@ validar o usuário, o paciente, a personalização e cada fonte consentida no
 servidor. O aplicativo envia um objeto vazio: textos e sinais nunca trafegam
 do cliente para a função.
 
-A reflexão é uma orientação personalizada de uma ou duas frases, formulada
+A reflexão é uma orientação personalizada breve, formulada
 como possibilidade. Ela não recomenda exercícios, técnicas guiadas, rotinas ou
 sequências de passos. Também não prescreve afastamento, redução de contato,
 confronto ou ruptura de relações; situações relacionais recebem apenas uma
@@ -18,14 +18,28 @@ negrito e listas, sem abrir links nem interpretar conteúdo arbitrário.
 
 Quando o diário autorizado contém linguagem explícita de
 suicídio ou autoagressão, a geração é interrompida e o aplicativo apresenta a
-rota de apoio humano. Esse bloqueio não constitui avaliação clínica de risco.
+rota de apoio humano. O modelo também pode sinalizar `needsHumanSupport`;
+nesse caso, nenhum texto gerado é exibido ou salvo como reflexão. O cartão
+mostra apenas “Encontrar apoio agora”, sem “Ler reflexão”. Esse bloqueio não
+constitui avaliação clínica de risco.
 
 O texto livre é limitado a 1.800 caracteres, não é registrado em logs e a
 chamada à OpenAI usa `store: false`. A resposta é JSON validado e expira em
 36 horas. Editar/apagar o diário, revogar `diary_text` ou excluir os dados de
 apoio remove as mensagens derivadas.
 
+A introdução comporta até 300 caracteres e cada item até 360, com limite total
+de 1.200 caracteres no servidor, banco e aplicativo. Frases sem pontuação final
+ou terminadas em reticências são rejeitadas e podem gerar uma nova tentativa;
+a função não corta nem completa o texto recebido. Isso detecta finais visivelmente
+incompletos, mas não garante a completude semântica de toda frase.
+O cache só é reutilizado quando `versao_prompt` corresponde ao contrato atual.
+
 ## Deploy
+
+Aplicar a migration `0014_daily_companion_complete_text.sql` antes de publicar
+a função e distribuir o aplicativo atualizado. Ela amplia o limite do texto e
+adiciona a versão do contrato ao cache; reflexões antigas serão regeneradas.
 
 ```sh
 supabase functions deploy ai-daily-companion
@@ -89,7 +103,7 @@ até 30 segundos, incluindo autenticação, contexto e persistência. Recusas
 explícitas, erro de autenticação e limite de uso do modelo não são repetidos.
 Uma reflexão invalidada nunca é reapresentada como resultado novo.
 
-As respostas identificam a versão em `functionVersion` (`daily-companion-v5`).
+As respostas identificam a versão em `functionVersion` (`daily-companion-v6`).
 Falhas de geração também retornam `reasonCode`, sem diário, prompt ou resposta
 bruta: `model_timeout`, `model_output_invalid`, `model_incomplete`,
 `model_refusal`, `model_rate_limited`, `model_http_error`,

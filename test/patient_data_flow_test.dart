@@ -235,6 +235,107 @@ void main() {
     expect(find.byKey(const Key('home-daily-companion-dialog')), findsNothing);
   });
 
+  testWidgets('Home oferece somente a rede de apoio quando há risco', (
+    tester,
+  ) async {
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 0,
+            moodScore: 1,
+            hasCheckIn: true,
+            hasDiaryEntry: true,
+          ),
+        ),
+        dailyCompanionDataSource: _DailyCompanionSource(
+          decodeDailyCompanionMessage({
+            'status': 'needs_human_support',
+            'title': 'Um cuidado importante agora',
+            'message': 'Há pessoas e serviços disponíveis para apoiar você.',
+            'reflectionQuestion': null,
+          }),
+        ),
+      ),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+
+    final card = find.byKey(const Key('home-daily-companion-card'));
+    expect(
+      find.descendant(of: card, matching: find.bySubtype<ButtonStyleButton>()),
+      findsOneWidget,
+    );
+    expect(find.text('Ler reflexão'), findsNothing);
+    expect(find.byKey(const Key('home-daily-companion-open')), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const Key('home-daily-companion-help')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('network-cvv')), findsOneWidget);
+    expect(find.byKey(const Key('network-trusted')), findsOneWidget);
+    expect(find.byKey(const Key('menu-short-practice')), findsNothing);
+    expect(find.byKey(const Key('home-daily-companion-dialog')), findsNothing);
+  });
+
+  testWidgets('Reflexão longa permite ler até o fim em tela pequena', (
+    tester,
+  ) async {
+    const introduction =
+        'Talvez reconhecer uma prioridade possível ajude a organizar o dia.';
+    const point =
+        'Pode ser útil considerar quais pessoas da sua rede de apoio conhecem '
+        'o que você está vivendo e com quem você se sentiria à vontade para '
+        'conversar sobre suas necessidades neste momento. ';
+    final fullMessage =
+        '$introduction\n\n- **Agora:** $point$point\n'
+        '- **Depois:** $point Decisões menos urgentes podem esperar.';
+    expect(fullMessage.length, greaterThan(480));
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 0,
+            moodScore: 3,
+            hasCheckIn: true,
+            hasDiaryEntry: true,
+          ),
+        ),
+        dailyCompanionDataSource: _DailyCompanionSource(
+          decodeDailyCompanionMessage({
+            'status': 'ready',
+            'title': 'Uma prioridade possível',
+            'message': fullMessage,
+            'reflectionQuestion': null,
+          }),
+        ),
+      ),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('home-daily-companion-open')));
+    await tester.pumpAndSettle();
+
+    final dialog = find.byKey(const Key('home-daily-companion-dialog'));
+    final lastLine = find.textContaining(
+      'Decisões menos urgentes podem esperar.',
+      findRichText: true,
+    );
+    expect(lastLine, findsOneWidget);
+    await tester.drag(
+      find.descendant(of: dialog, matching: find.byType(SingleChildScrollView)),
+      const Offset(0, -1500),
+    );
+    await tester.pumpAndSettle();
+    expect(lastLine.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const Key('home-daily-companion-complete')));
+    await tester.pumpAndSettle();
+    expect(dialog, findsNothing);
+  });
+
   testWidgets('Home não apresenta fallback genérico como reflexão', (
     tester,
   ) async {

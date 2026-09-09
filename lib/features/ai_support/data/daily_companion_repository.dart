@@ -56,7 +56,7 @@ DailyCompanionMessage decodeDailyCompanionMessage(Map<String, Object?> data) {
   }
   final title = _cleanText(data['title'], minimum: 3, maximum: 80);
   final message = status == DailyCompanionStatus.ready
-      ? _cleanMarkdownText(data['message'], minimum: 20, maximum: 480)
+      ? _cleanMarkdownText(data['message'], minimum: 20, maximum: 1200)
       : _cleanText(data['message'], minimum: 20, maximum: 480);
   final question = data['reflectionQuestion'] == null
       ? null

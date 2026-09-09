@@ -69,6 +69,8 @@ run_sql /workspace/supabase/migrations/0012_daily_companion.sql
 run_sql /workspace/supabase/migrations/0012_daily_companion.sql
 run_sql /workspace/supabase/migrations/0013_daily_companion_refresh.sql
 run_sql /workspace/supabase/migrations/0013_daily_companion_refresh.sql
+run_sql /workspace/supabase/migrations/0014_daily_companion_complete_text.sql
+run_sql /workspace/supabase/migrations/0014_daily_companion_complete_text.sql
 run_sql /workspace/supabase/tests/daily_companion.sql
 
 echo "Migrations, fluxo profissional e apoio por IA validados."

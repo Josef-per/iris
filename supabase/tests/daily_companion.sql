@@ -54,13 +54,25 @@ insert into public.mensagens_diarias_ia (
   :'companion_record_id'::uuid,
   current_date,
   'Uma prioridade possível',
-  'Talvez uma única prioridade seja suficiente para orientar o restante deste dia.',
+  repeat('Uma frase completa para a reflexão. ', 30),
   null,
   'openai',
   'gpt-5-mini',
   array['mood_history'],
   now() + interval '36 hours'
 );
+
+-- O novo limite aceita textos completos e continua rejeitando excesso.
+do $$
+begin
+  begin
+    update public.mensagens_diarias_ia set mensagem = repeat('x', 1201);
+    raise exception 'Mensagem acima do limite foi aceita';
+  exception when check_violation then
+    null;
+  end;
+end;
+$$;
 
 set role authenticated;
 select set_config(
