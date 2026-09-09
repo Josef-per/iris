@@ -30,6 +30,9 @@ qr-profissional-*.png
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.android-sdk/
+.gradle/
+.toolchains/
 .flutter-config/
 .flutter-sdk/
 .flutter-plugins-dependencies
