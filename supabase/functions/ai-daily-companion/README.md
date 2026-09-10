@@ -76,7 +76,28 @@ node scripts/check_daily_companion_web.mjs https://seu-app.exemplo
 
 O script lê apenas `SUPABASE_URL` do ambiente ou do `.env` da raiz e não envia
 chave, sessão nem conteúdo do diário. Ele verifica o status HTTP, a origem,
-o método POST e os cabeçalhos usados pelo cliente Supabase.
+o método POST e os cabeçalhos usados pelo cliente Supabase. Depois consulta
+`functionVersion` com GET, que retorna `405 METHOD_NOT_ALLOWED` antes de
+autenticar ou gerar conteúdo, e compara com a versão do código local. CORS
+aprovado com função desatualizada também faz o comando falhar.
+
+Na investigação de 10/09/2026, o ambiente remoto ainda estava em
+`daily-companion-v5`, enquanto o aplicativo acompanhava o contrato `v8`.
+A tabela remota também continuava com limite de 480 caracteres e sem
+`versao_prompt`: a migration `0014` ainda não tinha sido aplicada. O aplicativo
+passou a rejeitar trechos incompletos que a função antiga ainda podia devolver.
+
+Nesse caso, aplicar somente a migration `0014_daily_companion_complete_text.sql`
+e publicar `ai-daily-companion`, nessa ordem. Conferir no banco a coluna
+`versao_prompt` e o limite de 1.200 caracteres; então repetir o diagnóstico
+acima. O script não verifica o banco nem comprova geração autenticada.
+Não é necessário mudar autenticação, consentimentos, CORS ou outras funções.
+
+A atualização foi concluída nessa investigação: a função publicada passou
+a responder `daily-companion-v8`, e as consultas de estrutura confirmaram a
+coluna de versão e o limite de 1.200 caracteres. O diagnóstico passou para
+localhost:8080 e para o domínio da demo. Essas verificações não acessaram
+diários nem executaram geração autenticada.
 
 `403 ORIGIN_NOT_ALLOWED`, ou a ausência de `Access-Control-Allow-Origin`, impede
 o navegador de enviar o POST. Nesse caso, preencher o diário ou alterar o prompt
