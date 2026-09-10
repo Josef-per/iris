@@ -34,6 +34,10 @@ ou terminadas em reticências são rejeitadas e podem gerar uma nova tentativa;
 a função não corta nem completa o texto recebido. Isso detecta finais visivelmente
 incompletos, mas não garante a completude semântica de toda frase.
 O cache só é reutilizado quando `versao_prompt` corresponde ao contrato atual.
+O servidor revalida cada parágrafo e item do cache antes de reutilizá-lo;
+um registro cortado é descartado e passa pela geração normal. O aplicativo
+também rejeita trechos sem pontuação final ou com reticências, inclusive quando
+recebidos de uma função antiga, sem completar ou cortar frases por conta própria.
 
 ## Deploy
 
@@ -103,7 +107,7 @@ até 30 segundos, incluindo autenticação, contexto e persistência. Recusas
 explícitas, erro de autenticação e limite de uso do modelo não são repetidos.
 Uma reflexão invalidada nunca é reapresentada como resultado novo.
 
-As respostas identificam a versão em `functionVersion` (`daily-companion-v6`).
+As respostas identificam a versão em `functionVersion` (`daily-companion-v7`).
 Falhas de geração também retornam `reasonCode`, sem diário, prompt ou resposta
 bruta: `model_timeout`, `model_output_invalid`, `model_incomplete`,
 `model_refusal`, `model_rate_limited`, `model_http_error`,

@@ -5,7 +5,7 @@ import { corsHeadersFor } from "../_shared/cors.ts";
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
 const promptVersion = "daily-companion-v5";
-const functionVersion = "daily-companion-v6";
+const functionVersion = "daily-companion-v7";
 const maxDiaryCharacters = 1800;
 const visibleRolloutModes = new Set(["pilot", "limited"]);
 
@@ -359,9 +359,16 @@ async function findExistingMessage(
     .maybeSingle();
   if (error !== null) throw error;
   if (data === null) return null;
+  // O cache tambem pode conter respostas de versoes antigas ou incompletas.
+  // Rejeita o registro para que o fluxo normal gere uma nova reflexao.
+  const title = cleanPlainField(data.titulo, 3, 80);
+  const message = cleanMarkdownMessage(data.mensagem, 20, 1200);
+  if (title === null || message === null || containsProhibitedDailyCompanionContent(`${title} ${message}`)) {
+    return null;
+  }
   return {
-    title: data.titulo.toString(),
-    message: data.mensagem.toString(),
+    title,
+    message,
     reflectionQuestion: nullableText(data.pergunta_reflexao),
   };
 }
@@ -788,6 +795,9 @@ function cleanMarkdownMessage(
 
   const withoutBold = text.replace(/\*\*[^*\n]+\*\*/g, "");
   if (withoutBold.includes("*") || withoutBold.includes("_")) return null;
+  if (!lines.every((line) =>
+    cleanCompleteSentence(line.replace(/^- \*\*[^*\n]+:\*\*\s+/, ""), 1, maximum) !== null
+  )) return null;
   return text;
 }
 

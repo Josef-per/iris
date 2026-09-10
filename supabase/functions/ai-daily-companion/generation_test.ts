@@ -152,16 +152,22 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   cached = null; // mesmo efeito da migration 0013 ao salvar o check-in
   const updated = await load();
   assert.equal(updated.status, "ready");
-  assert.equal(updated.functionVersion, "daily-companion-v6");
+  assert.equal(updated.functionVersion, "daily-companion-v7");
   assert.deepEqual(moods, [null, "steady", "steady"]);
 
   cached!.versao_prompt = "daily-companion-v4";
   assert.equal((await load()).status, "ready");
   assert.equal(calls, 4, "cache antigo e regenerado com o contrato atual");
 
+  cached!.mensagem = "Uma introdução completa para começar.\n\n- **Agora:** Até sentir-se mais equilibrado emocional-";
+  const recovered = await load();
+  assert.equal(recovered.status, "ready");
+  assert.ok(!recovered.message.includes("emocional-"));
+  assert.equal(calls, 5, "cache cortado e regenerado mesmo com a versao atual");
+
   record.diario_emocional = "Estou pensando em me matar.";
   assert.equal((await load()).status, "needs_human_support");
-  assert.equal(calls, 4, "crise explicita tem prioridade mesmo se houver cache");
+  assert.equal(calls, 5, "crise explicita tem prioridade mesmo se houver cache");
 
   record.diario_emocional = "Texto fictício sem os termos do filtro local.";
   cached = null;
@@ -169,7 +175,7 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   const support = await load();
   assert.equal(support.status, "needs_human_support");
   assert.equal(support.reflectionQuestion, null);
-  assert.equal(calls, 5, "encaminhamento pelo modelo nao dispara nova geracao");
+  assert.equal(calls, 6, "encaminhamento pelo modelo nao dispara nova geracao");
   assert.equal(cached, null, "encaminhamento humano nao vira reflexao em cache");
 });
 
@@ -208,6 +214,8 @@ test("aceita frases completas acima do limite antigo sem cortar o texto", async 
 
 test("repete trechos cortados ou com reticencias e preserva a frase completa", async () => {
   for (const fragment of [
+    "Decisões sociais podem esperar até sentir-se mais equilibrado emocional-",
+    "Talvez valha notar o cansaço; priorizar algo que recarregue,",
     "Se houver risco atual, considerar contactar serviços de emergência ou alguém de confiança para estar fisically",
     "Talvez buscar informar um profissional, amigo próximo e tbm",
     "Talvez seja possível considerar...",
@@ -228,6 +236,41 @@ test("repete trechos cortados ou com reticencias e preserva a frase completa", a
       assert.equal(calls, 2);
       assert.equal(result.reasonCode, "accepted");
       assert.ok(!result.message.message.includes(fragment));
+    }
+  }
+});
+
+test("cache com trecho cortado e rejeitado antes de chegar ao aplicativo", async () => {
+  const runtime = loadEdgeRuntime("ai-daily-companion");
+  const introduction = "Uma introdução completa para começar.";
+  const completePoint = "- **Agora:** Uma frase completa para encerrar.";
+  let message = `${introduction}\n\n${completePoint}`;
+  const admin = {
+    from() {
+      const query = {
+        select() { return query; }, eq() { return query; }, gt() { return query; },
+        maybeSingle() {
+          return { data: { titulo: "Uma reflexão para hoje", mensagem: message, pergunta_reflexao: null }, error: null };
+        },
+      };
+      return query;
+    },
+  };
+  assert.equal((await runtime.findExistingMessage(admin, "patient", "2026-09-10")).message, message);
+  for (const fragment of [
+    "Decisões sociais podem esperar até sentir-se mais equilibrado emocional-",
+    "Talvez valha notar o cansaço; priorizar algo que recarregue,",
+    "Uma possibilidade que ainda precisa ser",
+    "Talvez seja possível considerar...",
+    "Talvez seja possível considerar…",
+  ]) {
+    for (const broken of [
+      `${fragment}\n\n${completePoint}`,
+      `${introduction}\n\n- **Agora:** ${fragment}`,
+      `${introduction}\n\n- **Agora:** ${fragment}\n- **Depois:** Uma frase completa para encerrar.`,
+    ]) {
+      message = broken;
+      assert.equal(await runtime.findExistingMessage(admin, "patient", "2026-09-10"), null, broken);
     }
   }
 });

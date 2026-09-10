@@ -41,7 +41,7 @@ void main() {
 
   test('preserva o markdown restrito da reflexão', () {
     const markdown =
-        'Talvez ajude separar o que precisa de atenção agora do que pode esperar:\n\n'
+        'Talvez ajude separar o que precisa de atenção agora do que pode esperar.\n\n'
         '- **Agora:** uma prioridade possível.\n'
         '- **Depois:** decisões que não são urgentes.';
     final message = decodeDailyCompanionMessage(<String, Object?>{
@@ -82,5 +82,34 @@ void main() {
       }),
       throwsFormatException,
     );
+  });
+
+  test('rejeita trechos cortados mesmo em respostas de servidores antigos', () {
+    for (final fragment in [
+      'Decisões sociais podem esperar até sentir-se mais equilibrado emocional-',
+      'Talvez valha notar o cansaço; priorizar algo que recarregue,',
+      'Uma possibilidade que ainda precisa ser',
+      'Talvez seja possível considerar...',
+      'Talvez seja possível considerar…',
+    ]) {
+      for (final markdown in [
+        fragment,
+        '$fragment\n\n- **Agora:** Uma frase completa para encerrar.',
+        'Uma introdução completa para começar.\n\n- **Agora:** $fragment',
+        'Uma introdução completa para começar.\n\n'
+            '- **Agora:** $fragment\n- **Depois:** Uma frase completa para encerrar.',
+      ]) {
+        expect(
+          () => decodeDailyCompanionMessage({
+            'status': 'ready',
+            'title': 'Uma reflexão para hoje',
+            'message': markdown,
+            'reflectionQuestion': null,
+          }),
+          throwsFormatException,
+          reason: markdown,
+        );
+      }
+    }
   });
 }

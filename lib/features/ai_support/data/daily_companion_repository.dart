@@ -103,5 +103,18 @@ String? _cleanMarkdownText(
     caseSensitive: false,
     multiLine: true,
   );
-  return unsupported.hasMatch(text) ? null : text;
+  if (unsupported.hasMatch(text)) return null;
+  // Respostas antigas podem chegar cortadas mesmo com status ready. Verifica
+  // cada paragrafo/item sem completar frases nem esconder o trecho quebrado.
+  for (final line in text.split('\n').where((line) => line.isNotEmpty)) {
+    final sentence = line.replaceAllMapped(
+      RegExp(r'\*\*([^*\n]+)\*\*'),
+      (match) => match.group(1)!,
+    );
+    if (!RegExp(r'''[.!?]["”’)]?$''').hasMatch(sentence) ||
+        RegExp(r'''(?:\.\.\.|…)["”’)]?$''').hasMatch(sentence)) {
+      return null;
+    }
+  }
+  return text;
 }
