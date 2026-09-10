@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:iris/core/theme/app_theme.dart';
@@ -17,29 +19,44 @@ class AppAuthLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final dark = colors.brightness == Brightness.dark;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: dark
+                ? [AppColors.darkBackground, AppColors.darkSurface]
+                : [const Color(0xFFF0EAFC), AppColors.porcelain, Colors.white],
+          ),
+        ),
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 900;
-              final compact = constraints.maxWidth < 420;
-              final veryCompact = constraints.maxWidth < 360;
+              final compact = constraints.maxWidth < 600;
+              final verticalPadding = compact ? 24.0 : 40.0;
+              final form = ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: _AuthCard(compact: compact, child: child),
+              );
+
               return SingleChildScrollView(
-                padding: EdgeInsets.symmetric(vertical: compact ? 16 : 28),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.symmetric(vertical: verticalPadding),
                 child: AppResponsive(
                   maxWidth: 1120,
-                  padding: EdgeInsets.symmetric(
-                    horizontal: veryCompact
-                        ? 16
-                        : compact
-                        ? 20
-                        : 32,
-                  ),
+                  padding: EdgeInsets.symmetric(horizontal: compact ? 16 : 40),
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - (compact ? 32 : 56),
+                      minHeight: math.max(
+                        0,
+                        constraints.maxHeight - verticalPadding * 2,
+                      ),
                     ),
                     child: wide
                         ? Row(
@@ -48,30 +65,23 @@ class AppAuthLayout extends StatelessWidget {
                                 child: _Brand(
                                   title: title,
                                   subtitle: subtitle,
-                                  compact: false,
+                                  wide: true,
                                 ),
                               ),
-                              const SizedBox(width: 72),
-                              Expanded(child: AppSurface(child: child)),
+                              const SizedBox(width: 56),
+                              Expanded(child: form),
                             ],
                           )
                         : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               _Brand(
                                 title: title,
                                 subtitle: subtitle,
-                                compact: compact,
+                                wide: false,
                               ),
-                              SizedBox(height: compact ? 20 : 32),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(
-                                  maxWidth: 520,
-                                ),
-                                child: AppSurface(
-                                  padding: EdgeInsets.all(compact ? 20 : 24),
-                                  child: child,
-                                ),
-                              ),
+                              const SizedBox(height: 24),
+                              form,
                             ],
                           ),
                   ),
@@ -85,49 +95,190 @@ class AppAuthLayout extends StatelessWidget {
   }
 }
 
+class _AuthCard extends StatelessWidget {
+  const _AuthCard({required this.compact, required this.child});
+
+  final bool compact;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: BorderSide(color: colors.outline),
+    );
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(compact ? 24 : 32),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: .7)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.shadow.withValues(alpha: .06),
+            blurRadius: 40,
+            offset: const Offset(0, 16),
+          ),
+        ],
+      ),
+      child: Theme(
+        data: theme.copyWith(
+          inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+            filled: true,
+            fillColor: colors.surfaceContainerLow,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            prefixIconColor: colors.onSurfaceVariant,
+            suffixIconColor: colors.onSurfaceVariant,
+            border: border,
+            enabledBorder: border,
+            focusedBorder: border.copyWith(
+              borderSide: BorderSide(color: colors.primary, width: 2),
+            ),
+          ),
+          filledButtonTheme: FilledButtonThemeData(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size(0, 52),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 class _Brand extends StatelessWidget {
   const _Brand({
     required this.title,
     required this.subtitle,
-    required this.compact,
+    required this.wide,
   });
 
   final String title;
   final String subtitle;
-  final bool compact;
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 520),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SvgPicture.asset(
-            'assets/images/Login.svg',
-            width: compact ? 190 : 250,
-            height: compact ? 82 : 120,
-            fit: BoxFit.contain,
-            semanticsLabel: 'Íris',
+    final theme = Theme.of(context);
+    final foreground = wide ? AppColors.white : theme.colorScheme.primary;
+    final content = Column(
+      crossAxisAlignment: wide
+          ? CrossAxisAlignment.start
+          : CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SvgPicture.asset(
+          'assets/images/Login.svg',
+          width: wide ? 200 : 144,
+          height: wide ? 92 : 62,
+          fit: BoxFit.contain,
+          colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
+          semanticsLabel: 'Íris',
+        ),
+        SizedBox(height: wide ? 56 : 18),
+        Text(
+          title,
+          textAlign: wide ? TextAlign.start : TextAlign.center,
+          style: theme.textTheme.displaySmall?.copyWith(
+            color: foreground,
+            fontSize: wide ? 40 : 28,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -.8,
           ),
-          SizedBox(height: compact ? 14 : 24),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-              color: AppColors.white,
-              fontSize: compact ? 30 : null,
-            ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          subtitle,
+          textAlign: wide ? TextAlign.start : TextAlign.center,
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: wide
+                ? AppColors.white.withValues(alpha: .88)
+                : theme.colorScheme.onSurfaceVariant,
+            fontSize: wide ? 16 : 14,
+            height: 1.5,
           ),
-          SizedBox(height: compact ? 8 : 12),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppColors.white,
-              fontSize: compact ? 14 : null,
-            ),
+        ),
+        if (wide) ...[
+          const SizedBox(height: 64),
+          const Row(
+            children: [
+              Icon(Icons.spa_outlined, color: AppColors.lavender, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Um passo de cada vez. No seu ritmo.',
+                  style: TextStyle(color: AppColors.white, fontSize: 13),
+                ),
+              ),
+            ],
           ),
         ],
+      ],
+    );
+
+    if (!wide) {
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: content,
+        ),
+      );
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(32),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(gradient: AppColors.brandGradient),
+        child: Stack(
+          children: [
+            const Positioned(
+              top: -100,
+              right: -110,
+              child: _BrandRing(diameter: 320),
+            ),
+            const Positioned(
+              bottom: -170,
+              left: -100,
+              child: _BrandRing(diameter: 360),
+            ),
+            Padding(padding: const EdgeInsets.all(40), child: content),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandRing extends StatelessWidget {
+  const _BrandRing({required this.diameter});
+
+  final double diameter;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: Container(
+        width: diameter,
+        height: diameter,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: AppColors.white.withValues(alpha: .08),
+            width: 36,
+          ),
+        ),
       ),
     );
   }

@@ -127,7 +127,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
             const SizedBox(height: 24),
             Text(
               'Qual perfil deseja criar?',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 10),
             AppAccountTypeSelector(
@@ -135,7 +135,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
               enabled: !_isLoading,
               onChanged: (value) => setState(() => _isProfessional = value),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             TextFormField(
               controller: _displayName,
               textInputAction: TextInputAction.next,
@@ -202,6 +202,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
                 hintText: 'Mínimo de 8 caracteres',
                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                 suffixIcon: IconButton(
+                  tooltip: _obscure ? 'Mostrar senha' : 'Ocultar senha',
                   onPressed: () => setState(() => _obscure = !_obscure),
                   icon: Icon(
                     _obscure
@@ -259,6 +260,11 @@ class _CadastroScreenState extends State<CadastroScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+            Divider(
+              height: 1,
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
             const SizedBox(height: 12),
             Center(
               child: TextButton(

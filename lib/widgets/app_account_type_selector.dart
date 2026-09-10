@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:iris/core/theme/app_theme.dart';
 
 class AppAccountTypeSelector extends StatelessWidget {
   const AppAccountTypeSelector({
@@ -15,26 +14,39 @@ class AppAccountTypeSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _AccountTypeButton(
-            icon: Icons.favorite_outline_rounded,
-            label: 'Sou paciente',
-            selected: !isProfessional,
-            onTap: enabled ? () => onChanged(false) : null,
+    final colors = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _AccountTypeButton(
+                  icon: Icons.favorite_outline_rounded,
+                  label: 'Sou paciente',
+                  selected: !isProfessional,
+                  onTap: enabled ? () => onChanged(false) : null,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: _AccountTypeButton(
+                  icon: Icons.medical_services_outlined,
+                  label: 'Sou profissional',
+                  selected: isProfessional,
+                  onTap: enabled ? () => onChanged(true) : null,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _AccountTypeButton(
-            icon: Icons.medical_services_outlined,
-            label: 'Sou profissional',
-            selected: isProfessional,
-            onTap: enabled ? () => onChanged(true) : null,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -55,6 +67,9 @@ class _AccountTypeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final foreground = selected ? colors.primary : colors.onSurfaceVariant;
+    final radius = BorderRadius.circular(12);
+
     return Semantics(
       button: true,
       selected: selected,
@@ -62,46 +77,44 @@ class _AccountTypeButton extends StatelessWidget {
       label: label,
       excludeSemantics: true,
       child: Material(
-        color: selected ? colors.primaryContainer : colors.surface,
+        animationDuration: const Duration(milliseconds: 180),
+        color: selected ? colors.surface : Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: AppRadius.medium,
+          borderRadius: radius,
           side: BorderSide(
-            color: selected ? colors.primary : colors.outline,
-            width: selected ? 1.5 : 1,
+            color: selected
+                ? colors.primary.withValues(alpha: .35)
+                : Colors.transparent,
           ),
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: AppRadius.medium,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-            child: Column(
-              children: [
-                Icon(
-                  icon,
-                  color: selected
-                      ? colors.onPrimaryContainer
-                      : colors.onSurfaceVariant,
-                ),
-                const SizedBox(height: 7),
-                SizedBox(
-                  height: 36,
-                  child: Center(
+          borderRadius: radius,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 18, color: foreground),
+                  const SizedBox(width: 6),
+                  Flexible(
                     child: Text(
                       label,
                       textAlign: TextAlign.center,
-                      maxLines: 2,
                       style: TextStyle(
-                        color: selected
-                            ? colors.onPrimaryContainer
-                            : colors.onSurfaceVariant,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        color: foreground,
+                        fontSize: 12,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        height: 1.3,
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

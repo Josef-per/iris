@@ -164,7 +164,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
               Text(
                 'Como deseja entrar?',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleSmall,
               ),
               const SizedBox(height: 10),
               AppAccountTypeSelector(
@@ -172,7 +172,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 enabled: !_isLoading,
                 onChanged: (value) => setState(() => _isProfessional = value),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _emailController,
                 autofillHints: const [AutofillHints.email],
@@ -185,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 validator: _validateEmail,
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _passwordController,
                 autofillHints: const [AutofillHints.password],
@@ -215,18 +215,9 @@ class _LoginScreenState extends State<LoginScreen> {
               if (SupabaseConfig.isConfigured || widget.authService != null)
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    children: [
-                      TextButton(
-                        onPressed: _isLoading ? null : _requestPasswordReset,
-                        child: const Text('Esqueci minha senha'),
-                      ),
-                      TextButton(
-                        onPressed: _isLoading ? null : _resendConfirmation,
-                        child: const Text('Reenviar confirmação'),
-                      ),
-                    ],
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _requestPasswordReset,
+                    child: const Text('Esqueci minha senha'),
                   ),
                 ),
               if (widget.initialMessage != null) ...[
@@ -237,11 +228,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 _ErrorBanner(message: _errorMessage!),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
                   onPressed: _isLoading ? null : _submit,
+                  iconAlignment: IconAlignment.end,
                   icon: _isLoading
                       ? const SizedBox.square(
                           dimension: 18,
@@ -261,18 +253,35 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: 16),
-              Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  const Text('Ainda não tem uma conta?'),
-                  TextButton(
-                    onPressed: _isLoading ? null : _openCadastro,
-                    child: const Text('Criar conta'),
-                  ),
-                ],
+              const SizedBox(height: 24),
+              Divider(
+                height: 1,
+                color: Theme.of(context).colorScheme.outlineVariant,
               ),
+              const SizedBox(height: 12),
+              Center(
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      'Ainda não tem uma conta?',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    TextButton(
+                      onPressed: _isLoading ? null : _openCadastro,
+                      child: const Text('Criar conta'),
+                    ),
+                  ],
+                ),
+              ),
+              if (SupabaseConfig.isConfigured || widget.authService != null)
+                Center(
+                  child: TextButton(
+                    onPressed: _isLoading ? null : _resendConfirmation,
+                    child: const Text('Reenviar confirmação'),
+                  ),
+                ),
             ],
           ),
         ),
