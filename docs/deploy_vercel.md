@@ -1,5 +1,11 @@
 # Publicacao da demo na Vercel
 
+Endereco da demo: https://iris-demo-drab.vercel.app
+
+Projeto Vercel: `iris-demo`, no escopo `nicolas-projects-2450ca53`.
+O dominio publico esta autorizado no Supabase para autenticacao e IA,
+junto com o Codespaces da apresentacao.
+
 ## Build local e publicacao
 
 Requer Node.js 24 e Flutter 3.44.8. O inicializador usa o SDK local quando

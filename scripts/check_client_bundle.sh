@@ -8,8 +8,8 @@ if [[ ! -d "$bundle_dir" ]]; then
   exit 1
 fi
 
-if find "$bundle_dir" -type f -name '.env' -print -quit | grep -q .; then
-  echo "Falha: arquivo .env encontrado no bundle." >&2
+if find "$bundle_dir" -type f \( -name '.env' -o -name '.env.*' \) -print -quit | grep -q .; then
+  echo "Falha: arquivo de ambiente encontrado no bundle." >&2
   exit 1
 fi
 

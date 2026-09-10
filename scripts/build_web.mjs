@@ -41,3 +41,4 @@ const config = JSON.parse(readFileSync('vercel.json', 'utf8'));
 config.buildCommand = '';
 config.outputDirectory = '.';
 writeFileSync('build/web/vercel.json', `${JSON.stringify(config, null, 2)}\n`);
+writeFileSync('build/web/.vercelignore', '.env*\n.vercel\n.gitignore\n*.map\n');
