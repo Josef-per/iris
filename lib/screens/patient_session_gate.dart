@@ -291,7 +291,7 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
                 body: content,
                 bottomNavigationBar: SafeArea(
                   top: false,
-                  minimum: const EdgeInsets.fromLTRB(12, 6, 12, 10),
+                  minimum: const EdgeInsets.fromLTRB(12, 6, 12, 18),
                   child: Center(
                     heightFactor: 1,
                     child: ConstrainedBox(
