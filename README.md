@@ -151,6 +151,9 @@ controlada pela aplicação.
 
 ## Executar o aplicativo
 
+Para publicar a versao web e preparar as contas ficticias de apresentacao,
+consulte [Deploy da demo na Vercel](docs/deploy_vercel.md).
+
 Instale as dependências:
 
 ```bash

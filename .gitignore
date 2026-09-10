@@ -40,6 +40,9 @@ qr-profissional-*.png
 .pub/
 /build/
 /coverage/
+/.vercel/
+/demo-access.local.json
+/supabase-web-config.local.json
 /supabase/.temp/
 
 # Symbolication related

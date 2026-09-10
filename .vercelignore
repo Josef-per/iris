@@ -1,0 +1,12 @@
+/*
+!/lib
+!/assets
+!/web
+!/scripts
+!/pubspec.yaml
+!/pubspec.lock
+!/vercel.json
+/scripts/*
+!/scripts/build_vercel.sh
+!/scripts/build_web.mjs
+!/scripts/check_client_bundle.sh
