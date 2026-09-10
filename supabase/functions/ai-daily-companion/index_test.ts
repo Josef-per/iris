@@ -15,12 +15,12 @@ function relationshipDirective(): RegExp {
   return new RegExp(patterns.join("|"), "i");
 }
 
-test("reflexao diaria pede orientacao concreta sem exercicios", () => {
-  assert.match(source, /orientacao-reflexao personalizada/);
+test("reflexao diaria acolhe o relato sem exigir orientacao ou exercicios", () => {
+  assert.match(source, /reflexao breve e acolhedora/);
   assert.match(source, /A reflexao nao e um exercicio/);
   assert.match(source, /Os campos devem conter\s+somente texto simples/);
   assert.match(source, /cleanMarkdownMessage/);
-  assert.match(source, /promptVersion = "daily-companion-v5"/);
+  assert.match(source, /promptVersion = "daily-companion-v6"/);
   assert.match(source, /introduction: \{/);
   assert.match(source, /required: \["needsHumanSupport", "title", "introduction", "points"\]/);
   assert.match(source, /`- \*\*\$\{point\.label\}:\*\* \$\{point\.text\}`/);
@@ -39,7 +39,7 @@ test("servidor monta markdown a partir de campos simples", () => {
   );
   assert.match(
     source,
-    /points: \{\s+type: \["array", "null"\],\s+minItems: 1,\s+maxItems: 2,/,
+    /points: \{\s+type: \["array", "null"\],\s+minItems: 0,\s+maxItems: 2,/,
   );
   assert.match(
     source,

@@ -5,14 +5,22 @@ validar o usuário, o paciente, a personalização e cada fonte consentida no
 servidor. O aplicativo envia um objeto vazio: textos e sinais nunca trafegam
 do cliente para a função.
 
-A reflexão é uma orientação personalizada breve, formulada
-como possibilidade. Ela não recomenda exercícios, técnicas guiadas, rotinas ou
-sequências de passos. Também não prescreve afastamento, redução de contato,
-confronto ou ruptura de relações; situações relacionais recebem apenas uma
-forma de organizar a decisão, preservando autonomia e acesso a apoio.
+A reflexão acolhe o relato atual em uma ou duas frases por padrão. Um dia bom
+pode receber apenas o reconhecimento da alegria, sem tarefa, conselho, pergunta
+ou problema a resolver. Uma perspectiva prática é opcional e depende de uma
+dificuldade explícita. Ela não recomenda exercícios, técnicas guiadas, rotinas
+ou sequências de passos. Também não prescreve afastamento, redução de contato,
+confronto ou ruptura de relações, preservando autonomia e acesso a apoio.
 
-O campo `message` usa Markdown restrito: um parágrafo e um ou dois itens com
-ênfase em negrito. O servidor rejeita cabeçalhos, links, imagens, citações,
+O diário de hoje orienta a resposta. O check-in é um sinal separado; os temas
+confirmados anteriormente chegam ao modelo como `backgroundTopics` e não
+comprovam sentimentos atuais. Solidão ou sobrecarga no histórico não devem
+transformar um relato feliz com amigos em cansaço ou mal-estar. Sentimentos
+mistos e dificuldades explícitas continuam sendo reconhecidos.
+
+O campo `message` usa Markdown restrito: um parágrafo, opcionalmente seguido
+de um ou dois itens com ênfase em negrito. O modelo retorna `points: []` quando
+o parágrafo já basta. O servidor rejeita cabeçalhos, links, imagens, citações,
 código, HTML e listas numeradas. O aplicativo renderiza apenas parágrafos,
 negrito e listas, sem abrir links nem interpretar conteúdo arbitrário.
 
@@ -34,6 +42,8 @@ ou terminadas em reticências são rejeitadas e podem gerar uma nova tentativa;
 a função não corta nem completa o texto recebido. Isso detecta finais visivelmente
 incompletos, mas não garante a completude semântica de toda frase.
 O cache só é reutilizado quando `versao_prompt` corresponde ao contrato atual.
+O prompt `daily-companion-v6` invalida reflexões do contrato anterior, que
+exigia tópicos e orientação prática em todo registro.
 O servidor revalida cada parágrafo e item do cache antes de reutilizá-lo;
 um registro cortado é descartado e passa pela geração normal. O aplicativo
 também rejeita trechos sem pontuação final ou com reticências, inclusive quando
@@ -44,6 +54,7 @@ recebidos de uma função antiga, sem completar ou cortar frases por conta próp
 Aplicar a migration `0014_daily_companion_complete_text.sql` antes de publicar
 a função e distribuir o aplicativo atualizado. Ela amplia o limite do texto e
 adiciona a versão do contrato ao cache; reflexões antigas serão regeneradas.
+A correção atual não requer outra migration quando a `0014` já está aplicada.
 
 ```sh
 supabase functions deploy ai-daily-companion
@@ -107,7 +118,7 @@ até 30 segundos, incluindo autenticação, contexto e persistência. Recusas
 explícitas, erro de autenticação e limite de uso do modelo não são repetidos.
 Uma reflexão invalidada nunca é reapresentada como resultado novo.
 
-As respostas identificam a versão em `functionVersion` (`daily-companion-v7`).
+As respostas identificam a versão em `functionVersion` (`daily-companion-v8`).
 Falhas de geração também retornam `reasonCode`, sem diário, prompt ou resposta
 bruta: `model_timeout`, `model_output_invalid`, `model_incomplete`,
 `model_refusal`, `model_rate_limited`, `model_http_error`,

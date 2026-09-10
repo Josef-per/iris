@@ -235,6 +235,48 @@ void main() {
     expect(find.byKey(const Key('home-daily-companion-dialog')), findsNothing);
   });
 
+  testWidgets('Home mostra acolhimento breve sem exigir tópicos', (
+    tester,
+  ) async {
+    const message =
+        'Que bom que a companhia dos seus amigos trouxe alegria ao seu dia!';
+    await _pumpPatientWidget(
+      tester,
+      HomeScreen(
+        todayDataSource: _TodayDataSource(
+          const PatientTodaySummary(
+            mealCount: 0,
+            moodScore: 5,
+            hasCheckIn: true,
+            hasDiaryEntry: true,
+          ),
+        ),
+        dailyCompanionDataSource: _DailyCompanionSource(
+          decodeDailyCompanionMessage({
+            'status': 'ready',
+            'title': 'Alegria em boa companhia',
+            'message': message,
+            'reflectionQuestion': null,
+          }),
+        ),
+      ),
+      size: const Size(320, 700),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('home-daily-companion-open')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(message, findRichText: true).hitTestable(),
+      findsOneWidget,
+    );
+    expect(find.text('•'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byKey(const Key('home-daily-companion-complete')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('home-daily-companion-dialog')), findsNothing);
+  });
+
   testWidgets('Home oferece somente a rede de apoio quando há risco', (
     tester,
   ) async {

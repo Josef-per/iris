@@ -35,7 +35,7 @@ test("repete resposta invalida apos atualizar humor e aceita somente conteudo va
 test("limita tentativas e devolve causa tecnica sem texto de diario", async () => {
   let calls = 0;
   const runtime = loadEdgeRuntime("ai-daily-companion", {
-    fetch() { calls++; return response({ ...validOutput, points: [] }); },
+    fetch() { calls++; return response({ ...validOutput, points: null }); },
   });
   const result = await runtime.generateMessage({ context, model: "gpt-5-mini" });
   assert.equal(calls, 2);
@@ -135,7 +135,7 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
       calls++;
       moods.push(JSON.parse(JSON.parse(init.body as string).input).mood);
       if (modelNeedsSupport) return response({ needsHumanSupport: true, title: null, introduction: null, points: null });
-      return response(calls === 2 ? { ...validOutput, points: [] } : validOutput);
+      return response(calls === 2 ? { ...validOutput, points: null } : validOutput);
     },
   });
   async function load() {
@@ -152,10 +152,10 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   cached = null; // mesmo efeito da migration 0013 ao salvar o check-in
   const updated = await load();
   assert.equal(updated.status, "ready");
-  assert.equal(updated.functionVersion, "daily-companion-v7");
+  assert.equal(updated.functionVersion, "daily-companion-v8");
   assert.deepEqual(moods, [null, "steady", "steady"]);
 
-  cached!.versao_prompt = "daily-companion-v4";
+  cached!.versao_prompt = "daily-companion-v5";
   assert.equal((await load()).status, "ready");
   assert.equal(calls, 4, "cache antigo e regenerado com o contrato atual");
 
@@ -177,6 +177,49 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   assert.equal(support.reflectionQuestion, null);
   assert.equal(calls, 6, "encaminhamento pelo modelo nao dispara nova geracao");
   assert.equal(cached, null, "encaminhamento humano nao vira reflexao em cache");
+});
+
+test("relato feliz aceita acolhimento breve sem conselhos nem lista", async () => {
+  const diaryText = "Foi um dia bom, fiquei feliz em divertir com meus amigos";
+  const introduction = "Que bom que a companhia dos seus amigos trouxe alegria ao seu dia!";
+  let calls = 0;
+  const runtime = loadEdgeRuntime("ai-daily-companion", {
+    fetch(_url: string, init: RequestInit) {
+      calls++;
+      const body = JSON.parse(init.body as string);
+      const input = JSON.parse(body.input);
+      assert.equal(input.diaryText, diaryText);
+      assert.equal(input.mood, "lighter");
+      assert.deepEqual(input.backgroundTopics, ["overload", "loneliness"]);
+      return response({ needsHumanSupport: false, title: "Alegria em boa companhia", introduction, points: [] });
+    },
+  });
+  const result = await runtime.generateMessage({
+    context: { ...context, diaryText, mood: "lighter", topics: ["overload", "loneliness"] },
+    model: "gpt-5-mini",
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.reasonCode, "accepted");
+  assert.equal(result.message.message, introduction);
+  assert.equal(result.message.reflectionQuestion, null);
+  assert.ok(result.message.message.length < 180);
+});
+
+test("resposta breve passa pelas mesmas validacoes de conteudo e completude", async () => {
+  for (const introduction of [
+    "Talvez seja útil reduzir contato com a família por alguns dias.",
+    "Uma possibilidade que ainda precisa ser",
+    "Talvez seja possível considerar…",
+  ]) {
+    let calls = 0;
+    const runtime = loadEdgeRuntime("ai-daily-companion", {
+      fetch() { calls++; return response({ ...validOutput, introduction, points: [] }); },
+    });
+    const result = await runtime.generateMessage({ context, model: "gpt-5-mini" });
+    assert.equal(calls, 2);
+    assert.equal(result.reasonCode, "model_output_invalid");
+    assert.equal(result.message, null);
+  }
 });
 
 test("recusa explicita do modelo nao e repetida nem exibe texto acompanhante", async () => {
@@ -273,6 +316,8 @@ test("cache com trecho cortado e rejeitado antes de chegar ao aplicativo", async
       assert.equal(await runtime.findExistingMessage(admin, "patient", "2026-09-10"), null, broken);
     }
   }
+  message = introduction;
+  assert.equal((await runtime.findExistingMessage(admin, "patient", "2026-09-10")).message, introduction);
 });
 
 test("sinalizacao de apoio humano prevalece sobre texto acompanhante invalido", async () => {
