@@ -5,13 +5,16 @@ validar o usuário, o paciente, a personalização e cada fonte consentida no
 servidor. O aplicativo envia um objeto vazio: textos e sinais nunca trafegam
 do cliente para a função.
 
-A reflexão acolhe o relato atual em uma ou duas frases por padrão. Um dia bom
+A reflexão acolhe o relato atual em um parágrafo curto, geralmente de duas
+frases. Fala diretamente com a pessoa, sem avaliar como ela escreveu, repetir
+o sentimento em vários tópicos ou inventar suas causas. Um desabafo sobre
+cansaço ou ansiedade pode receber somente acolhimento, sem tarefas. Um dia bom
 recebe duas ou três frases curtas: o reconhecimento da alegria e um fechamento
 caloroso, ligado ao que fez bem, sem tarefa, cobrança, pergunta ou problema a
 resolver. Em um relato feliz com amigos, por exemplo, ela pode desejar que essas
 boas amizades continuem rendendo momentos assim. Uma perspectiva prática é
-opcional e depende de uma
-dificuldade explícita. Ela não recomenda exercícios, técnicas guiadas, rotinas
+opcional e depende de uma necessidade concreta de escolha ou organização,
+além de acrescentar algo ao acolhimento. Ela não recomenda exercícios, técnicas guiadas, rotinas
 ou sequências de passos. Também não prescreve afastamento, redução de contato,
 confronto ou ruptura de relações, preservando autonomia e acesso a apoio.
 
@@ -20,6 +23,25 @@ confirmados anteriormente chegam ao modelo como `backgroundTopics` e não
 comprovam sentimentos atuais. Solidão ou sobrecarga no histórico não devem
 transformar um relato feliz com amigos em cansaço ou mal-estar. Sentimentos
 mistos e dificuldades explícitas continuam sendo reconhecidos.
+
+Os exemplos abaixo são critérios editoriais para revisão; não são respostas
+fixas inseridas pelo aplicativo nem resultados de uma avaliação com o modelo real.
+
+| Tipo de relato | Exemplo de entrada | Comportamento esperado |
+| --- | --- | --- |
+| Positivo | “Saí de bicicleta com meus amigos, foi muito bom.” | Reconhecer a alegria e encerrar com uma frase calorosa ligada ao passeio ou às amizades. |
+| Desabafo difícil | “Estou me sentindo muito cansada, ansiosa sobre o trabalho...” | Acolher em um parágrafo, sem presumir pressão profissional ou exigir um ajuste prático. |
+| Misto | “Foi bom rever meus amigos, mas voltei triste.” | Reconhecer os dois sentimentos, sem impor otimismo nem incentivar automaticamente a repetição. |
+| Cotidiano | “Fui ao mercado e arrumei a casa.” | Responder com leveza, sem atribuir felicidade, solidão ou uma conquista. |
+| Vago ou irônico | “Sei lá, hoje foi estranho.” / “Que maravilha de dia...” | Respeitar a ambiguidade, sem completar a história ou interrogar. |
+| Negação ou passado | “Não fiquei ansiosa hoje, como na semana passada.” | Respeitar a negação e distinguir o sentimento passado do atual. |
+| Conflito | “Fiquei com raiva depois da discussão com minha irmã.” | Acolher a emoção sem tomar partido, atribuir intenções ou prescrever afastamento. |
+| Perda ou saudade | “Senti muita falta da minha avó hoje.” | Acolher a saudade sem presumir falecimento, buscar um lado positivo ou dar prazo para superar. |
+| Culpa ou alimentação | “Fiquei com culpa depois de comer.” | Acolher o desconforto sem julgamento alimentar, restrição, compensação ou conselho de dieta. |
+
+Para o desabafo sobre trabalho, um exemplo de tom é: “Estar tão cansada e
+ansiosa com o trabalho parece estar pesando hoje. Você merece acolhimento
+também nos dias difíceis, sem precisar resolver tudo de uma vez.”
 
 O campo `message` usa Markdown restrito: um parágrafo, opcionalmente seguido
 de um ou dois itens com ênfase em negrito. O modelo retorna `points: []` quando
@@ -45,9 +67,8 @@ ou terminadas em reticências são rejeitadas e podem gerar uma nova tentativa;
 a função não corta nem completa o texto recebido. Isso detecta finais visivelmente
 incompletos, mas não garante a completude semântica de toda frase.
 O cache só é reutilizado quando `versao_prompt` corresponde ao contrato atual.
-O prompt `daily-companion-v7` invalida reflexões do contrato anterior para que
-relatos positivos recebam também o novo fechamento caloroso. O contrato anterior
-já havia removido a exigência de tópicos e orientação prática em todo registro.
+O prompt `daily-companion-v8` renova o cache para aplicar o acolhimento natural
+a diferentes relatos, preservando o fechamento caloroso dos positivos.
 O servidor revalida cada parágrafo e item do cache antes de reutilizá-lo;
 um registro cortado é descartado e passa pela geração normal. O aplicativo
 também rejeita trechos sem pontuação final ou com reticências, inclusive quando
@@ -143,7 +164,7 @@ até 30 segundos, incluindo autenticação, contexto e persistência. Recusas
 explícitas, erro de autenticação e limite de uso do modelo não são repetidos.
 Uma reflexão invalidada nunca é reapresentada como resultado novo.
 
-As respostas identificam a versão em `functionVersion` (`daily-companion-v9`).
+As respostas identificam a versão em `functionVersion` (`daily-companion-v10`).
 Falhas de geração também retornam `reasonCode`, sem diário, prompt ou resposta
 bruta: `model_timeout`, `model_output_invalid`, `model_incomplete`,
 `model_refusal`, `model_rate_limited`, `model_http_error`,

@@ -152,10 +152,10 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   cached = null; // mesmo efeito da migration 0013 ao salvar o check-in
   const updated = await load();
   assert.equal(updated.status, "ready");
-  assert.equal(updated.functionVersion, "daily-companion-v9");
+  assert.equal(updated.functionVersion, "daily-companion-v10");
   assert.deepEqual(moods, [null, "steady", "steady"]);
 
-  cached!.versao_prompt = "daily-companion-v6";
+  cached!.versao_prompt = "daily-companion-v7";
   assert.equal((await load()).status, "ready");
   assert.equal(calls, 4, "cache antigo e regenerado com o contrato atual");
 
@@ -220,6 +220,26 @@ test("resposta breve passa pelas mesmas validacoes de conteudo e completude", as
     assert.equal(calls, 2);
     assert.equal(result.reasonCode, "model_output_invalid");
     assert.equal(result.message, null);
+  }
+});
+
+test("exemplos editoriais variados cabem no contrato sem cortes nem topicos", () => {
+  // Exemplos escritos para revisao de tom: este teste valida a compatibilidade
+  // com o contrato existente, nao a interpretacao semantica do modelo real.
+  const examples = [
+    { title: "Um dia exigente", introduction: "Estar tão cansada e ansiosa com o trabalho parece estar pesando hoje. Você merece acolhimento também nos dias difíceis, sem precisar resolver tudo de uma vez." },
+    { title: "Sentimentos que coexistem", introduction: "A alegria de rever seus amigos e a tristeza na volta tiveram espaço no mesmo dia. Uma não diminui a importância da outra." },
+    { title: "Um dia comum", introduction: "Hoje teve espaço para as coisas de sempre. Um dia comum também pode ter lugar no seu diário, sem precisar ganhar um significado maior." },
+    { title: "Sem precisar explicar tudo", introduction: "Nem sempre é fácil colocar o dia em palavras. Você não precisa ter uma explicação pronta para registrar como está." },
+    { title: "Um lugar para a saudade", introduction: "A falta da sua avó parece estar doendo hoje. Essa saudade merece carinho, sem pressa de encontrar algo que a faça passar." },
+    { title: "Gentileza neste momento", introduction: "Sentir culpa depois de comer parece ter sido difícil hoje. Você merece gentileza também quando esses pensamentos aparecem." },
+  ];
+  const runtime = loadEdgeRuntime("ai-daily-companion");
+  for (const example of examples) {
+    const result = runtime.validateMessage({ ...example, needsHumanSupport: false, points: [] });
+    assert.notEqual(result, null, example.title);
+    assert.equal(result.message, example.introduction);
+    assert.equal(result.reflectionQuestion, null);
   }
 });
 
