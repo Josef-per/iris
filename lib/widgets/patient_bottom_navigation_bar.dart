@@ -106,23 +106,20 @@ class PatientBottomNavigationBar extends StatelessWidget {
       key: const Key('patient-floating-navigation'),
       color: useGlass ? Colors.transparent : colors.surface,
       surfaceTintColor: Colors.transparent,
-      // O vidro precisa de sombra própria: sobre conteúdo claro (branco
-      // sobre branco), só o blur não separa a barra do fundo.
-      elevation: useGlass ? 10 : 12,
+      // Sombra suave só para descolar a barra do fundo branco.
+      elevation: useGlass ? 6 : 12,
       shadowColor: useGlass
-          ? colors.shadow.withValues(alpha: dark ? .5 : .32)
+          ? colors.shadow.withValues(alpha: dark ? .4 : .22)
           : colors.shadow.withValues(alpha: .28),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(26),
         side: BorderSide(
-          // Borda branca pura some sobre fundo claro; no vidro claro usa um
-          // contorno arroxeado visível, mantendo o highlight no gradiente.
-          // Segue o HIG: material regular/espesso em vez de clear sobre
-          // fundo sem riqueza visual, para preservar a legibilidade.
+          // Bordinha leve: contorno claro que separa o plano do fundo branco
+          // sem pesar no visual.
           color: useGlass
               ? (dark
-                    ? Colors.white.withValues(alpha: .3)
-                    : AppColors.outlineStrong.withValues(alpha: .55))
+                    ? Colors.white.withValues(alpha: .25)
+                    : AppColors.outline.withValues(alpha: .9))
               : colors.outlineVariant.withValues(alpha: .8),
         ),
       ),
@@ -132,30 +129,27 @@ class PatientBottomNavigationBar extends StatelessWidget {
               filter: ui.ImageFilter.blur(sigmaX: 26, sigmaY: 26),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  // Variante regular/espessa (HIG): o gradiente anterior era
-                  // quase transparente e o blur de branco sobre branco
-                  // continuava branco. O topo claro dá o highlight do vidro,
-                  // o corpo em tom gelo-lavanda escurece a barra frente aos
-                  // cards brancos e a base na cor da marca ancora a identidade.
+                  // Vidro claro e leve: fundo quase branco com um fio de luz
+                  // no topo; só a bordinha faz o contraste com o fundo.
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.white.withValues(alpha: dark ? .22 : .6),
+                      Colors.white.withValues(alpha: dark ? .2 : .55),
                       colors.surfaceContainerHigh.withValues(
-                        alpha: dark ? .8 : .92,
+                        alpha: dark ? .7 : .7,
                       ),
                       colors.primaryContainer.withValues(
-                        alpha: dark ? .5 : .48,
+                        alpha: dark ? .35 : .2,
                       ),
                     ],
                     stops: const [0.0, 0.45, 1.0],
                   ),
-                  // Highlight interno de topo: fio de luz do liquid glass.
+                  // Highlight interno de topo: fio de luz sutil do vidro.
                   border: Border(
                     top: BorderSide(
                       color: Colors.white.withValues(
-                        alpha: dark ? .22 : .65,
+                        alpha: dark ? .18 : .5,
                       ),
                     ),
                   ),
