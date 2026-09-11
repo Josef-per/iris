@@ -323,7 +323,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('navegacao do paciente revela o vidro sem sobrepor o fim', (
+  testWidgets('navegacao do paciente nao sobrepoe o fim do conteudo', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -347,10 +347,7 @@ void main() {
       find.byKey(const Key('patient-navigation-shell')),
     );
 
-    // O corpo se estende para trás da navbar flutuante para que o
-    // BackdropFilter tenha conteúdo para desfocar; o espaço inferior é
-    // preservado pela SafeArea da barra, sem esconder os últimos botões.
-    expect(shell.extendBody, isTrue);
+    expect(shell.extendBody, isFalse);
     expect(
       find.byKey(const Key('patient-floating-navigation')),
       findsOneWidget,

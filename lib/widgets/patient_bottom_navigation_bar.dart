@@ -1,9 +1,5 @@
-import 'dart:ui' as ui;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iris/core/navigation/iris_router.dart';
-import 'package:iris/core/theme/app_theme.dart';
 
 class PatientBottomNavigationBar extends StatelessWidget {
   const PatientBottomNavigationBar({
@@ -62,9 +58,6 @@ class PatientBottomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    // Na web, identifica o sistema do dispositivo que executa o navegador.
-    final useGlass = defaultTargetPlatform == TargetPlatform.iOS;
-    final dark = colors.brightness == Brightness.dark;
     final effectiveDestination = switch (selectedDestination) {
       PatientDestination.reminders ||
       PatientDestination.supportSuggestions => PatientDestination.home,
@@ -104,61 +97,18 @@ class PatientBottomNavigationBar extends StatelessWidget {
 
     return Material(
       key: const Key('patient-floating-navigation'),
-      color: useGlass ? Colors.transparent : colors.surface,
+      color: colors.surface,
       surfaceTintColor: Colors.transparent,
-      // Sombra suave só para descolar a barra do fundo branco.
-      elevation: useGlass ? 6 : 12,
-      shadowColor: useGlass
-          ? colors.shadow.withValues(alpha: dark ? .4 : .22)
-          : colors.shadow.withValues(alpha: .28),
+      elevation: 12,
+      shadowColor: colors.shadow.withValues(alpha: .28),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(26),
         side: BorderSide(
-          // Bordinha leve: contorno claro que separa o plano do fundo branco
-          // sem pesar no visual.
-          color: useGlass
-              ? (dark
-                    ? Colors.white.withValues(alpha: .25)
-                    : AppColors.outline.withValues(alpha: .9))
-              : colors.outlineVariant.withValues(alpha: .8),
+          color: colors.outlineVariant.withValues(alpha: .8),
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: useGlass
-          ? BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  // Vidro claro e leve: fundo quase branco com um fio de luz
-                  // no topo; só a bordinha faz o contraste com o fundo.
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.white.withValues(alpha: dark ? .2 : .55),
-                      colors.surfaceContainerHigh.withValues(
-                        alpha: dark ? .7 : .7,
-                      ),
-                      colors.primaryContainer.withValues(
-                        alpha: dark ? .35 : .2,
-                      ),
-                    ],
-                    stops: const [0.0, 0.45, 1.0],
-                  ),
-                  // Highlight interno de topo: fio de luz sutil do vidro.
-                  border: Border(
-                    top: BorderSide(
-                      color: Colors.white.withValues(
-                        alpha: dark ? .18 : .5,
-                      ),
-                    ),
-                  ),
-                  borderRadius: BorderRadius.circular(26),
-                ),
-                child: navigation,
-              ),
-            )
-          : navigation,
+      child: navigation,
     );
   }
 }

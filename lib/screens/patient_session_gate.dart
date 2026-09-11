@@ -288,11 +288,6 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
 
               return Scaffold(
                 key: const Key('patient-navigation-shell'),
-                // Permite que o conteúdo role para trás da navbar flutuante,
-                // para que o BackdropFilter do vidro tenha o que desfocar.
-                // O espaço inferior é preservado pela SafeArea da barra +
-                // respiro interno das telas, sem esconder os últimos botões.
-                extendBody: true,
                 body: content,
                 bottomNavigationBar: SafeArea(
                   top: false,

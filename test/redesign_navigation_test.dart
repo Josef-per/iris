@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/navigation/iris_router.dart';
@@ -178,9 +177,8 @@ void main() {
 
   group('PatientBottomNavigationBar', () {
     testWidgets(
-      'aplica vidro apenas no iOS e mantém navegação nos dois temas',
+      'mantém barra sólida e navegação nos dois temas',
       (tester) async {
-        final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
         for (final theme in [AppTheme.light, AppTheme.dark]) {
           PatientDestination? selected;
           await tester.pumpWidget(
@@ -199,48 +197,10 @@ void main() {
           final surface = tester.widget<Material>(
             find.byKey(const Key('patient-floating-navigation')),
           );
-          expect(
-            surface.color,
-            isIOS ? Colors.transparent : theme.colorScheme.surface,
-          );
-          expect(
-            find.byType(BackdropFilter),
-            isIOS ? findsOneWidget : findsNothing,
-          );
+          expect(surface.color, theme.colorScheme.surface);
+          expect(find.byType(BackdropFilter), findsNothing);
+          expect(surface.elevation, 12);
           expect(surface.clipBehavior, Clip.antiAlias);
-          // Regressão do "branco sobre branco": no vidro a barra precisa de
-          // sombra própria, borda com contorno visível e corpo espesso
-          // (variante regular) sobre fundo claro.
-          if (isIOS) {
-            expect(surface.elevation, greaterThan(0));
-            expect(
-              surface.shadowColor?.a,
-              greaterThanOrEqualTo(0.2),
-            );
-            final glassShape =
-                surface.shape! as RoundedRectangleBorder;
-            expect(glassShape.side.color.a, greaterThanOrEqualTo(0.25));
-            final decorations = tester
-                .widgetList<DecoratedBox>(
-                  find.descendant(
-                    of: find.byKey(const Key('patient-floating-navigation')),
-                    matching: find.byType(DecoratedBox),
-                  ),
-                )
-                .map((box) => box.decoration)
-                .whereType<BoxDecoration>()
-                .where(
-                  (decoration) =>
-                      decoration.gradient is LinearGradient &&
-                      (decoration.gradient! as LinearGradient).colors.length ==
-                          3,
-                )
-                .toList();
-            expect(decorations, hasLength(1));
-            final glassColors =
-                (decorations.single.gradient! as LinearGradient).colors;
-            expect(glassColors[1].a, greaterThanOrEqualTo(0.6));
-          }
           await tester.tap(find.byKey(const Key('patient-nav-profile')));
           expect(selected, PatientDestination.profile);
           expect(tester.takeException(), isNull);
