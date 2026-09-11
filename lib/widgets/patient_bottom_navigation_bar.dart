@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iris/core/navigation/iris_router.dart';
+import 'package:iris/core/theme/app_theme.dart';
 
 class PatientBottomNavigationBar extends StatelessWidget {
   const PatientBottomNavigationBar({
@@ -73,30 +74,43 @@ class PatientBottomNavigationBar extends StatelessWidget {
       key: const Key('patient-floating-navigation'),
       color: useGlass ? Colors.transparent : colors.surface,
       surfaceTintColor: Colors.transparent,
-      elevation: useGlass ? 0 : 12,
-      shadowColor: colors.shadow.withValues(alpha: .28),
+      // O vidro precisa de sombra própria: sobre conteúdo claro (branco
+      // sobre branco), só o blur não separa a barra do fundo.
+      elevation: useGlass ? 8 : 12,
+      shadowColor: colors.shadow.withValues(alpha: dark ? .45 : .28),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(26),
         side: BorderSide(
+          // Borda branca pura some sobre fundo claro; no vidro claro usa um
+          // contorno arroxeado visível, mantendo o highlight no gradiente.
           color: useGlass
-              ? Colors.white.withValues(alpha: dark ? .2 : .65)
+              ? (dark
+                    ? Colors.white.withValues(alpha: .28)
+                    : AppColors.outlineStrong.withValues(alpha: .38))
               : colors.outlineVariant.withValues(alpha: .8),
         ),
       ),
       clipBehavior: Clip.antiAlias,
       child: useGlass
           ? BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              filter: ui.ImageFilter.blur(sigmaX: 26, sigmaY: 26),
               child: DecoratedBox(
                 decoration: BoxDecoration(
+                  // Tint mais presente com leve matiz da marca: o gradiente
+                  // anterior era quase transparente e o blur de branco sobre
+                  // branco continuava branco. O topo claro dá o highlight do
+                  // vidro e a base levemente lavanda separa dos cards brancos.
                   gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
                     colors: [
-                      Colors.white.withValues(alpha: dark ? .12 : .4),
-                      colors.surface.withValues(alpha: .16),
-                      colors.surface.withValues(alpha: dark ? .3 : .24),
+                      Colors.white.withValues(alpha: dark ? .18 : .75),
+                      colors.surface.withValues(alpha: dark ? .58 : .66),
+                      colors.primaryContainer.withValues(
+                        alpha: dark ? .42 : .34,
+                      ),
                     ],
+                    stops: const [0.0, 0.45, 1.0],
                   ),
                 ),
                 child: navigation,

@@ -208,6 +208,18 @@ void main() {
             isIOS ? findsOneWidget : findsNothing,
           );
           expect(surface.clipBehavior, Clip.antiAlias);
+          // Regressão do "branco sobre branco": no vidro a barra precisa de
+          // sombra própria e borda com contorno visível sobre fundo claro.
+          if (isIOS) {
+            expect(surface.elevation, greaterThan(0));
+            expect(
+              surface.shadowColor?.a,
+              greaterThanOrEqualTo(0.2),
+            );
+            final glassShape =
+                surface.shape! as RoundedRectangleBorder;
+            expect(glassShape.side.color.a, greaterThanOrEqualTo(0.25));
+          }
           await tester.tap(find.byKey(const Key('patient-nav-profile')));
           expect(selected, PatientDestination.profile);
           expect(tester.takeException(), isNull);
