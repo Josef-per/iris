@@ -144,9 +144,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return AppAuthLayout(
-      title: 'Bem-vindo de volta.',
-      subtitle:
-          'Seu espaço seguro para acompanhar hábitos, emoções e progresso com mais leveza.',
       child: Form(
         key: _formKey,
         child: AutofillGroup(

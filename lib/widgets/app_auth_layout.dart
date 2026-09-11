@@ -8,13 +8,13 @@ import 'package:iris/widgets/app_responsive.dart';
 class AppAuthLayout extends StatelessWidget {
   const AppAuthLayout({
     super.key,
-    required this.title,
-    required this.subtitle,
+    this.title,
+    this.subtitle,
     required this.child,
   });
 
-  final String title;
-  final String subtitle;
+  final String? title;
+  final String? subtitle;
   final Widget child;
 
   @override
@@ -106,25 +106,12 @@ class _AuthCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
     final border = OutlineInputBorder(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: AppRadius.medium,
       borderSide: BorderSide(color: colors.outline),
     );
 
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.all(compact ? 24 : 32),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: .7)),
-        boxShadow: [
-          BoxShadow(
-            color: colors.shadow.withValues(alpha: .06),
-            blurRadius: 40,
-            offset: const Offset(0, 16),
-          ),
-        ],
-      ),
+    return AppSurface(
+      padding: EdgeInsets.all(compact ? AppSpacing.lg : AppSpacing.xl),
       child: Theme(
         data: theme.copyWith(
           inputDecorationTheme: theme.inputDecorationTheme.copyWith(
@@ -144,10 +131,11 @@ class _AuthCard extends StatelessWidget {
           ),
           filledButtonTheme: FilledButtonThemeData(
             style: FilledButton.styleFrom(
-              minimumSize: const Size(0, 52),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
+              minimumSize: const Size(
+                AppSize.minimumTapTarget,
+                AppSize.prominentControlHeight,
               ),
+              shape: RoundedRectangleBorder(borderRadius: AppRadius.medium),
             ),
           ),
         ),
@@ -164,8 +152,8 @@ class _Brand extends StatelessWidget {
     required this.wide,
   });
 
-  final String title;
-  final String subtitle;
+  final String? title;
+  final String? subtitle;
   final bool wide;
 
   @override
@@ -186,29 +174,33 @@ class _Brand extends StatelessWidget {
           colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
           semanticsLabel: 'Íris',
         ),
-        SizedBox(height: wide ? 56 : 8),
-        Text(
-          title,
-          textAlign: wide ? TextAlign.start : TextAlign.center,
-          style: theme.textTheme.displaySmall?.copyWith(
-            color: foreground,
-            fontSize: wide ? 40 : 26,
-            fontWeight: FontWeight.w700,
-            letterSpacing: -.8,
+        if (title != null) ...[
+          SizedBox(height: wide ? 56 : AppSpacing.xs),
+          Text(
+            title!,
+            textAlign: wide ? TextAlign.start : TextAlign.center,
+            style: theme.textTheme.displaySmall?.copyWith(
+              color: foreground,
+              fontSize: wide ? 40 : 26,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -.8,
+            ),
           ),
-        ),
-        SizedBox(height: wide ? 12 : 8),
-        Text(
-          subtitle,
-          textAlign: wide ? TextAlign.start : TextAlign.center,
-          style: theme.textTheme.bodyLarge?.copyWith(
-            color: wide
-                ? AppColors.white.withValues(alpha: .88)
-                : theme.colorScheme.onSurfaceVariant,
-            fontSize: wide ? 16 : 14,
-            height: 1.5,
+        ],
+        if (subtitle != null) ...[
+          SizedBox(height: wide ? AppSpacing.sm : AppSpacing.xs),
+          Text(
+            subtitle!,
+            textAlign: wide ? TextAlign.start : TextAlign.center,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: wide
+                  ? AppColors.white.withValues(alpha: .88)
+                  : theme.colorScheme.onSurfaceVariant,
+              fontSize: wide ? 16 : 14,
+              height: 1.5,
+            ),
           ),
-        ),
+        ],
         if (wide) ...[
           const SizedBox(height: 64),
           const Row(
