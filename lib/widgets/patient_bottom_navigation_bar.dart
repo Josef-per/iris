@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:iris/core/navigation/iris_router.dart';
 
@@ -42,37 +45,64 @@ class PatientBottomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    // Na web, identifica o sistema do dispositivo que executa o navegador.
+    final useGlass = defaultTargetPlatform == TargetPlatform.iOS;
+    final dark = colors.brightness == Brightness.dark;
     final effectiveDestination = switch (selectedDestination) {
       PatientDestination.reminders ||
       PatientDestination.supportSuggestions => PatientDestination.home,
       _ => selectedDestination,
     };
+    final navigation = SizedBox(
+      height: 76,
+      child: Row(
+        children: [
+          for (final item in _items)
+            Expanded(
+              child: _PatientNavigationButton(
+                item: item,
+                selected: effectiveDestination == item.destination,
+                onPressed: () => onDestinationSelected(item.destination),
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Material(
       key: const Key('patient-floating-navigation'),
-      color: colors.surface,
+      color: useGlass ? Colors.transparent : colors.surface,
       surfaceTintColor: Colors.transparent,
-      elevation: 12,
+      elevation: useGlass ? 0 : 12,
       shadowColor: colors.shadow.withValues(alpha: .28),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(26),
-        side: BorderSide(color: colors.outlineVariant.withValues(alpha: .8)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        height: 76,
-        child: Row(
-          children: [
-            for (final item in _items)
-              Expanded(
-                child: _PatientNavigationButton(
-                  item: item,
-                  selected: effectiveDestination == item.destination,
-                  onPressed: () => onDestinationSelected(item.destination),
-                ),
-              ),
-          ],
+        side: BorderSide(
+          color: useGlass
+              ? Colors.white.withValues(alpha: dark ? .2 : .65)
+              : colors.outlineVariant.withValues(alpha: .8),
         ),
       ),
+      clipBehavior: Clip.antiAlias,
+      child: useGlass
+          ? BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: dark ? .12 : .4),
+                      colors.surface.withValues(alpha: .16),
+                      colors.surface.withValues(alpha: dark ? .3 : .24),
+                    ],
+                  ),
+                ),
+                child: navigation,
+              ),
+            )
+          : navigation,
     );
   }
 }

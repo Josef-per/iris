@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/navigation/iris_router.dart';
@@ -176,6 +177,45 @@ void main() {
   });
 
   group('PatientBottomNavigationBar', () {
+    testWidgets(
+      'aplica vidro apenas no iOS e mantém navegação nos dois temas',
+      (tester) async {
+        final isIOS = defaultTargetPlatform == TargetPlatform.iOS;
+        for (final theme in [AppTheme.light, AppTheme.dark]) {
+          PatientDestination? selected;
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: theme,
+              home: Scaffold(
+                bottomNavigationBar: PatientBottomNavigationBar(
+                  selectedDestination: PatientDestination.home,
+                  onDestinationSelected: (value) => selected = value,
+                ),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final surface = tester.widget<Material>(
+            find.byKey(const Key('patient-floating-navigation')),
+          );
+          expect(
+            surface.color,
+            isIOS ? Colors.transparent : theme.colorScheme.surface,
+          );
+          expect(
+            find.byType(BackdropFilter),
+            isIOS ? findsOneWidget : findsNothing,
+          );
+          expect(surface.clipBehavior, Clip.antiAlias);
+          await tester.tap(find.byKey(const Key('patient-nav-profile')));
+          expect(selected, PatientDestination.profile);
+          expect(tester.takeException(), isNull);
+        }
+      },
+      variant: TargetPlatformVariant.all(),
+    );
+
     testWidgets(
       'exibe quatro destinos principais com áreas de toque adequadas',
       (tester) async {
