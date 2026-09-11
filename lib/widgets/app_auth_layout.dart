@@ -180,24 +180,24 @@ class _Brand extends StatelessWidget {
       children: [
         SvgPicture.asset(
           'assets/images/Login.svg',
-          width: wide ? 200 : 176,
-          height: wide ? 92 : 85,
+          width: wide ? 200 : 216,
+          height: wide ? 92 : 104,
           fit: BoxFit.contain,
           colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
           semanticsLabel: 'Íris',
         ),
-        SizedBox(height: wide ? 56 : 14),
+        SizedBox(height: wide ? 56 : 8),
         Text(
           title,
           textAlign: wide ? TextAlign.start : TextAlign.center,
           style: theme.textTheme.displaySmall?.copyWith(
             color: foreground,
-            fontSize: wide ? 40 : 28,
+            fontSize: wide ? 40 : 26,
             fontWeight: FontWeight.w700,
             letterSpacing: -.8,
           ),
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: wide ? 12 : 8),
         Text(
           subtitle,
           textAlign: wide ? TextAlign.start : TextAlign.center,
