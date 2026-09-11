@@ -15,12 +15,12 @@ function relationshipDirective(): RegExp {
   return new RegExp(patterns.join("|"), "i");
 }
 
-test("reflexao diaria acolhe o relato sem exigir orientacao ou exercicios", () => {
+test("reflexao diaria acolhe com sugestoes opcionais sem exigir exercicios", () => {
   assert.match(source, /reflexao breve e acolhedora/);
   assert.match(source, /A reflexao nao e um exercicio/);
   assert.match(source, /Os campos devem conter\s+somente texto simples/);
   assert.match(source, /cleanMarkdownMessage/);
-  assert.match(source, /promptVersion = "daily-companion-v8"/);
+  assert.match(source, /promptVersion = "daily-companion-v9"/);
   assert.match(source, /frase calorosa que incentive delicadamente/);
   assert.match(source, /boas amizades continuem/);
   assert.match(source, /introduction: \{/);

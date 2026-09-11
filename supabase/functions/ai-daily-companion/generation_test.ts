@@ -152,10 +152,10 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   cached = null; // mesmo efeito da migration 0013 ao salvar o check-in
   const updated = await load();
   assert.equal(updated.status, "ready");
-  assert.equal(updated.functionVersion, "daily-companion-v10");
+  assert.equal(updated.functionVersion, "daily-companion-v11");
   assert.deepEqual(moods, [null, "steady", "steady"]);
 
-  cached!.versao_prompt = "daily-companion-v7";
+  cached!.versao_prompt = "daily-companion-v8";
   assert.equal((await load()).status, "ready");
   assert.equal(calls, 4, "cache antigo e regenerado com o contrato atual");
 
@@ -227,7 +227,8 @@ test("exemplos editoriais variados cabem no contrato sem cortes nem topicos", ()
   // Exemplos escritos para revisao de tom: este teste valida a compatibilidade
   // com o contrato existente, nao a interpretacao semantica do modelo real.
   const examples = [
-    { title: "Um dia exigente", introduction: "Estar tão cansada e ansiosa com o trabalho parece estar pesando hoje. Você merece acolhimento também nos dias difíceis, sem precisar resolver tudo de uma vez." },
+    { title: "Um cuidado possível", introduction: "Sinto muito que o trabalho esteja pesando tanto. Talvez valha fazer uma pausa quando puder ou ouvir algo de que você gosta. Você não precisa dar conta de tudo sem apoio." },
+    { title: "Espaço para você", introduction: "É difícil passar o dia com tanta tristeza. Se fizer sentido, conversar com alguém de confiança pode ser uma possibilidade. Não precisa resolver tudo agora." },
     { title: "Sentimentos que coexistem", introduction: "A alegria de rever seus amigos e a tristeza na volta tiveram espaço no mesmo dia. Uma não diminui a importância da outra." },
     { title: "Um dia comum", introduction: "Hoje teve espaço para as coisas de sempre. Um dia comum também pode ter lugar no seu diário, sem precisar ganhar um significado maior." },
     { title: "Sem precisar explicar tudo", introduction: "Nem sempre é fácil colocar o dia em palavras. Você não precisa ter uma explicação pronta para registrar como está." },
