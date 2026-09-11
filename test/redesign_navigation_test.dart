@@ -209,7 +209,8 @@ void main() {
           );
           expect(surface.clipBehavior, Clip.antiAlias);
           // Regressão do "branco sobre branco": no vidro a barra precisa de
-          // sombra própria e borda com contorno visível sobre fundo claro.
+          // sombra própria, borda com contorno visível e corpo espesso
+          // (variante regular) sobre fundo claro.
           if (isIOS) {
             expect(surface.elevation, greaterThan(0));
             expect(
@@ -219,6 +220,26 @@ void main() {
             final glassShape =
                 surface.shape! as RoundedRectangleBorder;
             expect(glassShape.side.color.a, greaterThanOrEqualTo(0.25));
+            final decorations = tester
+                .widgetList<DecoratedBox>(
+                  find.descendant(
+                    of: find.byKey(const Key('patient-floating-navigation')),
+                    matching: find.byType(DecoratedBox),
+                  ),
+                )
+                .map((box) => box.decoration)
+                .whereType<BoxDecoration>()
+                .where(
+                  (decoration) =>
+                      decoration.gradient is LinearGradient &&
+                      (decoration.gradient! as LinearGradient).colors.length ==
+                          3,
+                )
+                .toList();
+            expect(decorations, hasLength(1));
+            final glassColors =
+                (decorations.single.gradient! as LinearGradient).colors;
+            expect(glassColors[1].a, greaterThanOrEqualTo(0.6));
           }
           await tester.tap(find.byKey(const Key('patient-nav-profile')));
           expect(selected, PatientDestination.profile);
@@ -227,6 +248,61 @@ void main() {
       },
       variant: TargetPlatformVariant.all(),
     );
+
+    testWidgets('deslizar na navbar troca para o destino vizinho', (
+      tester,
+    ) async {
+      PatientDestination? selected;
+      Future<void> pumpBar(PatientDestination destination) {
+        selected = null;
+        return tester.pumpWidget(
+          MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              bottomNavigationBar: PatientBottomNavigationBar(
+                selectedDestination: destination,
+                onDestinationSelected: (value) => selected = value,
+              ),
+            ),
+          ),
+        );
+      }
+
+      final bar = find.byKey(const Key('patient-floating-navigation'));
+
+      await pumpBar(PatientDestination.home);
+      await tester.pumpAndSettle();
+      await tester.fling(bar, const Offset(-300, 0), 800);
+      await tester.pumpAndSettle();
+      expect(selected, PatientDestination.history);
+
+      await pumpBar(PatientDestination.history);
+      await tester.pumpAndSettle();
+      await tester.fling(bar, const Offset(300, 0), 800);
+      await tester.pumpAndSettle();
+      expect(selected, PatientDestination.home);
+
+      // Nas bordas não há vizinho: o gesto é ignorado sem quebrar.
+      await pumpBar(PatientDestination.home);
+      await tester.pumpAndSettle();
+      await tester.fling(bar, const Offset(300, 0), 800);
+      await tester.pumpAndSettle();
+      expect(selected, isNull);
+
+      await pumpBar(PatientDestination.profile);
+      await tester.pumpAndSettle();
+      await tester.fling(bar, const Offset(-300, 0), 800);
+      await tester.pumpAndSettle();
+      expect(selected, isNull);
+
+      // Deslize vertical não troca de aba (não conflita com a rolagem).
+      await pumpBar(PatientDestination.home);
+      await tester.pumpAndSettle();
+      await tester.fling(bar, const Offset(0, -300), 800);
+      await tester.pumpAndSettle();
+      expect(selected, isNull);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets(
       'exibe quatro destinos principais com áreas de toque adequadas',
