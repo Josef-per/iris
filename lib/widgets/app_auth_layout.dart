@@ -180,13 +180,13 @@ class _Brand extends StatelessWidget {
       children: [
         SvgPicture.asset(
           'assets/images/Login.svg',
-          width: wide ? 200 : 144,
-          height: wide ? 92 : 62,
+          width: wide ? 200 : 176,
+          height: wide ? 92 : 85,
           fit: BoxFit.contain,
           colorFilter: ColorFilter.mode(foreground, BlendMode.srcIn),
           semanticsLabel: 'Íris',
         ),
-        SizedBox(height: wide ? 56 : 18),
+        SizedBox(height: wide ? 56 : 14),
         Text(
           title,
           textAlign: wide ? TextAlign.start : TextAlign.center,
