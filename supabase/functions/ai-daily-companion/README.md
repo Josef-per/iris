@@ -6,8 +6,11 @@ servidor. O aplicativo envia um objeto vazio: textos e sinais nunca trafegam
 do cliente para a função.
 
 A reflexão acolhe o relato atual em uma ou duas frases por padrão. Um dia bom
-pode receber apenas o reconhecimento da alegria, sem tarefa, conselho, pergunta
-ou problema a resolver. Uma perspectiva prática é opcional e depende de uma
+recebe duas ou três frases curtas: o reconhecimento da alegria e um fechamento
+caloroso, ligado ao que fez bem, sem tarefa, cobrança, pergunta ou problema a
+resolver. Em um relato feliz com amigos, por exemplo, ela pode desejar que essas
+boas amizades continuem rendendo momentos assim. Uma perspectiva prática é
+opcional e depende de uma
 dificuldade explícita. Ela não recomenda exercícios, técnicas guiadas, rotinas
 ou sequências de passos. Também não prescreve afastamento, redução de contato,
 confronto ou ruptura de relações, preservando autonomia e acesso a apoio.
@@ -42,8 +45,9 @@ ou terminadas em reticências são rejeitadas e podem gerar uma nova tentativa;
 a função não corta nem completa o texto recebido. Isso detecta finais visivelmente
 incompletos, mas não garante a completude semântica de toda frase.
 O cache só é reutilizado quando `versao_prompt` corresponde ao contrato atual.
-O prompt `daily-companion-v6` invalida reflexões do contrato anterior, que
-exigia tópicos e orientação prática em todo registro.
+O prompt `daily-companion-v7` invalida reflexões do contrato anterior para que
+relatos positivos recebam também o novo fechamento caloroso. O contrato anterior
+já havia removido a exigência de tópicos e orientação prática em todo registro.
 O servidor revalida cada parágrafo e item do cache antes de reutilizá-lo;
 um registro cortado é descartado e passa pela geração normal. O aplicativo
 também rejeita trechos sem pontuação final ou com reticências, inclusive quando
@@ -139,7 +143,7 @@ até 30 segundos, incluindo autenticação, contexto e persistência. Recusas
 explícitas, erro de autenticação e limite de uso do modelo não são repetidos.
 Uma reflexão invalidada nunca é reapresentada como resultado novo.
 
-As respostas identificam a versão em `functionVersion` (`daily-companion-v8`).
+As respostas identificam a versão em `functionVersion` (`daily-companion-v9`).
 Falhas de geração também retornam `reasonCode`, sem diário, prompt ou resposta
 bruta: `model_timeout`, `model_output_invalid`, `model_incomplete`,
 `model_refusal`, `model_rate_limited`, `model_http_error`,

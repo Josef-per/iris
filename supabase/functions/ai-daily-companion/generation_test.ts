@@ -152,10 +152,10 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   cached = null; // mesmo efeito da migration 0013 ao salvar o check-in
   const updated = await load();
   assert.equal(updated.status, "ready");
-  assert.equal(updated.functionVersion, "daily-companion-v8");
+  assert.equal(updated.functionVersion, "daily-companion-v9");
   assert.deepEqual(moods, [null, "steady", "steady"]);
 
-  cached!.versao_prompt = "daily-companion-v5";
+  cached!.versao_prompt = "daily-companion-v6";
   assert.equal((await load()).status, "ready");
   assert.equal(calls, 4, "cache antigo e regenerado com o contrato atual");
 
@@ -179,9 +179,9 @@ test("handler recupera reflexao depois de diario, cache e alteracao de humor", a
   assert.equal(cached, null, "encaminhamento humano nao vira reflexao em cache");
 });
 
-test("relato feliz aceita acolhimento breve sem conselhos nem lista", async () => {
-  const diaryText = "Foi um dia bom, fiquei feliz em divertir com meus amigos";
-  const introduction = "Que bom que a companhia dos seus amigos trouxe alegria ao seu dia!";
+test("relato feliz recebe acolhimento breve e fechamento caloroso", async () => {
+  const diaryText = "Foi um dia bom, fiquei feliz em divertir com meus amigos sabe. A gente saiu de bicicleta, foi daora ein";
+  const introduction = "Que bom que o passeio de bicicleta com seus amigos deixou o dia mais leve e divertido! Momentos assim ficam na memória. Que essas boas amizades continuem rendendo momentos assim!";
   let calls = 0;
   const runtime = loadEdgeRuntime("ai-daily-companion", {
     fetch(_url: string, init: RequestInit) {
@@ -202,7 +202,8 @@ test("relato feliz aceita acolhimento breve sem conselhos nem lista", async () =
   assert.equal(result.reasonCode, "accepted");
   assert.equal(result.message.message, introduction);
   assert.equal(result.message.reflectionQuestion, null);
-  assert.ok(result.message.message.length < 180);
+  assert.match(result.message.message, /boas amizades continuem/);
+  assert.ok(result.message.message.length < 220);
 });
 
 test("resposta breve passa pelas mesmas validacoes de conteudo e completude", async () => {

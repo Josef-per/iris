@@ -4,8 +4,8 @@ import { corsHeadersFor } from "../_shared/cors.ts";
 
 const openAiResponsesUrl = "https://api.openai.com/v1/responses";
 const requiredOpenAiModel = "gpt-5-mini";
-const promptVersion = "daily-companion-v6";
-const functionVersion = "daily-companion-v8";
+const promptVersion = "daily-companion-v7";
+const functionVersion = "daily-companion-v9";
 const maxDiaryCharacters = 1800;
 const visibleRolloutModes = new Set(["pilot", "limited"]);
 
@@ -108,13 +108,16 @@ para concilia-los, nem apague a experiencia positiva ou dificil relatada.
 
 Se o relato for positivo (alegria, diversao, satisfacao, tranquilidade ou um
 dia bom), sem dificuldade ou sentimento misto explicito, acolha essa experiencia
-em uma ou duas frases curtas. Nao acrescente um "mas",
+em duas ou tres frases curtas. Depois de reconhecer o que fez bem, encerre com
+uma frase calorosa que incentive delicadamente a preservar ou cultivar essa
+fonte de bem-estar, sempre baseada no que foi relatado. Por exemplo, quando a
+pessoa contar um momento feliz com amigos: "Que essas boas amizades continuem
+rendendo momentos assim!" Nao transforme esse incentivo em cobranca, tarefa ou
+conselho longo. Nao acrescente um "mas",
 cansaco, solidao, sobrecarga, culpa, instabilidade ou previsao de piora que ela
 nao relatou. Um encontro feliz com amigos nao exige descanso nem uma decisao
-sobre relacoes. Reconhecer um momento bom ja e uma resposta completa; nao e
-necessario dar conselho, tarefa, pergunta ou sugestao de melhoria. Nesse caso,
-use points vazio ([]). Exemplo de tom: "Que bom que estar com seus amigos
-trouxe alegria ao seu dia!", sem inventar detalhes alem do relato.
+sobre relacoes. Nao e necessario dar tarefa, pergunta ou sugestao de melhoria.
+Nesse caso, use points vazio ([]), sem inventar detalhes alem do relato.
 
 Para registros neutros ou cotidianos, uma observacao breve tambem basta.
 Se houver dificuldade explicita ou sentimentos mistos, reconheca apenas o
@@ -142,7 +145,8 @@ imperativo ou frases como "faca", "tente", "reserve um minuto" e "permita-se".
 Nao mencione IA, fontes, analise, prontuario ou ausencia de risco.
 
 Crie um titulo curto e especifico ao tema, sem repetir "Uma reflexao para voce".
-Prefira uma ou duas frases no total. Preencha introduction com um unico
+Prefira uma ou duas frases no total, exceto no relato positivo, que deve ter
+duas ou tres frases conforme explicado acima. Preencha introduction com um unico
 paragrafo de 20 a 300 caracteres, sem tentar ocupar todo o limite.
 points deve ser vazio por padrao. Somente se uma dificuldade explicita pedir
 uma perspectiva adicional, inclua um item breve; dois itens apenas quando

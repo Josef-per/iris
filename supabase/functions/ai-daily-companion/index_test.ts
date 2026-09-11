@@ -20,7 +20,9 @@ test("reflexao diaria acolhe o relato sem exigir orientacao ou exercicios", () =
   assert.match(source, /A reflexao nao e um exercicio/);
   assert.match(source, /Os campos devem conter\s+somente texto simples/);
   assert.match(source, /cleanMarkdownMessage/);
-  assert.match(source, /promptVersion = "daily-companion-v6"/);
+  assert.match(source, /promptVersion = "daily-companion-v7"/);
+  assert.match(source, /frase calorosa que incentive delicadamente/);
+  assert.match(source, /boas amizades continuem/);
   assert.match(source, /introduction: \{/);
   assert.match(source, /required: \["needsHumanSupport", "title", "introduction", "points"\]/);
   assert.match(source, /`- \*\*\$\{point\.label\}:\*\* \$\{point\.text\}`/);
