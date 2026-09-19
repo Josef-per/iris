@@ -62,6 +62,7 @@ h2 { font-size: 38px; line-height: 1.16; font-weight: 800; letter-spacing: -.5px
 .feature-tag { display: block; border-top: 1px solid var(--line); margin-top: 24px; padding-top: 16px; font-size: 12px; color: var(--purple); }
 .screens-section { background: #f0eafc; border-block: 1px solid var(--line); }
 .screens-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.screens-swipe-hint { display: none; }
 .screen-card { min-width: 0; }
 .screen-heading { display: flex; align-items: center; gap: 12px; }
 .screen-heading>span { display: grid; place-items: center; width: 32px; height: 32px; background: var(--purple); color: white; border-radius: 12px; font-size: 12px; }
@@ -114,27 +115,47 @@ button:disabled { cursor: default; opacity: .85; }
   .screens-grid { gap: 16px; }
 }
 @media (max-width: 700px) {
-  .wrap { width: calc(100% - 32px); }
-  .header { min-height: 88px; gap: 12px; }
-  .brand img { width: 104px; height: 50px; }
+  .wrap { width: calc(100% - 40px); }
+  .header { min-height: 76px; gap: 12px; border-bottom: 1px solid var(--line); }
+  .brand img { width: 96px; height: 46px; }
   .header nav { display: none; }
   .button-small { padding: 12px 16px; font-size: 13px; }
-  .hero { grid-template-columns: 1fr; border-radius: 20px; padding: 32px 24px; gap: 40px; }
-  h1 { font-size: 46px; margin-block: 20px; }
-  .hero-copy>p { font-size: 15px; }
-  .hero-actions { align-items: stretch; }
-  .text-link { justify-content: center; }
-  .hero-note { margin-top: 24px; font-size: 12px; }
-  .hero-art { max-width: 286px; }
-  .section-space { padding-block: 56px; }
+  /* Mobile has its own opening: clear copy and action, without a tall phone
+     inside the hero. Actual screens remain available in the swipe gallery. */
+  .hero { display: block; padding: 32px 0 28px; border-radius: 0; overflow: visible; background: none; color: var(--ink); }
+  .hero::before, .hero::after { display: none; }
+  .hero .eyebrow { color: var(--purple); font-size: 10px; letter-spacing: 1.2px; }
+  .hero .status-dot { background: var(--brand); }
+  h1 { font-size: clamp(36px, 10vw, 46px); letter-spacing: -1px; margin-block: 18px; }
+  h1 em { color: var(--brand-accessible); }
+  .hero-copy>p { max-width: 470px; font-size: 15px; line-height: 1.6; color: var(--muted); }
+  .hero-actions { align-items: stretch; gap: 8px; margin-top: 24px; }
+  .hero-actions .button-light { background: var(--purple); color: white; }
+  .hero-actions .button-light:hover { background: var(--ink); }
+  .hero .text-link { justify-content: center; align-items: center; min-height: 44px; color: var(--purple); }
+  .hero-note, .hero-art { display: none; }
+  .section-space { padding-block: 40px; }
+  .features { border-top: 1px solid var(--line); }
   .section-heading { display: block; }
   h2 { font-size: 30px; }
   .feature-grid, .about, .guide-grid { grid-template-columns: 1fr; }
   .feature-grid { gap: 12px; }
-  .screens-grid { grid-template-columns: 1fr; gap: 36px; max-width: 350px; margin-inline: auto; }
-  .screen-card>p { min-height: 0; margin-bottom: 16px; }
-  .about-art { min-height: 285px; padding: 32px; border-radius: 20px; }
-  .about-art img { width: 220px; height: auto; }
+  .feature { display: grid; grid-template-columns: 40px minmax(0, 1fr); column-gap: 16px; padding: 20px; }
+  .feature-icon { padding: 9px; align-self: start; border-radius: 12px; }
+  .feature h3 { font-size: 18px; margin: 0 0 10px; align-self: center; }
+  .feature h3 br { display: none; }
+  .feature p { grid-column: 2; font-size: 13px; line-height: 1.6; }
+  .feature-tag, .feature-number { display: none; }
+  .screens-swipe-hint { display: flex; justify-content: space-between; gap: 16px; font-size: 12px; color: var(--purple); margin-bottom: 20px; }
+  .screens-grid { display: flex; gap: 16px; max-width: none; margin-inline: -20px; padding: 4px 20px 18px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 20px; scrollbar-width: thin; scrollbar-color: var(--brand) transparent; }
+  .screen-card { flex: 0 0 min(80%, 290px); scroll-snap-align: start; }
+  .screen-heading h3 { font-size: 18px; }
+  .screen-card>p { min-height: 42px; margin-bottom: 16px; }
+  .screens-caption { font-size: 11px; margin-top: 16px; text-align: left; }
+  .about { gap: 24px; }
+  .about-art { min-height: 0; flex-direction: row; justify-content: space-between; align-items: center; gap: 16px; padding: 24px; border-radius: 20px; }
+  .about-art img { width: 110px; height: auto; }
+  .about-art span { font-size: 12px; }
   .install-panel { padding: 32px 24px; border-radius: 20px; }
   .install-logo { display: none; }
   .install-actions { flex-direction: column; align-items: stretch; }
