@@ -52,7 +52,7 @@ h1 em { color: var(--lavender); font-style: normal; }
 .section-heading { display: flex; justify-content: space-between; gap: 48px; align-items: flex-end; margin-bottom: 32px; }
 h2 { font-size: 38px; line-height: 1.16; font-weight: 800; letter-spacing: -.5px; }
 .section-heading h2, .about h2 { margin-top: 12px; }
-.section-heading>p { max-width: 320px; font-size: 15px; line-height: 1.65; color: var(--muted); }
+.section-intro { max-width: 560px; margin-top: 16px; font-size: 15px; line-height: 1.65; color: var(--muted); }
 .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
 .feature { position: relative; padding: 28px; background: white; border: 1px solid var(--line); border-radius: 20px; }
 .feature-icon { display: inline-flex; padding: 12px; background: #f0eafa; border-radius: 16px; color: var(--purple); }
@@ -129,7 +129,6 @@ button:disabled { cursor: default; opacity: .85; }
   .section-space { padding-block: 56px; }
   .section-heading { display: block; }
   h2 { font-size: 30px; }
-  .section-heading>p { margin-top: 20px; max-width: 100%; }
   .feature-grid, .about, .guide-grid { grid-template-columns: 1fr; }
   .feature-grid { gap: 12px; }
   .screens-grid { grid-template-columns: 1fr; gap: 36px; max-width: 350px; margin-inline: auto; }
