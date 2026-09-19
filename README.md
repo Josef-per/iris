@@ -163,6 +163,17 @@ diretamente o aplicativo. Após um build Flutter manual, execute
 `node scripts/prepare_landing.mjs` para montar a landing page antes de servir
 os arquivos com as regras de `vercel.json`.
 
+A landing page utiliza as cores e os raios de `app_theme.dart` e
+`app_tokens.dart`, o logotipo original `assets/images/Login.svg` e a fonte
+Roboto distribuída com o Flutter (licença incluída em `web/landing/fonts/`).
+As imagens em `web/landing/images/` são renderizações dos widgets reais, com
+dados de demonstração isolados e sem acesso ao backend. Para atualizá-las,
+defina `FLUTTER_ROOT` para a pasta do SDK e execute:
+
+```bash
+flutter test scripts/capture_landing_screens_test.dart --no-pub
+```
+
 Para publicar a versao web e preparar as contas ficticias de apresentacao,
 consulte [Deploy da demo na Vercel](docs/deploy_vercel.md).
 
