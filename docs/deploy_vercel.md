@@ -34,6 +34,16 @@ URL HTTPS autorizada no Supabase.
 
 ## Login e IA
 
+A raiz `/` apresenta a landing page do TCC e `/app` abre o Flutter. O build
+executa `scripts/prepare_landing.mjs` para preservar o shell Flutter em
+`app.html`; as rotas internas continuam apontando para esse shell. A landing
+encaminha callbacks de autenticação recebidos na raiz, preservando query e
+fragmento. O manifesto abre `/app` quando instalado na tela inicial.
+
+A instalação é oferecida pelo navegador quando disponível; nos demais casos,
+a página mostra instruções para criar o atalho. Publique com HTTPS. Não há
+cache offline de dados clínicos nem link para APK sem um artefato publicado.
+
 Com o dominio definitivo, um token de gerenciamento do Supabase no ambiente
 `SUPABASE_ACCESS_TOKEN` ou no arquivo do CLI `~/.supabase/access-token`:
 

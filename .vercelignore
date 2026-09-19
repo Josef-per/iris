@@ -9,4 +9,5 @@
 /scripts/*
 !/scripts/build_vercel.sh
 !/scripts/build_web.mjs
+!/scripts/prepare_landing.mjs
 !/scripts/check_client_bundle.sh

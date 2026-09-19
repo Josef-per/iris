@@ -151,6 +151,18 @@ controlada pela aplicação.
 
 ## Executar o aplicativo
 
+A publicação web inclui uma landing page na raiz (`/`) e o aplicativo em
+`/app`. A página apresenta o TCC, os recursos e a opção de adicionar o Íris à
+tela inicial, com instruções para Android e iPhone e instalação nativa quando
+oferecida pelo navegador. Não há APK publicado; o aplicativo web requer internet.
+
+As fontes da página estão em `web/landing/`. O build de publicação
+(`node scripts/build_web.mjs`) monta as duas entradas automaticamente e preserva
+os links internos e callbacks de autenticação. `flutter run` continua abrindo
+diretamente o aplicativo. Após um build Flutter manual, execute
+`node scripts/prepare_landing.mjs` para montar a landing page antes de servir
+os arquivos com as regras de `vercel.json`.
+
 Para publicar a versao web e preparar as contas ficticias de apresentacao,
 consulte [Deploy da demo na Vercel](docs/deploy_vercel.md).
 

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { spawnSync } from 'node:child_process';
+import { prepareLanding } from './prepare_landing.mjs';
 
 const local = existsSync('.env') ? parseEnv(readFileSync('.env', 'utf8')) : {};
 const value = (name) => (process.env[name] ?? local[name] ?? '').trim();
@@ -34,6 +35,7 @@ function run(command, args) {
 const flutter = process.env.IRIS_FLUTTER_BIN || 'flutter';
 run(flutter, ['pub', 'get', '--enforce-lockfile']);
 run(flutter, ['build', 'web', '--release', '--no-pub', ...defines]);
+prepareLanding();
 run('bash', ['scripts/check_client_bundle.sh', 'build/web']);
 
 // Permite publicar somente os arquivos compilados pelo CLI da Vercel.
