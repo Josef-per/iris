@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/features/support_exercises/data/mock_exercise_catalog.dart';
+import 'package:iris/features/emergency_contact/emergency_contact_action.dart';
+import 'package:iris/features/emergency_contact/emergency_contact_repository.dart';
 import 'package:iris/features/support_exercises/data/mock_exercise_recommender.dart';
 import 'package:iris/features/support_exercises/data/mock_video_catalog.dart';
 import 'package:iris/features/support_exercises/domain/exercise.dart';
@@ -24,7 +26,7 @@ enum SupportFlowStart {
   /// Entrada “Não estou bem” da Home: abre o menu de apoio em tela cheia.
   supportMenu,
 
-  /// Atalho explícito para a rede de apoio. Não seleciona nem aciona contatos.
+  /// Atalho explícito para a rede de apoio. Não aciona contatos automaticamente.
   supportNetwork,
 
   /// Atalho explícito para a checagem de ajuda urgente.
@@ -43,6 +45,7 @@ class SupportFlowScreen extends StatefulWidget {
     this.initialExerciseId,
     this.recommender,
     this.phoneLauncher = defaultPhoneLauncher,
+    this.emergencyContactDataSource,
   });
 
   final SupportFlowStart start;
@@ -52,6 +55,7 @@ class SupportFlowScreen extends StatefulWidget {
   final String? initialExerciseId;
   final ExerciseRecommender? recommender;
   final PhoneLauncher phoneLauncher;
+  final EmergencyContactDataSource? emergencyContactDataSource;
 
   @override
   State<SupportFlowScreen> createState() => _SupportFlowScreenState();
@@ -96,7 +100,8 @@ class _SupportFlowScreenState extends State<SupportFlowScreen> {
         ? null
         : MockExerciseCatalog.byId(initialExerciseId);
     if (initialExercise != null &&
-        initialExercise.reviewStatus == ExerciseReviewStatus.clinicallyReviewed) {
+        initialExercise.reviewStatus ==
+            ExerciseReviewStatus.clinicallyReviewed) {
       _session = SupportSession(
         exerciseId: initialExercise.id,
         exerciseTitle: initialExercise.title,
@@ -228,6 +233,7 @@ class _SupportFlowScreenState extends State<SupportFlowScreen> {
     ),
     _FlowStep.immediateHelp => ImmediateHelpView(
       phoneLauncher: widget.phoneLauncher,
+      emergencyContactDataSource: widget.emergencyContactDataSource,
       onBack: () => _go(_helpReturnStep),
     ),
     _FlowStep.needPicker => NeedPickerView(
@@ -247,8 +253,7 @@ class _SupportFlowScreenState extends State<SupportFlowScreen> {
       recommender: _recommender,
       onStartExercise: _startExercise,
       onStartVideo: _startVideo,
-      onOpenVideoLibrary: () =>
-          _openVideoLibrary(_FlowStep.recommendation),
+      onOpenVideoLibrary: () => _openVideoLibrary(_FlowStep.recommendation),
     ),
     _FlowStep.player => ExercisePlayerView(
       exercise: _currentExercise,
@@ -261,6 +266,7 @@ class _SupportFlowScreenState extends State<SupportFlowScreen> {
     ),
     _FlowStep.supportNetwork => _SupportNetworkView(
       phoneLauncher: widget.phoneLauncher,
+      emergencyContactDataSource: widget.emergencyContactDataSource,
       onBack: () => _go(_networkReturnStep),
     ),
     _FlowStep.checkout => SupportCheckoutView(
@@ -409,7 +415,7 @@ class _SupportMenuView extends StatelessWidget {
         OptionCard(
           key: const Key('menu-talk-to-someone'),
           label: 'Falar com alguém seguro',
-          subtitle: 'Rede de apoio e profissional (simulado).',
+          subtitle: 'Contato de emergência e profissional.',
           selected: false,
           icon: Icons.favorite_rounded,
           onTap: onTalkToSomeone,
@@ -432,10 +438,12 @@ class _SupportMenuView extends StatelessWidget {
 class _SupportNetworkView extends StatelessWidget {
   const _SupportNetworkView({
     required this.phoneLauncher,
+    this.emergencyContactDataSource,
     required this.onBack,
   });
 
   final PhoneLauncher phoneLauncher;
+  final EmergencyContactDataSource? emergencyContactDataSource;
   final VoidCallback onBack;
 
   Future<void> _showSimulatedContact(
@@ -478,19 +486,10 @@ class _SupportNetworkView extends StatelessWidget {
           onTap: () => phoneLauncher('188'),
         ),
         const SizedBox(height: 12),
-        OptionCard(
-          key: const Key('network-trusted'),
-          label: 'Chamar uma pessoa de confiança',
-          subtitle: 'Simulado — nenhuma mensagem será enviada',
-          selected: false,
-          icon: Icons.favorite_rounded,
-          onTap: () => _showSimulatedContact(
-            context,
-            'Chamar uma pessoa de confiança',
-            'Este é um protótipo: nenhuma mensagem será enviada e nenhum '
-            'contato será feito. No app final, você escolheria quem '
-            'chamar e como.',
-          ),
+        EmergencyContactAction(
+          actionKey: const Key('network-trusted'),
+          phoneLauncher: phoneLauncher,
+          dataSource: emergencyContactDataSource,
         ),
         const SizedBox(height: 12),
         OptionCard(
@@ -503,13 +502,13 @@ class _SupportNetworkView extends StatelessWidget {
             context,
             'Falar com meu profissional',
             'Este é um protótipo: nenhuma mensagem será enviada ao seu '
-            'profissional. No app final, este contato seguiria o canal '
-            'combinado com a sua equipe.',
+                'profissional. No app final, este contato seguiria o canal '
+                'combinado com a sua equipe.',
           ),
         ),
         const SizedBox(height: 16),
         Text(
-          'Demonstração — nenhuma mensagem será enviada.',
+          'Nenhuma mensagem é enviada pelo app. Você inicia cada ligação.',
           style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 4),

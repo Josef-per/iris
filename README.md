@@ -28,7 +28,9 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 - sugestões de apoio opcionais a partir de check-ins, temas confirmados e
   feedback anterior, com notificações locais discretas no celular;
 - leitura ou digitação de convite QR;
-- confirmação e vínculo com o profissional.
+- confirmação e vínculo com o profissional;
+- cadastro, edição e remoção de um contato de emergência no perfil. Na rede
+  de apoio, o paciente pode abrir a discagem para esse contato por toque.
 
 ### Profissional
 
@@ -59,7 +61,11 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 5. `0008_clinical_data_integrity.sql`;
 6. `0009_patient_journal_improvements.sql`;
 7. `0010_ai_support_backend.sql`;
-8. `0011_ai_support_gpt5_mini_only.sql`.
+8. `0011_ai_support_gpt5_mini_only.sql`;
+9. `0012_daily_companion.sql`;
+10. `0013_daily_companion_refresh.sql`;
+11. `0014_daily_companion_complete_text.sql`;
+12. `0015_emergency_contact.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 

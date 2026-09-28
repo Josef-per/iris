@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/emergency_contact/emergency_contact.dart';
+import 'package:iris/features/emergency_contact/emergency_contact_repository.dart';
 import 'package:iris/features/patient_dashboard/patient_today_summary.dart';
 import 'package:iris/features/support_exercises/presentation/support_flow_screen.dart';
 import 'package:iris/screens/home_screen.dart';
@@ -12,6 +14,21 @@ class _FakePhoneLauncher {
     calls.add(number);
     return true;
   }
+}
+
+class _ContactSource implements EmergencyContactDataSource {
+  _ContactSource([this.contact]);
+
+  EmergencyContact? contact;
+
+  @override
+  Future<EmergencyContact?> load() async => contact;
+
+  @override
+  Future<void> save(EmergencyContact value) async => contact = value;
+
+  @override
+  Future<void> delete() async => contact = null;
 }
 
 class _TodaySource implements PatientTodayDataSource {
@@ -39,13 +56,18 @@ void main() {
     WidgetTester tester, {
     SupportFlowStart start = SupportFlowStart.supportMenu,
     _FakePhoneLauncher? phone,
+    EmergencyContactDataSource? contactSource,
   }) async {
     tester.view.physicalSize = const Size(500, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final launcher = phone ?? _FakePhoneLauncher();
-    final flow = SupportFlowScreen(start: start, phoneLauncher: launcher.call);
+    final flow = SupportFlowScreen(
+      start: start,
+      phoneLauncher: launcher.call,
+      emergencyContactDataSource: contactSource ?? _ContactSource(),
+    );
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -185,7 +207,9 @@ void main() {
       expect(find.byKey(const Key('help-samu-192')), findsOneWidget);
       expect(find.byKey(const Key('help-cvv-188')), findsOneWidget);
       expect(
-        find.text('Demonstração — nenhuma mensagem será enviada.'),
+        find.text(
+          'Nenhuma mensagem é enviada pelo app. Você inicia cada ligação.',
+        ),
         findsOneWidget,
       );
       expect(find.text('Sugestão para você'), findsNothing);
@@ -220,7 +244,7 @@ void main() {
       expect(phone.calls, ['192', '188']);
       expect(find.textContaining('Se puder, fique com alguém'), findsOneWidget);
       expect(
-        find.textContaining('nenhuma mensagem será enviada'),
+        find.textContaining('Nenhuma mensagem é enviada pelo app'),
         findsWidgets,
       );
     });
@@ -235,7 +259,7 @@ void main() {
       expect(find.byKey(const Key('network-trusted')), findsOneWidget);
       expect(find.byKey(const Key('network-professional')), findsOneWidget);
       expect(
-        find.textContaining('Demonstração — nenhuma mensagem'),
+        find.textContaining('Nenhuma mensagem é enviada pelo app'),
         findsOneWidget,
       );
 
@@ -247,6 +271,28 @@ void main() {
       await tapText(tester, 'Entendi');
       await tapKey(tester, 'network-back');
       expect(find.byKey(const Key('support-menu-greeting')), findsOneWidget);
+    });
+
+    testWidgets('contato salvo abre a discagem somente após toque', (
+      tester,
+    ) async {
+      final phone = _FakePhoneLauncher();
+      final contact = _ContactSource(
+        const EmergencyContact(name: 'Ana', phone: '+5511999999999'),
+      );
+      await pumpFlow(tester, phone: phone, contactSource: contact);
+      await tapKey(tester, 'menu-talk-to-someone');
+
+      expect(find.text('Ligar para Ana'), findsOneWidget);
+      expect(phone.calls, isEmpty);
+      await tapKey(tester, 'network-trusted');
+      expect(phone.calls, ['+5511999999999']);
+
+      await tapKey(tester, 'network-back');
+      await tapKey(tester, 'menu-urgent-help');
+      await tapKey(tester, 'safety-yes');
+      await tapKey(tester, 'help-trusted-person');
+      expect(phone.calls, ['+5511999999999', '+5511999999999']);
     });
   });
 

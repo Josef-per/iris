@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/theme/app_theme.dart';
+import 'package:iris/features/emergency_contact/emergency_contact_action.dart';
+import 'package:iris/features/emergency_contact/emergency_contact_repository.dart';
 import 'package:iris/features/support_exercises/presentation/support_phone_launcher.dart';
 import 'package:iris/features/support_exercises/presentation/widgets/option_card.dart';
 
-/// Tela de ajuda imediata com contatos reais acionáveis (SAMU 192, CVV 188),
-/// contatos simulados claramente marcados e “Voltar” sempre disponível.
+/// Ajuda imediata com discagem para serviços e contato escolhido pelo paciente.
 ///
 /// O protótipo nunca afirma ter notificado ou acionado alguém.
 class ImmediateHelpView extends StatefulWidget {
@@ -12,10 +13,12 @@ class ImmediateHelpView extends StatefulWidget {
     super.key,
     required this.onBack,
     this.phoneLauncher = defaultPhoneLauncher,
+    this.emergencyContactDataSource,
   });
 
   final VoidCallback onBack;
   final PhoneLauncher phoneLauncher;
+  final EmergencyContactDataSource? emergencyContactDataSource;
 
   @override
   State<ImmediateHelpView> createState() => _ImmediateHelpViewState();
@@ -61,10 +64,7 @@ class _ImmediateHelpViewState extends State<ImmediateHelpView> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Ligar para o SAMU — 192',
-          style: theme.textTheme.titleMedium,
-        ),
+        Text('Ligar para o SAMU — 192', style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
           'Risco ou emergência. Serviço gratuito 24 horas.',
@@ -82,10 +82,7 @@ class _ImmediateHelpViewState extends State<ImmediateHelpView> {
           label: const Text('Ligar para 192'),
         ),
         const SizedBox(height: 24),
-        Text(
-          'Ligar para o CVV — 188',
-          style: theme.textTheme.titleMedium,
-        ),
+        Text('Ligar para o CVV — 188', style: theme.textTheme.titleMedium),
         const SizedBox(height: 4),
         Text(
           'Apoio emocional 24 horas. Gratuito e confidencial.',
@@ -103,19 +100,10 @@ class _ImmediateHelpViewState extends State<ImmediateHelpView> {
           label: const Text('Ligar para 188'),
         ),
         const SizedBox(height: 24),
-        OptionCard(
-          key: const Key('help-trusted-person'),
-          label: 'Chamar uma pessoa de confiança',
-          subtitle: 'Simulado — nenhuma mensagem será enviada',
-          selected: false,
-          highlight: false,
-          icon: Icons.favorite_rounded,
-          onTap: () => _showSimulatedContact(
-            'Chamar uma pessoa de confiança',
-            'Este é um protótipo: nenhuma mensagem será enviada e nenhum '
-            'contato será feito. No app final, você escolheria uma pessoa '
-            'segura e os passos para chegar até ela.',
-          ),
+        EmergencyContactAction(
+          actionKey: const Key('help-trusted-person'),
+          phoneLauncher: widget.phoneLauncher,
+          dataSource: widget.emergencyContactDataSource,
         ),
         const SizedBox(height: 12),
         OptionCard(
@@ -127,8 +115,8 @@ class _ImmediateHelpViewState extends State<ImmediateHelpView> {
           onTap: () => _showSimulatedContact(
             'Falar com meu profissional',
             'Este é um protótipo: nenhuma mensagem será enviada ao seu '
-            'profissional. No app final, este contato seguiria o canal '
-            'combinado com a sua equipe.',
+                'profissional. No app final, este contato seguiria o canal '
+                'combinado com a sua equipe.',
           ),
         ),
         const SizedBox(height: 24),
@@ -146,7 +134,7 @@ class _ImmediateHelpViewState extends State<ImmediateHelpView> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Demonstração — nenhuma mensagem será enviada.',
+          'Nenhuma mensagem é enviada pelo app. Você inicia cada ligação.',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),

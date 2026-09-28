@@ -3,6 +3,7 @@ import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
+import 'package:iris/features/emergency_contact/emergency_contact_editor.dart';
 import 'package:iris/widgets/app_responsive.dart';
 import 'package:iris/widgets/app_function_header.dart';
 
@@ -140,6 +141,8 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 16),
+                    const EmergencyContactEditor(),
                     const SizedBox(height: 16),
                     AppSurface(
                       padding: const EdgeInsets.symmetric(vertical: 8),

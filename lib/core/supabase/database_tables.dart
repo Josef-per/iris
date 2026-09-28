@@ -2,6 +2,7 @@ class DatabaseTables {
   static const usuarios = 'usuarios';
   static const perfis = 'perfis';
   static const pacientes = 'pacientes';
+  static const contatosEmergencia = 'contatos_emergencia';
   static const profissionais = 'profissionais';
   static const pacienteProfissional = 'paciente_profissional';
   static const registrosAlimentares = 'registros_alimentares';
