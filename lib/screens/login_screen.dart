@@ -101,7 +101,7 @@ class _LoginScreenState extends State<LoginScreen> {
       builder: (_) => _EmailActionDialog(
         title: 'Recuperar senha',
         description:
-            'Informe seu e-mail. Se houver uma conta, enviaremos um link seguro para criar uma nova senha.',
+            'Enviaremos um link de recuperação se houver uma conta para este e-mail.',
         actionLabel: 'Enviar link',
         initialEmail: _emailController.text,
         onSubmit: (email) => _authService.requestPasswordReset(email: email),
@@ -123,8 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
       useRootNavigator: false,
       builder: (_) => _EmailActionDialog(
         title: 'Reenviar confirmação',
-        description:
-            'Informe o e-mail usado no cadastro para receber um novo link de confirmação.',
+        description: 'Informe o e-mail do cadastro para receber outro link.',
         actionLabel: 'Reenviar e-mail',
         initialEmail: _emailController.text,
         onSubmit: (email) =>
@@ -151,13 +150,6 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Entrar', style: Theme.of(context).textTheme.headlineMedium),
-              const SizedBox(height: 8),
-              Text(
-                _isProfessional
-                    ? 'Acesse o painel de acompanhamento profissional.'
-                    : 'Acesse sua conta para continuar.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
               const SizedBox(height: 24),
               Text(
                 'Como deseja entrar?',

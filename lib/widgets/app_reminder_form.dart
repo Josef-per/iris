@@ -130,11 +130,6 @@ class _AppReminderFormState extends State<AppReminderForm> {
               _isEditing ? 'Editar lembrete' : 'Novo lembrete',
               style: theme.textTheme.titleLarge,
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Escolha o tipo, dê um nome e defina o horário.',
-              style: theme.textTheme.bodyMedium,
-            ),
             const SizedBox(height: 22),
             DropdownButtonFormField<AppReminderType>(
               key: const Key('reminder-type-field'),

@@ -58,7 +58,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         SliverToBoxAdapter(
           child: AppFunctionHeader(
             title: 'Perfil',
-            description: 'Seu perfil e preferências do aplicativo.',
+            description: 'Dados da conta e preferências.',
           ),
         ),
         SliverToBoxAdapter(
@@ -151,9 +151,6 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                         builder: (context, mode, _) => SwitchListTile(
                           secondary: const Icon(Icons.dark_mode_outlined),
                           title: const Text('Modo escuro'),
-                          subtitle: const Text(
-                            'Reduza o brilho e use cores mais confortáveis.',
-                          ),
                           value: mode == ThemeMode.dark,
                           onChanged: AppThemeController.setDarkMode,
                         ),
@@ -170,7 +167,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
                             leading: const Icon(Icons.shield_outlined),
                             title: const Text('Privacidade e cuidado'),
                             subtitle: const Text(
-                              'Seus registros são compartilhados apenas conforme os vínculos e permissões do aplicativo.',
+                              'O compartilhamento dos registros depende dos vínculos e permissões do app.',
                             ),
                           ),
                           const Divider(),

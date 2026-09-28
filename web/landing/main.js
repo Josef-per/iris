@@ -32,10 +32,10 @@ function showInstructions() {
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isAndroid = /Android/.test(navigator.userAgent);
   document.querySelector('#dialog-instructions').textContent = isIOS
-    ? 'Abra o Íris no Safari. Toque em Compartilhar, escolha Adicionar à Tela de Início e confirme em Adicionar.'
+    ? 'No Safari, toque em Compartilhar, escolha Adicionar à Tela de Início e confirme.'
     : isAndroid
-      ? 'Abra o Íris no Chrome. Toque no menu ⋮ e escolha Adicionar à tela inicial ou Instalar aplicativo, se disponível. Confirme para criar o atalho.'
-      : 'Abra o Íris no Chrome ou Edge e procure a opção de instalar aplicativo na barra de endereços ou no menu do navegador. No celular, use as instruções para Android ou iPhone nesta página.';
+      ? 'No Chrome, abra o menu ⋮ e escolha Adicionar à tela inicial ou Instalar aplicativo.'
+      : 'No Chrome ou Edge, procure a opção de instalar na barra de endereços ou no menu.';
   dialog.showModal();
 }
 

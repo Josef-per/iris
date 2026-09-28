@@ -64,10 +64,7 @@ void main() {
       find.byKey(const Key('ai-support-personalization-switch')),
     );
     expect(toggle.value, isFalse);
-    expect(
-      find.textContaining('Você escolhe quais dados'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('Você decide quais dados usar'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const Key('ai-support-personalization-switch')),

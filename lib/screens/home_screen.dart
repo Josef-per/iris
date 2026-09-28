@@ -291,11 +291,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     'Registre seu dia',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Comece pelo check-in ou pelo diário emocional.',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
                   const SizedBox(height: 18),
                   LayoutBuilder(
                     builder: (context, constraints) {
@@ -319,22 +314,21 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: width,
                             icon: Icons.fact_check_outlined,
                             title: 'Check-in diário',
-                            subtitle:
-                                'Faça uma pausa e perceba como você está.',
+                            subtitle: 'Registre como foi seu dia.',
                             onTap: _openCheckInSheet,
                           ),
                           _ActionCard(
                             width: width,
                             icon: Icons.favorite_outline_rounded,
                             title: 'Diário emocional',
-                            subtitle: 'Dê nome ao que você está sentindo.',
+                            subtitle: 'Escreva sobre o que sentiu.',
                             onTap: _openEmotionalDiarySheet,
                           ),
                           _ActionCard(
                             width: width,
                             icon: Icons.restaurant_menu_rounded,
                             title: 'Alimentação',
-                            subtitle: 'Registre uma refeição e como se sentiu.',
+                            subtitle: 'Anote suas refeições.',
                             onTap: () => _openBottomSheet(
                               const RegistroAlimentarBottomSheet(),
                             ),
@@ -343,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: width,
                             icon: Icons.notifications_none_rounded,
                             title: 'Lembretes',
-                            subtitle: 'Organize sua rotina sem cobranças.',
+                            subtitle: 'Programe avisos para sua rotina.',
                             onTap: () {
                               if (widget.onOpenReminders case final callback?) {
                                 callback();
@@ -389,7 +383,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: cardWidth,
                             icon: Icons.favorite_rounded,
                             title: 'Não estou bem',
-                            subtitle: 'Encontre apoio e opções de segurança.',
+                            subtitle: 'Encontre pessoas e serviços de apoio.',
                             highlighted: true,
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
@@ -402,7 +396,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: cardWidth,
                             icon: Icons.auto_awesome_outlined,
                             title: 'Apoio para agora',
-                            subtitle: 'Uma sugestão breve, do seu jeito.',
+                            subtitle: 'Receba uma sugestão breve.',
                             onTap: _openSupportSuggestions,
                           ),
                           _SupportEntryCard(
@@ -410,7 +404,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             width: cardWidth,
                             icon: Icons.self_improvement_rounded,
                             title: 'Práticas breves',
-                            subtitle: 'Escolha algo simples para este momento.',
+                            subtitle: 'Escolha um exercício curto.',
                             onTap: () => Navigator.of(context).push(
                               MaterialPageRoute(
                                 builder: (_) => const SupportFlowScreen(

@@ -389,8 +389,7 @@ class _SupportMenuView extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
-          'Como podemos apoiar você agora? Escolha sem pressa — não há '
-          'pergunta obrigatória sobre como você está.',
+          'Escolha o que pode ajudar agora.',
           style: theme.textTheme.bodyLarge,
         ),
         const SizedBox(height: 24),
@@ -505,11 +504,6 @@ class _SupportNetworkView extends StatelessWidget {
                 'profissional. No app final, este contato seguiria o canal '
                 'combinado com a sua equipe.',
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'Nenhuma mensagem é enviada pelo app. Você inicia cada ligação.',
-          style: theme.textTheme.bodySmall,
         ),
         const SizedBox(height: 4),
         Text(

@@ -219,11 +219,6 @@ class _DiarioEmocionalBottomSheetState
                 style: theme.textTheme.headlineMedium,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Reserve um momento para registrar como você está se sentindo.',
-              style: theme.textTheme.bodyMedium,
-            ),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(20),
@@ -238,11 +233,6 @@ class _DiarioEmocionalBottomSheetState
                   Text(
                     'Como você está se sentindo?',
                     style: theme.textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Você pode escrever livremente, do seu jeito.',
-                    style: theme.textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 16),
                   if (_isLoadingTodayRecord)

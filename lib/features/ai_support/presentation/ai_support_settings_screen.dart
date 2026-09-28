@@ -229,11 +229,6 @@ class AiSupportSettingsScreen extends StatelessWidget {
                   'Apoio do seu jeito',
                   style: theme.textTheme.headlineSmall,
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Você pode mudar ou desligar tudo quando quiser.',
-                  style: theme.textTheme.bodyMedium,
-                ),
                 const SizedBox(height: 14),
                 SwitchListTile.adaptive(
                   key: const Key('ai-support-settings-personalization'),
@@ -250,7 +245,7 @@ class AiSupportSettingsScreen extends StatelessWidget {
                   tilePadding: EdgeInsets.zero,
                   title: const Text('O que considerar'),
                   subtitle: Text(
-                    '${consent.grantedSources.length} fonte(s) escolhida(s)',
+                    '${consent.grantedSources.length} ${consent.grantedSources.length == 1 ? 'fonte escolhida' : 'fontes escolhidas'}',
                   ),
                   children: [
                     for (final source in patientAvailableSupportSources)

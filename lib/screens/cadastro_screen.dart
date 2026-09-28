@@ -103,11 +103,11 @@ class _CadastroScreenState extends State<CadastroScreen> {
   Widget build(BuildContext context) {
     return AppAuthLayout(
       title: _isProfessional
-          ? 'Cuidado conectado, decisões mais claras.'
-          : 'Comece sua jornada.',
+          ? 'Acompanhamento profissional'
+          : 'Seu espaço no Íris',
       subtitle: _isProfessional
-          ? 'Organize o acompanhamento dos seus pacientes em um só lugar.'
-          : 'Crie sua conta e tenha um acompanhamento mais claro, humano e conectado.',
+          ? 'Organize pacientes, consultas e planos de cuidado.'
+          : 'Registre seu dia e acompanhe seu cuidado.',
       child: Form(
         key: _formKey,
         child: Column(
@@ -116,13 +116,6 @@ class _CadastroScreenState extends State<CadastroScreen> {
             Text(
               _isProfessional ? 'Criar conta profissional' : 'Criar conta',
               style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _isProfessional
-                  ? 'Configure agora o acesso ao painel profissional.'
-                  : 'Leva menos de um minuto.',
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 24),
             Text(
@@ -140,7 +133,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
               controller: _displayName,
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
-                labelText: 'Como gostaria de ser chamado?',
+                labelText: 'Nome',
                 prefixIcon: Icon(Icons.person_outline_rounded),
               ),
               validator: (value) => value == null || value.trim().isEmpty

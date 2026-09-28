@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:iris/screens/login_screen.dart';
+import 'package:iris/widgets/app_account_type_selector.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -46,9 +47,12 @@ void main() {
     await tester.tap(find.text('Já tenho uma conta'));
     await tester.pumpAndSettle();
 
+    expect(find.text('Entrar'), findsWidgets);
     expect(
-      find.text('Acesse o painel de acompanhamento profissional.'),
-      findsOneWidget,
+      tester
+          .widget<AppAccountTypeSelector>(find.byType(AppAccountTypeSelector))
+          .isProfessional,
+      isTrue,
     );
   });
 

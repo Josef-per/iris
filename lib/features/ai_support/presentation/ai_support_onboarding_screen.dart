@@ -279,14 +279,13 @@ class _DataStep extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Não é terapia nem monitoramento de crise. A Íris não avisa ninguém e você escolhe exatamente o que pode ser considerado.',
+          'Não é terapia nem monitoramento de crise. A Íris não avisa contatos. Você decide quais dados usar.',
         ),
         const SizedBox(height: 16),
         SwitchListTile.adaptive(
           key: const Key('ai-support-personalization-switch'),
           contentPadding: EdgeInsets.zero,
           title: const Text('Personalizar para mim'),
-          subtitle: const Text('Você escolhe quais dados a Íris pode considerar.'),
           value: personalizationEnabled,
           onChanged: onPersonalizationChanged,
         ),
@@ -304,7 +303,7 @@ class _DataStep extends StatelessWidget {
                   label: Text(_shortSourceLabel(source)),
                   selected: sources.contains(source),
                   onSelected: (enabled) => onSourceChanged(source, enabled),
-              ),
+                ),
             ],
           ),
           if (sources.contains(SupportSignalSource.diaryText)) ...[
@@ -316,7 +315,7 @@ class _DataStep extends StatelessWidget {
                 borderRadius: BorderRadius.circular(AppRadius.md),
               ),
               child: Text(
-                'Ao escolher Meu diário (texto livre), uma entrada recente pode ser usada no servidor para criar uma reflexão de hoje. Não é diagnóstico nem monitoramento, e você pode desligar ou excluir esse dado derivado quando quiser.',
+                'Uma entrada recente do diário pode ser enviada ao servidor para criar uma reflexão. Você pode desligar esse uso ou excluir os dados derivados.',
                 style: theme.textTheme.bodySmall,
               ),
             ),
@@ -326,7 +325,7 @@ class _DataStep extends StatelessWidget {
             Text(
               sources.isEmpty
                   ? 'Escolha pelo menos uma opção.'
-                  : 'Escolha Meus check-ins, Temas que eu marcar ou Meu diário para ter um ponto de partida.',
+                  : 'Escolha check-ins, temas ou diário para personalizar.',
               style: TextStyle(color: theme.colorScheme.error),
             ),
           ],

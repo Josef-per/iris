@@ -38,11 +38,11 @@ extension SupportSignalSourceLabels on SupportSignalSource {
 
   String get description => switch (this) {
     SupportSignalSource.moodHistory =>
-      'Usado somente para notar uma tendência simples em check-ins estruturados.',
+      'Identifica tendências simples nos seus check-ins.',
     SupportSignalSource.diaryTags =>
-      'Usado apenas quando você escolhe e confirma uma tag da lista fechada.',
+      'Considera apenas os temas que você confirmar.',
     SupportSignalSource.diaryText =>
-      'Enviado de forma segura para criar uma reflexão curta. Não é usado para diagnóstico, monitoramento ou treinar a IA.',
+      'Uma entrada recente pode gerar uma reflexão curta no servidor. Não é usada para diagnóstico, monitoramento ou treino da IA.',
     SupportSignalSource.exerciseFeedback =>
       'Evita repetir logo uma prática marcada como não útil.',
     SupportSignalSource.notificationInteractions =>

@@ -360,11 +360,6 @@ class _RegistroAlimentarBottomSheetState
             style: theme.textTheme.headlineMedium,
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Conte como foi sua refeição e como você se sentiu.',
-          style: theme.textTheme.bodyMedium,
-        ),
         const SizedBox(height: 18),
         if (_records.isEmpty)
           Container(
@@ -390,7 +385,7 @@ class _RegistroAlimentarBottomSheetState
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Registre o que comeu e como se sentiu para acompanhar seu dia.',
+                  'Toque em “Registrar refeição” para começar.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium,
                 ),
@@ -461,11 +456,6 @@ class _RegistroAlimentarBottomSheetState
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Registre o que comeu, o horário e como se sentiu.',
-            style: theme.textTheme.bodyMedium,
           ),
           const SizedBox(height: 24),
           Container(

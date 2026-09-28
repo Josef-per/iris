@@ -41,10 +41,8 @@ class RecommendationView extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           recommendationContext == null
-              ? 'Práticas curtas para diferentes momentos. Escolha uma '
-                    'para começar.'
-              : 'Baseada no que você indicou. Esta sugestão usa regras '
-                    'locais — não é IA.',
+              ? 'Escolha uma prática para começar.'
+              : 'Sugestão baseada no que você indicou, por regras locais (sem IA).',
           style: theme.textTheme.bodyMedium,
         ),
         const SizedBox(height: 20),
@@ -70,8 +68,7 @@ class RecommendationView extends StatelessWidget {
           ),
         const SizedBox(height: 12),
         Text(
-          'Conteúdo fictício de demonstração: autoria, revisão clínica e '
-          'datas são fictícias. Nada será salvo ou enviado.',
+          'Demonstração: autoria, revisão clínica e datas são fictícias. Nada será salvo ou enviado.',
           style: theme.textTheme.bodySmall,
         ),
       ],
@@ -115,10 +112,7 @@ class _Suggestion extends StatelessWidget {
               style: theme.textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
-            Text(
-              recommendation.explanation,
-              style: theme.textTheme.bodyMedium,
-            ),
+            Text(recommendation.explanation, style: theme.textTheme.bodyMedium),
             const SizedBox(height: 14),
             FilledButton.icon(
               key: const Key('recommendation-start'),

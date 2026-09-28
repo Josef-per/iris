@@ -758,8 +758,8 @@ class _ProfessionalCredentialPending extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 rejected
-                    ? 'Revise os dados profissionais antes de solicitar uma nova análise.'
-                    : 'Confirme seus dados profissionais. O painel e o QR Code serão liberados após o credenciamento.',
+                    ? 'Atualize seus dados para solicitar outra análise.'
+                    : 'Confirme seus dados. O painel e o QR Code serão liberados após a aprovação.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 22),
@@ -830,8 +830,8 @@ class _ProfessionalCredentialBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 rejected
-                    ? 'Seu cadastro profissional precisa ser revisado. Atualize seus dados para solicitar uma nova análise.'
-                    : 'Seu cadastro profissional está em análise. Pacientes e recursos clínicos serão liberados após a aprovação.',
+                    ? 'Atualize seus dados para solicitar outra análise.'
+                    : 'Cadastro em análise. Pacientes e recursos clínicos serão liberados após a aprovação.',
               ),
             ),
             const SizedBox(width: 10),

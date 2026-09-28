@@ -267,7 +267,7 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'Uma pausa rápida para perceber como você está. Os detalhes são opcionais.',
+                  'Responda às duas perguntas. Você pode adicionar detalhes depois.',
                   style: theme.textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 24),
@@ -305,8 +305,8 @@ class _CheckInDiarioBottomSheetState extends State<CheckInDiarioBottomSheet> {
                   ),
                   label: Text(
                     _showOptionalDetails
-                        ? 'Ocultar detalhes opcionais'
-                        : 'Adicionar sensações e sinais (opcional)',
+                        ? 'Ocultar detalhes'
+                        : 'Adicionar detalhes (opcional)',
                   ),
                 ),
                 if (_showOptionalDetails) ...[

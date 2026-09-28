@@ -289,13 +289,6 @@ class _SupportCenter extends StatelessWidget {
               demonstration ? 'Um apoio para agora' : 'Para o seu momento',
               style: theme.textTheme.headlineSmall,
             ),
-            const SizedBox(height: 8),
-            Text(
-              demonstration
-                  ? 'Escolha uma sugestão breve ou outra forma de cuidado.'
-                  : 'Uma sugestão breve, baseada somente no que você permitiu.',
-              style: theme.textTheme.bodyLarge,
-            ),
             const SizedBox(height: 16),
             if (demonstration) ...[
               _StateNotice(store: store),
@@ -473,13 +466,17 @@ class _ScenarioCard extends StatelessWidget {
           const SizedBox(height: 14),
           DropdownButtonFormField<String>(
             key: const Key('ai-support-scenario-field'),
+            isExpanded: true,
             decoration: const InputDecoration(labelText: 'Cenário'),
             initialValue: store.selectedScenario.id,
             items: store.scenarios
                 .map(
                   (scenario) => DropdownMenuItem(
                     value: scenario.id,
-                    child: Text(scenario.title),
+                    child: Text(
+                      scenario.title,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 )
                 .toList(growable: false),
@@ -487,7 +484,6 @@ class _ScenarioCard extends StatelessWidget {
               if (value != null) store.selectScenario(value);
             },
           ),
-          const SizedBox(height: 10),
           const SizedBox(height: 14),
           FilledButton.icon(
             key: const Key('ai-support-generate'),
@@ -671,13 +667,6 @@ class _PersonalizedNowCard extends StatelessWidget {
               onPressed: onGenerate,
               icon: const Icon(Icons.auto_awesome_outlined),
               label: const Text('Ver apoio para agora'),
-            ),
-          ],
-          if (store.isPersonalizationEnabled) ...[
-            const SizedBox(height: 14),
-            Text(
-              'Só usa check-ins, temas que você marcou e o que funcionou antes.',
-              style: theme.textTheme.bodySmall,
             ),
           ],
         ],
