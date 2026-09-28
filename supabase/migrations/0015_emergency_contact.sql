@@ -16,4 +16,5 @@ create policy iris_contatos_emergencia_paciente
   using (paciente_id = public.iris_current_patient_id())
   with check (paciente_id = public.iris_current_patient_id());
 
+revoke all on public.contatos_emergencia from public, anon;
 grant select, insert, update, delete on public.contatos_emergencia to authenticated;
