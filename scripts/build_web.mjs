@@ -1,6 +1,7 @@
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { parseEnv } from 'node:util';
 import { spawnSync } from 'node:child_process';
+import { join } from 'node:path';
 import { prepareLanding } from './prepare_landing.mjs';
 
 const local = existsSync('.env') ? parseEnv(readFileSync('.env', 'utf8')) : {};
@@ -28,15 +29,53 @@ if (redirect) {
   defines.push(`--dart-define=SUPABASE_AUTH_REDIRECT_URL=${redirect}`);
 }
 function run(command, args) {
-  const result = spawnSync(command, args, { stdio: 'inherit' });
+  // Node on Windows cannot spawn a .bat file directly without a shell.
+  // Send arguments on stdin so a public build value cannot become shell code.
+  const result = process.platform === 'win32' && command === flutter
+    ? spawnSync('powershell.exe', [
+      '-NoProfile', '-NonInteractive', '-Command',
+      '$irisInvocation = [Console]::In.ReadToEnd() | ConvertFrom-Json; ' +
+      '$irisCommand = [string]$irisInvocation.command; ' +
+      '$irisArgs = [string[]]$irisInvocation.args; ' +
+      '& $irisCommand @irisArgs; exit $LASTEXITCODE',
+    ], {
+      input: JSON.stringify({ command: command === 'flutter' ? 'flutter.bat' : command, args }),
+      stdio: ['pipe', 'inherit', 'inherit'],
+    })
+    : spawnSync(command, args, { stdio: 'inherit' });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
+}
+function checkClientBundle(directory) {
+  if (!existsSync(directory)) throw new Error(`Bundle não encontrado: ${directory}`);
+  const markers = [
+    'SUPABASE_SECRET_KEY', 'SUPABASE_SERVICE_ROLE_KEY', 'SERVICE_ROLE_KEY',
+    'sb_secret_', 'OPENAI_API_KEY', 'OPENAI_ORG_ID', 'sk-proj-',
+  ];
+  const pending = [directory];
+  while (pending.length) {
+    const current = pending.pop();
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const path = join(current, entry.name);
+      if (entry.isDirectory()) pending.push(path);
+      if (!entry.isFile()) continue;
+      if (/^\.env(?:\..*)?$/.test(entry.name)) {
+        throw new Error('Falha: arquivo de ambiente encontrado no bundle.');
+      }
+      const contents = readFileSync(path);
+      if (markers.some((marker) => contents.includes(marker))) {
+        throw new Error('Falha: marcador de segredo encontrado no bundle.');
+      }
+    }
+  }
+  console.log('Bundle sem marcadores conhecidos de segredo.');
 }
 const flutter = process.env.IRIS_FLUTTER_BIN || 'flutter';
 run(flutter, ['pub', 'get', '--enforce-lockfile']);
 run(flutter, ['build', 'web', '--release', '--no-pub', ...defines]);
 prepareLanding();
-run('bash', ['scripts/check_client_bundle.sh', 'build/web']);
+if (process.platform === 'win32') checkClientBundle('build/web');
+else run('bash', ['scripts/check_client_bundle.sh', 'build/web']);
 
 // Permite publicar somente os arquivos compilados pelo CLI da Vercel.
 const config = JSON.parse(readFileSync('vercel.json', 'utf8'));

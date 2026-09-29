@@ -259,7 +259,7 @@ void main() {
       expect(find.byKey(const Key('network-trusted')), findsOneWidget);
       expect(find.byKey(const Key('network-professional')), findsOneWidget);
       expect(
-        find.textContaining('Nenhuma mensagem é enviada pelo app'),
+        find.textContaining('Nada é enviado sem a sua decisão'),
         findsOneWidget,
       );
 

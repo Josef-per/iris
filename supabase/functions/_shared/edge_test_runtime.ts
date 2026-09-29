@@ -7,7 +7,7 @@ import * as cors from "./cors.ts";
 // acessar a rede ou iniciar um servidor Deno por acidente.
 export function loadEdgeRuntime(name: string, overrides: Record<string, unknown> = {}) {
   const source = readFileSync(new URL(`../${name}/index.ts`, import.meta.url), "utf8")
-    .replace(/^import[\s\S]*?;\n/gm, "");
+    .replace(/^import[\s\S]*?;\r?\n/gm, "");
   const runtime = vm.createContext({
     ...cors,
     Request, Response, AbortController, URL, TextEncoder, crypto,

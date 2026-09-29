@@ -49,8 +49,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   testWidgets('exporta telas reais para a landing page', (tester) async {
     final sdk = Platform.environment['FLUTTER_ROOT'];
-    if (sdk == null)
+    if (sdk == null) {
       throw StateError('Defina FLUTTER_ROOT para carregar a fonte do app.');
+    }
     await tester.runAsync(() async {
       final fonts = FontLoader('Roboto');
       for (final weight in ['regular', 'medium', 'bold', 'black']) {
@@ -96,7 +97,7 @@ void main() {
     final directory = Directory('web/landing/images')
       ..createSync(recursive: true);
     Future<void> capture(String name, Widget screen) async {
-      print('Capturando $name');
+      debugPrint('Capturando $name');
       final boundary = GlobalKey();
       await tester.pumpWidget(
         RepaintBoundary(
@@ -161,7 +162,7 @@ void main() {
         }
       });
       await tester.pumpAndSettle();
-      print('Tela $name pronta');
+      debugPrint('Tela $name pronta');
       expect(tester.takeException(), isNull);
       final render =
           boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
@@ -173,7 +174,7 @@ void main() {
         ).writeAsBytes(bytes!.buffer.asUint8List());
         image.dispose();
       });
-      print('Imagem $name salva');
+      debugPrint('Imagem $name salva');
     }
 
     await capture(

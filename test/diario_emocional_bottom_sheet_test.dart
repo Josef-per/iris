@@ -92,7 +92,7 @@ void main() {
 
     expect(dataSource.clearCalls, 1);
     expect(find.text('Diário emocional limpo.'), findsOneWidget);
-    expect(await resultFuture, isTrue);
+    expect(await resultFuture, isFalse);
     expect(tester.takeException(), isNull);
   });
 

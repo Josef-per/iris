@@ -9,6 +9,7 @@ import 'package:iris/main.dart';
 import 'package:iris/screens/login_screen.dart';
 import 'package:iris/screens/patient_session_gate.dart';
 import 'package:iris/screens/session_gate.dart';
+import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
@@ -45,8 +46,10 @@ void main() {
     );
     expect(emailField.controller?.text, 'pro@iris.app');
     expect(
-      find.text('Acesse o painel de acompanhamento profissional.'),
-      findsOneWidget,
+      tester
+          .widget<AppAccountTypeSelector>(find.byType(AppAccountTypeSelector))
+          .isProfessional,
+      isTrue,
     );
   });
 
