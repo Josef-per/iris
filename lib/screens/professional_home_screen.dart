@@ -625,11 +625,11 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
   String get _pageTitle {
     if (_detailPatient != null) return _detailPatient!.name;
     return switch (_destination) {
-      ProfessionalDestination.dashboard => 'Visão geral',
+      ProfessionalDestination.dashboard => 'Início e agenda',
       ProfessionalDestination.patients => 'Pacientes',
-      ProfessionalDestination.notes ||
-      ProfessionalDestination.carePlan => 'Acompanhamento clínico',
-      ProfessionalDestination.settings => 'Configurações',
+      ProfessionalDestination.notes => 'Anotações clínicas',
+      ProfessionalDestination.carePlan => 'Plano de cuidado',
+      ProfessionalDestination.settings => 'Perfil e configurações',
     };
   }
 
@@ -927,18 +927,20 @@ class ProfessionalNavigation extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: SvgPicture.asset(
                           'assets/images/Login.svg',
-                          height: 92,
+                          height: 68,
                           fit: BoxFit.contain,
                           semanticsLabel: 'Íris',
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 10),
                       Divider(color: AppColors.white.withValues(alpha: .2)),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 14),
+                      const _NavigationSectionLabel('Rotina'),
+                      const SizedBox(height: 8),
                       _NavigationItem(
                         icon: Icons.dashboard_outlined,
                         selectedIcon: Icons.dashboard_rounded,
-                        label: 'Visão geral',
+                        label: 'Início e agenda',
                         selected:
                             destination == ProfessionalDestination.dashboard &&
                             !showingPatientDetail,
@@ -955,25 +957,34 @@ class ProfessionalNavigation extends StatelessWidget {
                         onTap: () =>
                             onSelected(ProfessionalDestination.patients),
                       ),
+                      const SizedBox(height: 12),
+                      const _NavigationSectionLabel('Acompanhamento'),
+                      const SizedBox(height: 8),
                       _NavigationItem(
-                        icon: Icons.medical_information_outlined,
-                        selectedIcon: Icons.medical_information_rounded,
-                        label: 'Acompanhamento clínico',
+                        key: const Key('professional-nav-care-plan'),
+                        icon: Icons.health_and_safety_outlined,
+                        selectedIcon: Icons.health_and_safety_rounded,
+                        label: 'Planos de cuidado',
                         selected:
-                            destination == ProfessionalDestination.notes ||
                             destination == ProfessionalDestination.carePlan,
-                        onTap: () => onSelected(
-                          destination == ProfessionalDestination.notes ||
-                                  destination ==
-                                      ProfessionalDestination.carePlan
-                              ? destination
-                              : ProfessionalDestination.carePlan,
-                        ),
+                        onTap: () =>
+                            onSelected(ProfessionalDestination.carePlan),
                       ),
+                      _NavigationItem(
+                        key: const Key('professional-nav-notes'),
+                        icon: Icons.auto_stories_outlined,
+                        selectedIcon: Icons.auto_stories_rounded,
+                        label: 'Anotações clínicas',
+                        selected: destination == ProfessionalDestination.notes,
+                        onTap: () => onSelected(ProfessionalDestination.notes),
+                      ),
+                      const SizedBox(height: 12),
+                      const _NavigationSectionLabel('Conta'),
+                      const SizedBox(height: 8),
                       _NavigationItem(
                         icon: Icons.settings_outlined,
                         selectedIcon: Icons.settings_rounded,
-                        label: 'Configurações',
+                        label: 'Perfil e configurações',
                         selected:
                             destination == ProfessionalDestination.settings,
                         onTap: () =>
@@ -1011,8 +1022,34 @@ class ProfessionalNavigation extends StatelessWidget {
   }
 }
 
+class _NavigationSectionLabel extends StatelessWidget {
+  const _NavigationSectionLabel(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Semantics(
+        header: true,
+        child: Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: AppColors.lavender,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NavigationItem extends StatelessWidget {
   const _NavigationItem({
+    super.key,
     required this.icon,
     required this.selectedIcon,
     required this.label,
@@ -1044,7 +1081,7 @@ class _NavigationItem extends StatelessWidget {
             onTap: onTap,
             borderRadius: BorderRadius.circular(14),
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               child: Row(
                 children: [
                   Icon(

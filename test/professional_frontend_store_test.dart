@@ -286,7 +286,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Acompanhamento clínico'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ProfessionalNavigation),
+          matching: find.text('Planos de cuidado'),
+        ),
+        findsOneWidget,
+      );
       expect(routeController.path.location, '/professional/notes');
       await tester.tap(find.byKey(const Key('clinical-tab-care-plan')));
       await tester.pumpAndSettle();
