@@ -211,6 +211,7 @@ void main() {
             destination: ProfessionalDestination.dashboard,
             showingPatientDetail: false,
             onSelected: (_) {},
+            onOpenCarePlan: () {},
             onSignOut: () => signedOut = true,
             settings: const ProfessionalSettingsDraft(
               name: 'Profissional Teste',

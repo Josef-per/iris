@@ -335,6 +335,101 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('menu exige escolha antes de abrir plano de cuidado', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(Uri.parse('/professional')),
+      );
+      addTearDown(routeController.dispose);
+      final secondPatient = _patient().copyWith(
+        id: 'patient-2',
+        name: 'Paciente Dois',
+        birthDate: '02/02/1990',
+      );
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient(), secondPatient]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('professional-nav-care-plan')));
+      await tester.pumpAndSettle();
+      expect(find.text('Escolher paciente para o plano'), findsOneWidget);
+      expect(routeController.path.location, '/professional');
+
+      await tester.tap(
+        find.byKey(const ValueKey('care-plan-patient-patient-2')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        routeController.path.location,
+        '/professional/patients/patient-2/care-plan',
+      );
+      expect(find.text('Paciente: Paciente Dois'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('hambúrguer móvel fecha antes de escolher o paciente', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 568);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final routeController = IrisRouteController(
+        IrisRoutePath(Uri.parse('/professional')),
+      );
+      addTearDown(routeController.dispose);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Abrir menu'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const Key('professional-nav-care-plan')),
+      );
+      await tester.tap(find.byKey(const Key('professional-nav-care-plan')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Escolher paciente para o plano'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(
+        find.byKey(const ValueKey('care-plan-patient-patient-id')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        routeController.path.location,
+        '/professional/patients/patient-id/care-plan',
+      );
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 

@@ -292,6 +292,74 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
     unawaited(_openCarePlanGuarded(patient));
   }
 
+  Future<void> _chooseCarePlanPatient() async {
+    if (_scaffoldKey.currentState?.isDrawerOpen ?? false) {
+      Navigator.of(context).pop();
+    }
+    if (_credentialLocked) {
+      _selectDestination(ProfessionalDestination.carePlan);
+      return;
+    }
+
+    final patients = _store.patients
+        .where((patient) => patient.status == PatientStatus.active)
+        .toList(growable: false);
+    if (patients.isEmpty) {
+      _selectDestination(ProfessionalDestination.patients);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione um paciente em acompanhamento ativo.'),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showDialog<ProfessionalPatient>(
+      context: context,
+      useRootNavigator: false,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Escolher paciente para o plano'),
+        content: SizedBox(
+          width: 420,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 360),
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: patients.length,
+              itemBuilder: (context, index) {
+                final patient = patients[index];
+                return ListTile(
+                  key: ValueKey('care-plan-patient-${patient.id}'),
+                  title: Text(patient.name),
+                  subtitle: Text(
+                    patient.birthDate.isEmpty
+                        ? '${patient.age} anos'
+                        : 'Nascimento: ${patient.birthDate}',
+                  ),
+                  onTap: () => Navigator.pop(dialogContext, patient),
+                );
+              },
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancelar'),
+          ),
+        ],
+      ),
+    );
+    if (selected == null || !mounted) return;
+    if (_hasUnsavedChanges &&
+        _isClinicalDestination(_destination) &&
+        selected.id != _selectedPatient?.id &&
+        !await _confirmDiscardChanges()) {
+      return;
+    }
+    await _openCarePlanGuarded(selected);
+  }
+
   Future<void> _openCarePlanGuarded([ProfessionalPatient? patient]) async {
     final targetPatient = patient ?? _selectedPatient;
     if (targetPatient != null && targetPatient.status != PatientStatus.active) {
@@ -540,6 +608,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
       destination: _destination,
       showingPatientDetail: _detailPatient != null,
       onSelected: _selectDestination,
+      onOpenCarePlan: _chooseCarePlanPatient,
       onSignOut: _signOut,
       settings: _store.settings,
     );
@@ -898,6 +967,7 @@ class ProfessionalNavigation extends StatelessWidget {
     required this.destination,
     required this.showingPatientDetail,
     required this.onSelected,
+    required this.onOpenCarePlan,
     required this.onSignOut,
     required this.settings,
   });
@@ -905,6 +975,7 @@ class ProfessionalNavigation extends StatelessWidget {
   final ProfessionalDestination destination;
   final bool showingPatientDetail;
   final ValueChanged<ProfessionalDestination> onSelected;
+  final VoidCallback onOpenCarePlan;
   final VoidCallback onSignOut;
   final ProfessionalSettingsDraft settings;
 
@@ -967,8 +1038,7 @@ class ProfessionalNavigation extends StatelessWidget {
                         label: 'Planos de cuidado',
                         selected:
                             destination == ProfessionalDestination.carePlan,
-                        onTap: () =>
-                            onSelected(ProfessionalDestination.carePlan),
+                        onTap: onOpenCarePlan,
                       ),
                       _NavigationItem(
                         key: const Key('professional-nav-notes'),

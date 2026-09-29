@@ -165,7 +165,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
           children: [
             ProfessionalGradientHeader(
               title: 'Plano de cuidado',
-              subtitle: patient.name,
+              subtitle: 'Paciente: ${patient.name}',
               action: FilledButton.icon(
                 onPressed: null,
                 style: AppButtonStyles.onBrandFilled,
@@ -197,7 +197,7 @@ class _ProfessionalCarePlanViewState extends State<ProfessionalCarePlanView> {
         children: [
           ProfessionalGradientHeader(
             title: 'Plano de cuidado',
-            subtitle: patient.name,
+            subtitle: 'Paciente: ${patient.name}',
             action: FilledButton.icon(
               onPressed: _saving || !_dirty ? null : () => _save(),
               style: AppButtonStyles.onBrandFilled,
@@ -504,6 +504,11 @@ class _PatientSelector extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      'Paciente deste plano',
+                      style: Theme.of(context).textTheme.labelMedium,
+                    ),
+                    const SizedBox(height: 4),
                     DropdownButtonHideUnderline(
                       child: DropdownButton<ProfessionalPatient>(
                         value: patient,
@@ -530,6 +535,8 @@ class _PatientSelector extends StatelessWidget {
                       patient.diagnosis,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    const SizedBox(height: 8),
+                    PatientStatusBadge(status: patient.status),
                   ],
                 ),
               ),
