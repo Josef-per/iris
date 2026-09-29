@@ -1,6 +1,7 @@
 import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/features/profile/profile_model.dart';
+import 'package:iris/features/profile/patient_birth_date.dart';
 import 'package:iris/features/users/user_repository.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -19,7 +20,9 @@ class ProfileRepository {
 
     final data = await _client
         .from(DatabaseTables.perfis)
-        .select('id, user_id, nome_completo, nome_social')
+        .select(
+          'id, user_id, nome_completo, nome_social, data_nascimento, telefone',
+        )
         .eq('user_id', user.id)
         .limit(1)
         .maybeSingle();
@@ -39,5 +42,21 @@ class ProfileRepository {
           'nome_completo': profile.displayName,
         })
         .eq('id', profile.id);
+  }
+
+  Future<void> updateCurrentPatientDetails({
+    required DateTime birthDate,
+    String? phone,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('Sessão não encontrada.');
+    final normalizedPhone = phone?.trim() ?? '';
+    await _client
+        .from(DatabaseTables.perfis)
+        .update({
+          'data_nascimento': patientBirthDateIso(birthDate),
+          'telefone': normalizedPhone.isEmpty ? null : normalizedPhone,
+        })
+        .eq('user_id', user.id);
   }
 }

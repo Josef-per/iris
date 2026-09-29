@@ -3,6 +3,7 @@ import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/features/users/user_repository.dart';
+import 'package:iris/features/profile/patient_birth_date.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthService {
@@ -72,6 +73,7 @@ class AuthService {
     required String userType,
     String? specialty,
     String? professionalRegistration,
+    String? birthDate,
   }) async {
     _profileValidationInProgress.value = true;
     try {
@@ -80,20 +82,33 @@ class AuthService {
       final resolvedUserType = userType == UserTypes.profissional
           ? UserTypes.profissional
           : UserTypes.paciente;
+      final patientBirthDate = resolvedUserType == UserTypes.paciente
+          ? parseStoredPatientBirthDate(birthDate)
+          : null;
+      if (resolvedUserType == UserTypes.paciente && patientBirthDate == null) {
+        throw ArgumentError('Data de nascimento inválida.');
+      }
+      final normalizedBirthDate = patientBirthDate == null
+          ? null
+          : patientBirthDateIso(patientBirthDate);
+      final metadata = <String, dynamic>{
+        'display_name': cleanDisplayName,
+        'tipo_usuario': resolvedUserType,
+        if (specialty != null && specialty.trim().isNotEmpty)
+          'especialidade': specialty.trim(),
+        if (professionalRegistration != null &&
+            professionalRegistration.trim().isNotEmpty)
+          'registro_profissional': professionalRegistration.trim(),
+      };
+      if (normalizedBirthDate != null) {
+        metadata['data_nascimento'] = normalizedBirthDate;
+      }
 
       final response = await _client.auth.signUp(
         email: cleanEmail,
         password: password,
         emailRedirectTo: SupabaseConfig.authRedirectUrl,
-        data: {
-          'display_name': cleanDisplayName,
-          'tipo_usuario': resolvedUserType,
-          if (specialty != null && specialty.trim().isNotEmpty)
-            'especialidade': specialty.trim(),
-          if (professionalRegistration != null &&
-              professionalRegistration.trim().isNotEmpty)
-            'registro_profissional': professionalRegistration.trim(),
-        },
+        data: metadata,
       );
 
       if (response.user != null && response.session != null) {
@@ -108,6 +123,7 @@ class AuthService {
             response.user!,
             email: cleanEmail,
             displayName: cleanDisplayName,
+            birthDate: normalizedBirthDate,
           );
         }
       }

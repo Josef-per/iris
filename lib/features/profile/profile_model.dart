@@ -1,12 +1,18 @@
+import 'package:iris/features/profile/patient_birth_date.dart';
+
 class Profile {
   final String id;
   final String userId;
   final String displayName;
+  final DateTime? birthDate;
+  final String phone;
 
   const Profile({
     required this.id,
     required this.userId,
     required this.displayName,
+    this.birthDate,
+    this.phone = '',
   });
 
   factory Profile.fromMap(Map<String, dynamic> map) {
@@ -14,6 +20,10 @@ class Profile {
       id: map['id'] as String,
       userId: map['user_id'] as String,
       displayName: (map['nome_social'] ?? map['nome_completo'] ?? '') as String,
+      birthDate: parseStoredPatientBirthDate(
+        map['data_nascimento']?.toString(),
+      ),
+      phone: map['telefone']?.toString() ?? '',
     );
   }
 

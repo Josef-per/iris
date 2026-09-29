@@ -79,6 +79,40 @@ void main() {
     expect(find.byType(TextFormField), findsNothing);
   });
 
+  testWidgets(
+    'edição clínica mostra só dados que o profissional pode alterar',
+    (tester) async {
+      final store = await _createStore();
+      addTearDown(store.dispose);
+
+      await pumpScreen(
+        tester,
+        Builder(
+          builder: (context) => FilledButton(
+            onPressed: () => showProfessionalPatientForm(
+              context,
+              store,
+              patient: store.patients.single,
+            ),
+            child: const Text('Editar paciente'),
+          ),
+        ),
+      );
+      await tester.tap(find.text('Editar paciente'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextFormField), findsOneWidget);
+      expect(find.text('Diagnóstico (se houver)'), findsOneWidget);
+      expect(find.text('Data de nascimento'), findsNothing);
+      expect(find.text('Nome'), findsNothing);
+      await tester.enterText(find.byType(TextFormField), 'Diagnóstico revisto');
+      await tester.tap(find.byKey(const Key('professional-patient-save')));
+      await tester.pumpAndSettle();
+      expect(store.patients.single.diagnosis, 'Diagnóstico revisto');
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('salva nova anotacao na lista', (tester) async {
     final store = await _createStore();
     addTearDown(store.dispose);

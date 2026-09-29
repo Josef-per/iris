@@ -4,6 +4,7 @@ import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
+import 'package:iris/features/profile/patient_birth_date.dart';
 import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
@@ -27,7 +28,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
   final _password = TextEditingController();
   final _confirmPassword = TextEditingController();
   final _displayName = TextEditingController();
-  final _specialty = TextEditingController(text: 'Psiquiatria');
+  final _birthDate = TextEditingController();
+  final _specialty = TextEditingController();
   final _professionalRegistration = TextEditingController();
   late final AuthService _authService;
   bool _isLoading = false;
@@ -48,6 +50,7 @@ class _CadastroScreenState extends State<CadastroScreen> {
     _password.dispose();
     _confirmPassword.dispose();
     _displayName.dispose();
+    _birthDate.dispose();
     _specialty.dispose();
     _professionalRegistration.dispose();
     super.dispose();
@@ -80,6 +83,9 @@ class _CadastroScreenState extends State<CadastroScreen> {
         professionalRegistration: _isProfessional
             ? _professionalRegistration.text
             : null,
+        birthDate: _isProfessional
+            ? null
+            : patientBirthDateIso(parsePatientBirthDate(_birthDate.text)!),
       );
       if (!mounted) return;
       if (result.needsEmailConfirmation) {
@@ -140,6 +146,28 @@ class _CadastroScreenState extends State<CadastroScreen> {
                   ? 'Informe seu nome.'
                   : null,
             ),
+            if (!_isProfessional) ...[
+              const SizedBox(height: 16),
+              TextFormField(
+                key: const Key('patient-signup-birth-date'),
+                controller: _birthDate,
+                keyboardType: TextInputType.datetime,
+                textInputAction: TextInputAction.next,
+                decoration: const InputDecoration(
+                  labelText: 'Data de nascimento',
+                  hintText: 'DD/MM/AAAA',
+                  prefixIcon: Icon(Icons.cake_outlined),
+                ),
+                validator: (value) {
+                  if ((value ?? '').trim().isEmpty) {
+                    return 'Informe sua data de nascimento.';
+                  }
+                  return parsePatientBirthDate(value!) == null
+                      ? 'Informe uma data válida em DD/MM/AAAA.'
+                      : null;
+                },
+              ),
+            ],
             if (_isProfessional) ...[
               const SizedBox(height: 16),
               TextFormField(

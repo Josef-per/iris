@@ -91,9 +91,10 @@ void main() {
 
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Paciente Teste');
-    await tester.enterText(fields.at(1), 'paciente@iris.app');
-    await tester.enterText(fields.at(2), 'senha-segura');
+    await tester.enterText(fields.at(1), '01/01/1996');
+    await tester.enterText(fields.at(2), 'paciente@iris.app');
     await tester.enterText(fields.at(3), 'senha-segura');
+    await tester.enterText(fields.at(4), 'senha-segura');
     await tester.ensureVisible(
       find.widgetWithText(FilledButton, 'Criar minha conta'),
     );

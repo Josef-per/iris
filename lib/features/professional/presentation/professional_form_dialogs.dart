@@ -74,36 +74,46 @@ Future<bool> showProfessionalPatientForm(
                     const Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        'Dados pessoais são gerenciados pelo paciente.',
+                        'Nome, contato e nascimento são editados pelo paciente no perfil.',
                       ),
                     ),
                     const SizedBox(height: 12),
                   ],
+                  if (!store.isConnected) ...[
+                    TextFormField(
+                      key: const Key('professional-patient-name'),
+                      controller: name,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: const InputDecoration(labelText: 'Nome'),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextFormField(
-                    key: const Key('professional-patient-name'),
-                    controller: name,
-                    enabled: !store.isConnected,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(labelText: 'Nome'),
+                    controller: diagnosis,
+                    decoration: InputDecoration(
+                      labelText: store.isConnected
+                          ? 'Diagnóstico (se houver)'
+                          : 'Diagnóstico',
+                    ),
                     validator: store.isConnected ? null : _required,
                   ),
                   const SizedBox(height: 12),
                   _ResponsiveDialogFields(
                     children: [
-                      TextFormField(
-                        controller: age,
-                        enabled: !store.isConnected,
-                        keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(labelText: 'Idade'),
-                        validator: (value) {
-                          if (store.isConnected) return null;
-                          final parsed = int.tryParse(value ?? '');
-                          if (parsed == null || parsed < 1) {
-                            return 'Idade inválida';
-                          }
-                          return null;
-                        },
-                      ),
+                      if (!store.isConnected)
+                        TextFormField(
+                          controller: age,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Idade'),
+                          validator: (value) {
+                            final parsed = int.tryParse(value ?? '');
+                            if (parsed == null || parsed < 1) {
+                              return 'Idade inválida';
+                            }
+                            return null;
+                          },
+                        ),
                       DropdownButtonFormField<PatientStatus>(
                         initialValue: status,
                         decoration: const InputDecoration(labelText: 'Status'),
@@ -125,55 +135,46 @@ Future<bool> showProfessionalPatientForm(
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: diagnosis,
-                    decoration: const InputDecoration(labelText: 'Diagnóstico'),
-                    validator: store.isConnected ? null : _required,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: email,
-                    enabled: !store.isConnected,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(labelText: 'E-mail'),
-                    validator: (value) {
-                      if (store.isConnected) return null;
-                      final error = _required(value);
-                      if (error != null) return error;
-                      return value!.contains('@') ? null : 'E-mail inválido';
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: phone,
-                    enabled: !store.isConnected,
-                    keyboardType: TextInputType.phone,
-                    decoration: const InputDecoration(labelText: 'Telefone'),
-                    validator: store.isConnected ? null : _required,
-                  ),
-                  const SizedBox(height: 12),
-                  _ResponsiveDialogFields(
-                    children: [
-                      TextFormField(
-                        controller: birthDate,
-                        enabled: !store.isConnected,
-                        decoration: const InputDecoration(
-                          labelText: 'Nascimento',
-                          hintText: 'DD/MM/AAAA',
+                  if (!store.isConnected) ...[
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: email,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(labelText: 'E-mail'),
+                      validator: (value) {
+                        final error = _required(value);
+                        if (error != null) return error;
+                        return value!.contains('@') ? null : 'E-mail inválido';
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phone,
+                      keyboardType: TextInputType.phone,
+                      decoration: const InputDecoration(labelText: 'Telefone'),
+                      validator: _required,
+                    ),
+                    const SizedBox(height: 12),
+                    _ResponsiveDialogFields(
+                      children: [
+                        TextFormField(
+                          controller: birthDate,
+                          decoration: const InputDecoration(
+                            labelText: 'Nascimento',
+                            hintText: 'DD/MM/AAAA',
+                          ),
+                          validator: _required,
                         ),
-                        validator: store.isConnected ? null : _required,
-                      ),
-                      TextFormField(
-                        controller: nextAppointment,
-                        enabled: !store.isConnected,
-                        decoration: const InputDecoration(
-                          labelText: 'Próxima consulta',
+                        TextFormField(
+                          controller: nextAppointment,
+                          decoration: const InputDecoration(
+                            labelText: 'Próxima consulta',
+                          ),
+                          validator: _required,
                         ),
-                        validator: store.isConnected ? null : _required,
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

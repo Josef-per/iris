@@ -1,5 +1,6 @@
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_client_provider.dart';
+import 'package:iris/features/profile/patient_birth_date.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UserRepository {
@@ -33,13 +34,19 @@ class UserRepository {
     String? displayName,
   }) async {
     final existingType = await getCurrentUserType();
-    await _bootstrapCurrentUser(
+    final userType = await _bootstrapCurrentUser(
       requestedType:
           existingType ?? _userTypeFromMetadata(user) ?? UserTypes.paciente,
       displayName: displayName ?? _displayNameFromMetadata(user),
       specialty: _metadataValue(user, 'especialidade'),
       professionalRegistration: _metadataValue(user, 'registro_profissional'),
     );
+    if (userType == UserTypes.paciente) {
+      await _fillPatientBirthDate(
+        user.id,
+        _metadataValue(user, 'data_nascimento'),
+      );
+    }
   }
 
   Future<void> ensureForProfessionalAuthUser(
@@ -62,6 +69,7 @@ class UserRepository {
     User user, {
     String? email,
     String? displayName,
+    String? birthDate,
   }) async {
     final userType = await _bootstrapCurrentUser(
       requestedType: UserTypes.paciente,
@@ -70,6 +78,20 @@ class UserRepository {
     if (userType != UserTypes.paciente) {
       throw const UserRoleConflictException();
     }
+    await _fillPatientBirthDate(
+      user.id,
+      birthDate ?? _metadataValue(user, 'data_nascimento'),
+    );
+  }
+
+  Future<void> _fillPatientBirthDate(String userId, String? value) async {
+    final birthDate = parseStoredPatientBirthDate(value);
+    if (birthDate == null) return;
+    await _client
+        .from(DatabaseTables.perfis)
+        .update({'data_nascimento': patientBirthDateIso(birthDate)})
+        .eq('user_id', userId)
+        .isFilter('data_nascimento', null);
   }
 
   Future<String> getOrCreateCurrentPatientId() async {
