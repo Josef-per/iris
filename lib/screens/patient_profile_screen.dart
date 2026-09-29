@@ -4,6 +4,7 @@ import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/profile/profile_model.dart';
 import 'package:iris/features/profile/profile_repository.dart';
 import 'package:iris/features/profile/patient_birth_date.dart';
+import 'package:iris/features/profile/patient_birth_date_input_formatter.dart';
 import 'package:iris/features/emergency_contact/emergency_contact_editor.dart';
 import 'package:iris/features/emergency_contact/emergency_contact_repository.dart';
 import 'package:iris/widgets/app_responsive.dart';
@@ -333,6 +334,7 @@ class _PatientPersonalDetailsDialogState
                 key: const Key('patient-profile-birth-date'),
                 controller: _birthDate,
                 keyboardType: TextInputType.datetime,
+                inputFormatters: const [PatientBirthDateInputFormatter()],
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Data de nascimento',

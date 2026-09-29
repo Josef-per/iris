@@ -76,8 +76,9 @@ void main() {
 
       await tester.enterText(
         find.byKey(const Key('patient-signup-birth-date')),
-        '02/01/1996',
+        '02011996',
       );
+      expect(find.text('02/01/1996'), findsOneWidget);
       await tester.ensureVisible(find.text('Criar minha conta'));
       await tester.tap(find.text('Criar minha conta'));
       await tester.pumpAndSettle();
