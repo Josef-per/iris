@@ -219,15 +219,9 @@ class _ProfessionalSettingsViewState extends State<ProfessionalSettingsView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _NotificationsPanel(
-                          appointmentNotifications: _appointmentNotifications,
                           crisisAlerts: _crisisAlerts,
-                          automaticReports: _automaticReports,
-                          onAppointmentChanged: (value) =>
-                              _change(() => _appointmentNotifications = value),
                           onCrisisChanged: (value) =>
                               _change(() => _crisisAlerts = value),
-                          onReportsChanged: (value) =>
-                              _change(() => _automaticReports = value),
                         ),
                         const _SettingsDivider(),
                         const _AppearancePanel(),
@@ -547,48 +541,33 @@ class _ClinicPanel extends StatelessWidget {
 
 class _NotificationsPanel extends StatelessWidget {
   const _NotificationsPanel({
-    required this.appointmentNotifications,
     required this.crisisAlerts,
-    required this.automaticReports,
-    required this.onAppointmentChanged,
     required this.onCrisisChanged,
-    required this.onReportsChanged,
   });
 
-  final bool appointmentNotifications;
   final bool crisisAlerts;
-  final bool automaticReports;
-  final ValueChanged<bool> onAppointmentChanged;
   final ValueChanged<bool> onCrisisChanged;
-  final ValueChanged<bool> onReportsChanged;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const ProfessionalSectionTitle(title: 'Notificações'),
+        const ProfessionalSectionTitle(title: 'Revisão de registros'),
         const SizedBox(height: 10),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: appointmentNotifications,
-          onChanged: onAppointmentChanged,
-          title: const Text('Lembretes de consultas'),
-          subtitle: const Text('Avisos antes dos próximos atendimentos'),
-        ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           value: crisisAlerts,
           onChanged: onCrisisChanged,
-          title: const Text('Alertas de crise'),
-          subtitle: const Text('Notificações para sinais de atenção'),
+          title: const Text('Exibir registros para revisão'),
+          subtitle: const Text(
+            'Mostra sinais de atenção dos check-ins recentes no painel.',
+          ),
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          value: automaticReports,
-          onChanged: onReportsChanged,
-          title: const Text('Relatórios automáticos'),
-          subtitle: const Text('Resumos periódicos de acompanhamento'),
+        const SizedBox(height: 4),
+        Text(
+          'Use “Atualizar painel” para consultar novos registros. A área profissional não envia notificações desses registros. Lembretes de consultas e relatórios automáticos ainda não estão disponíveis.',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
       ],
     );

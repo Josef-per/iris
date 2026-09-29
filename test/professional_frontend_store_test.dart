@@ -430,6 +430,100 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets('preferência clínica não anuncia envios inexistentes', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(
+          settings: _snapshot().settings.copyWith(
+            phone: '(11) 99999-9999',
+            clinic: 'Clínica Teste',
+            clinicAddress: 'Rua Teste, 1',
+          ),
+        ),
+      );
+      final routeController = IrisRouteController(
+        IrisRoutePath(Uri.parse('/professional/settings')),
+      );
+      addTearDown(routeController.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: IrisRouteScope(
+            controller: routeController,
+            child: ProfessionalHomeScreen(backend: backend),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Exibir registros para revisão'), findsOneWidget);
+      expect(find.text('Lembretes de consultas'), findsNothing);
+      expect(find.text('Relatórios automáticos'), findsNothing);
+      await tester.ensureVisible(find.text('Exibir registros para revisão'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Exibir registros para revisão'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Salvar'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salvar'));
+      await tester.pumpAndSettle();
+
+      expect(backend.updatedSettings?.crisisAlerts, isFalse);
+      expect(backend.updatedSettings?.appointmentNotifications, isTrue);
+      expect(backend.updatedSettings?.automaticReports, isFalse);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('atualização do painel carrega registros para revisão', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final backend = _FakeProfessionalBackend(
+        snapshot: _snapshot(patients: [_patient()]),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: ProfessionalHomeScreen(backend: backend),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Registros para revisar'), findsOneWidget);
+
+      backend.snapshot = _snapshot(
+        patients: [_patient()],
+        alerts: 1,
+        clinicalAlerts: [
+          ProfessionalClinicalAlert(
+            id: 'record-1',
+            patientId: 'patient-id',
+            occurredAt: DateTime.now(),
+            reasons: const ['Bem-estar 2/5'],
+          ),
+        ],
+      );
+      await tester.tap(find.byTooltip('Atualizar painel'));
+      await tester.pumpAndSettle();
+      expect(backend.loadCalls, 2);
+
+      await tester.tap(find.text('Registros para revisar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Registros para revisão'), findsOneWidget);
+      expect(find.text('Paciente Teste'), findsOneWidget);
+      expect(find.textContaining('Bem-estar 2/5'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
   });
 }
 
@@ -453,6 +547,9 @@ ProfessionalPatient _patient() {
 ProfessionalWorkspaceSnapshot _snapshot({
   List<ProfessionalPatient> patients = const [],
   List<ProfessionalAppointment> appointments = const [],
+  ProfessionalSettingsDraft? settings,
+  int alerts = 0,
+  List<ProfessionalClinicalAlert> clinicalAlerts = const [],
 }) {
   return ProfessionalWorkspaceSnapshot(
     patients: patients,
@@ -460,22 +557,25 @@ ProfessionalWorkspaceSnapshot _snapshot({
     notes: const [],
     carePlans: const {},
     records: const {},
-    settings: const ProfessionalSettingsDraft(
-      name: 'Profissional Teste',
-      email: 'profissional@example.com',
-      phone: '',
-      specialty: 'Psiquiatria',
-      registration: 'CRM 123',
-      biography: '',
-      clinic: '',
-      clinicAddress: '',
-      avatarInitials: 'PT',
-      appointmentNotifications: true,
-      crisisAlerts: true,
-      automaticReports: false,
-    ),
+    settings:
+        settings ??
+        const ProfessionalSettingsDraft(
+          name: 'Profissional Teste',
+          email: 'profissional@example.com',
+          phone: '',
+          specialty: 'Psiquiatria',
+          registration: 'CRM 123',
+          biography: '',
+          clinic: '',
+          clinicAddress: '',
+          avatarInitials: 'PT',
+          appointmentNotifications: true,
+          crisisAlerts: true,
+          automaticReports: false,
+        ),
     appointmentsThisMonth: 0,
-    alerts: 0,
+    alerts: alerts,
+    clinicalAlerts: clinicalAlerts,
   );
 }
 
@@ -489,6 +589,7 @@ class _FakeProfessionalBackend implements ProfessionalWorkspaceBackend {
   Object? settingsError;
   int loadCalls = 0;
   ProfessionalPatient? updatedPatient;
+  ProfessionalSettingsDraft? updatedSettings;
 
   @override
   Future<ProfessionalWorkspaceSnapshot> loadWorkspace() async {
@@ -536,6 +637,7 @@ class _FakeProfessionalBackend implements ProfessionalWorkspaceBackend {
     ProfessionalSettingsDraft settings,
   ) async {
     if (settingsError case final error?) throw error;
+    updatedSettings = settings;
     return settings;
   }
 

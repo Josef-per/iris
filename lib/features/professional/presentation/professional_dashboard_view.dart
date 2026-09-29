@@ -12,6 +12,7 @@ class ProfessionalDashboardView extends StatelessWidget {
     required this.onOpenPatients,
     required this.onOpenPatient,
     this.onOpenAlerts,
+    this.onRefresh,
     this.appointmentInitialDate,
   });
 
@@ -19,6 +20,7 @@ class ProfessionalDashboardView extends StatelessWidget {
   final VoidCallback onOpenPatients;
   final ValueChanged<ProfessionalPatient> onOpenPatient;
   final VoidCallback? onOpenAlerts;
+  final VoidCallback? onRefresh;
   final DateTime? appointmentInitialDate;
 
   @override
@@ -35,6 +37,12 @@ class ProfessionalDashboardView extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
+                  if (onRefresh != null)
+                    IconButton(
+                      tooltip: 'Atualizar painel',
+                      onPressed: onRefresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
                   OutlinedButton.icon(
                     onPressed: onOpenPatients,
                     icon: const Icon(Icons.people_alt_outlined),
@@ -147,11 +155,11 @@ class _MetricsGrid extends StatelessWidget {
             ),
             _MetricCard(
               width: width,
-              icon: Icons.warning_amber_rounded,
-              title: 'Alertas',
+              icon: Icons.fact_check_outlined,
+              title: 'Registros para revisar',
               value: '${store.alerts}',
-              supporting: 'Ver todos',
-              color: colors.error,
+              supporting: store.isConnected ? 'Últimas 24 h' : 'Ver registros',
+              color: semanticColors.warning,
               onTap: onOpenAlerts,
             ),
             _MetricCard(

@@ -535,20 +535,22 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
       context: context,
       useRootNavigator: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Notificações'),
+        title: const Text('Registros para revisão'),
         content: SizedBox(
           width: 440,
           child: remoteAlerts == 0
-              ? const Text('Nenhum alerta no momento.')
+              ? const Text(
+                  'Nenhum registro para revisão na última atualização do painel.',
+                )
               : clinicalAlerts.isEmpty
               ? ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.warning_amber_rounded),
                   title: Text(
-                    '$remoteAlerts ${remoteAlerts == 1 ? 'alerta clínico requer' : 'alertas clínicos requerem'} revisão.',
+                    '$remoteAlerts ${remoteAlerts == 1 ? 'registro recente para' : 'registros recentes para'} revisão.',
                   ),
                   subtitle: const Text(
-                    'Atualize o painel para consultar os registros.',
+                    'Os detalhes desses registros não estão disponíveis nesta visualização.',
                   ),
                 )
               : ConstrainedBox(
@@ -773,6 +775,7 @@ class _ProfessionalHomeScreenState extends State<ProfessionalHomeScreen>
             _selectDestination(ProfessionalDestination.patients),
         onOpenPatient: _openPatient,
         onOpenAlerts: _showNotifications,
+        onRefresh: () => unawaited(_loadWorkspace()),
       ),
       ProfessionalDestination.patients => ProfessionalPatientsView(
         store: _store,
@@ -1277,12 +1280,12 @@ class _MobileProfessionalBar extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               IconButton(
-                tooltip: 'Notificações',
+                tooltip: 'Registros para revisão',
                 onPressed: onNotificationsPressed,
                 icon: Badge(
                   isLabelVisible: notificationCount > 0,
                   label: Text('$notificationCount'),
-                  child: const Icon(Icons.notifications_none_rounded),
+                  child: const Icon(Icons.fact_check_outlined),
                 ),
               ),
               const SizedBox(width: 8),
