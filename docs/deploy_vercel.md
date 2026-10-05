@@ -13,9 +13,31 @@ disponivel ou baixa essa versao. O arquivo `.env` deve conter `SUPABASE_URL`
 e `SUPABASE_PUBLISHABLE_KEY` (ou `SUPABASE_ANON_KEY`). Somente os valores
 publicos sao encaminhados ao Flutter; chaves administrativas sao rejeitadas.
 
+Antes de compilar, adicione ao `.env` da raiz os valores reais disponíveis no
+painel do seu projeto Supabase:
+
+```dotenv
+SUPABASE_URL=https://seu-projeto.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_SUBSTITUA_PELA_CHAVE_REAL
+```
+
+Se o `.env` já contiver configurações de IA, preserve essas linhas e acrescente
+as duas variáveis. Os valores de `.env.example` são apenas exemplos. Também é
+possível usar outro arquivo com `IRIS_ENV_FILE=/caminho/config.env` ou exportar
+as variáveis no terminal; as variáveis de ambiente têm prioridade sobre o arquivo.
+O login no CLI da Vercel não fornece essas configurações ao build local.
+
+Para conferir a configuração sem compilar:
+
 ```sh
-bash scripts/build_vercel.sh
-npx vercel@59.15.1 login
+node scripts/build_web.mjs --check-config
+```
+
+Execute a publicação somente se o build terminar com sucesso:
+
+```sh
+bash scripts/build_vercel.sh &&
+npx vercel@59.15.1 login &&
 npx vercel@59.15.1 deploy build/web --prod
 ```
 

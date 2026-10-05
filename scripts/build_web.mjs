@@ -4,20 +4,38 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { prepareLanding } from './prepare_landing.mjs';
 
-const local = existsSync('.env') ? parseEnv(readFileSync('.env', 'utf8')) : {};
+function fail(message) {
+  console.error(`Erro de configuração: ${message}`);
+  process.exit(1);
+}
+const envFile = process.env.IRIS_ENV_FILE || '.env';
+if (process.env.IRIS_ENV_FILE && !existsSync(envFile)) {
+  fail('Arquivo indicado por IRIS_ENV_FILE não encontrado.');
+}
+const local = existsSync(envFile) ? parseEnv(readFileSync(envFile, 'utf8')) : {};
 const value = (name) => (process.env[name] ?? local[name] ?? '').trim();
 const url = value('SUPABASE_URL');
 const key = value('SUPABASE_PUBLISHABLE_KEY') || value('SUPABASE_ANON_KEY');
-if (!url || !key || new URL(url).protocol !== 'https:') {
-  throw new Error('Defina SUPABASE_URL HTTPS e SUPABASE_PUBLISHABLE_KEY.');
+const missing = [];
+if (!url) missing.push('SUPABASE_URL');
+if (!key) missing.push('SUPABASE_PUBLISHABLE_KEY (ou SUPABASE_ANON_KEY)');
+if (missing.length) {
+  fail(`Faltam ${missing.join(' e ')}. Adicione os valores públicos ao .env ` +
+    'da raiz, ao arquivo indicado por IRIS_ENV_FILE ou às variáveis de ambiente. ' +
+    'Consulte .env.example e docs/deploy_vercel.md.');
 }
+function isHttps(value) {
+  try { return new URL(value).protocol === 'https:'; }
+  catch { return false; }
+}
+if (!isHttps(url)) fail('SUPABASE_URL deve ser uma URL HTTPS válida.');
 let publicKey = key.startsWith('sb_publishable_');
 if (!publicKey && key.split('.').length === 3) {
   try {
     publicKey = JSON.parse(Buffer.from(key.split('.')[1], 'base64url')).role === 'anon';
   } catch { /* A chave precisa ser publica e valida antes de compilar. */ }
 }
-if (!publicKey) throw new Error('O build aceita somente chave publicavel ou anon.');
+if (!publicKey) fail('O build aceita somente chave publicável ou anon.');
 const defines = [
   `--dart-define=SUPABASE_URL=${url}`,
   `--dart-define=SUPABASE_PUBLISHABLE_KEY=${key}`,
@@ -25,9 +43,11 @@ const defines = [
 // Sem override, o aplicativo usa a propria origem web para o callback.
 const redirect = value('SUPABASE_AUTH_REDIRECT_URL');
 if (redirect) {
-  if (new URL(redirect).protocol !== 'https:') throw new Error('Callback deve usar HTTPS.');
+  if (!isHttps(redirect)) fail('SUPABASE_AUTH_REDIRECT_URL deve ser uma URL HTTPS válida.');
   defines.push(`--dart-define=SUPABASE_AUTH_REDIRECT_URL=${redirect}`);
 }
+// Valida antes de instalar o SDK ou iniciar a compilação.
+if (process.argv.includes('--check-config')) process.exit(0);
 function run(command, args) {
   // Node on Windows cannot spawn a .bat file directly without a shell.
   // Send arguments on stdin so a public build value cannot become shell code.

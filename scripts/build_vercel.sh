@@ -2,6 +2,7 @@
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
+node scripts/build_web.mjs --check-config
 iris_flutter_version=3.44.8
 if [[ -n "${IRIS_FLUTTER_BIN:-}" ]]; then
   iris_flutter_bin="$IRIS_FLUTTER_BIN"
