@@ -77,4 +77,8 @@ run_sql /workspace/supabase/migrations/0015_emergency_contact.sql
 run_sql /workspace/supabase/migrations/0015_emergency_contact.sql
 run_sql /workspace/supabase/tests/emergency_contact.sql
 
+run_sql /workspace/supabase/migrations/0016_demo_patient_link.sql
+run_sql /workspace/supabase/migrations/0016_demo_patient_link.sql
+run_sql /workspace/supabase/tests/demo_patient_link.sql
+
 echo "Migrations, fluxo profissional e apoio por IA validados."

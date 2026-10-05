@@ -94,6 +94,9 @@ class AuthService {
       final metadata = <String, dynamic>{
         'display_name': cleanDisplayName,
         'tipo_usuario': resolvedUserType,
+        // Temporário: novos pacientes da demonstração aprovam o Lucas sem QR.
+        if (resolvedUserType == UserTypes.paciente)
+          'demo_professional_link': true,
         if (specialty != null && specialty.trim().isNotEmpty)
           'especialidade': specialty.trim(),
         if (professionalRegistration != null &&

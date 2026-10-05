@@ -47,6 +47,11 @@ class PatientProfessionalRepository {
     );
   }
 
+  Future<void> approveDemoProfessionalLink() async {
+    await _users.getOrCreateCurrentPatientId();
+    await _client.rpc('iris_approve_demo_professional_link');
+  }
+
   Future<ProfessionalLinkResult> linkCurrentPatientToProfessional(
     String inviteToken,
   ) async {

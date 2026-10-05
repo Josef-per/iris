@@ -98,6 +98,14 @@ class AppErrorMessages {
     final message = error.message.toLowerCase();
     final code = error.code;
 
+    if (message.contains('demo_professional_unavailable')) {
+      return 'O profissional de teste está indisponível. Tente novamente mais tarde.';
+    }
+    if (message.contains('demo_registration_required') ||
+        message.contains('demo_link_already_exists')) {
+      return 'O vínculo de teste não está disponível para esta conta.';
+    }
+
     if (code == 'PGRST202' && message.contains('iris_bootstrap_current_user')) {
       return 'O serviço está temporariamente indisponível. Tente novamente mais tarde.';
     }

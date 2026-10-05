@@ -15,6 +15,7 @@ import 'package:iris/features/ai_support/presentation/ai_support_hub_screen.dart
 import 'package:iris/features/emotional_diary/emotional_diary_repository.dart';
 import 'package:iris/features/patient_professional/patient_professional_repository.dart';
 import 'package:iris/screens/home_screen.dart';
+import 'package:iris/screens/demo_professional_link_screen.dart';
 import 'package:iris/screens/lembretes_screen.dart';
 import 'package:iris/screens/patient_care_plan_screen.dart';
 import 'package:iris/screens/patient_history_screen.dart';
@@ -23,10 +24,16 @@ import 'package:iris/screens/qr_code_screen.dart';
 import 'package:iris/widgets/patient_bottom_navigation_bar.dart';
 
 class PatientSessionGate extends StatefulWidget {
-  const PatientSessionGate({super.key, this.authService, this.linkChecker});
+  const PatientSessionGate({
+    super.key,
+    this.authService,
+    this.linkChecker,
+    this.demoProfessionalLink = false,
+  });
 
   final AuthService? authService;
   final Future<bool> Function()? linkChecker;
+  final bool demoProfessionalLink;
 
   @override
   State<PatientSessionGate> createState() => _PatientSessionGateState();
@@ -308,6 +315,12 @@ class _PatientSessionGateState extends State<PatientSessionGate> {
           );
         }
 
+        if (widget.demoProfessionalLink) {
+          return DemoProfessionalLinkScreen(
+            onLinked: _refreshLinkCheck,
+            onSignOut: _performSignOut,
+          );
+        }
         return QrcodeScreen(onLinked: _refreshLinkCheck);
       },
     );

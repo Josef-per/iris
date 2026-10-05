@@ -167,7 +167,15 @@ class _SessionGateState extends State<SessionGate> {
           return const ProfessionalHomeScreen();
         }
 
-        return PatientSessionGate(authService: _authService);
+        return PatientSessionGate(
+          authService: _authService,
+          demoProfessionalLink:
+              _authService
+                  .currentSession
+                  ?.user
+                  .userMetadata?['demo_professional_link'] ==
+              true,
+        );
       },
     );
   }
