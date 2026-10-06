@@ -108,6 +108,19 @@ significa que o navegador não consegue enviar o POST para a função. Em
 `Access-Control-Allow-Origin`, enquanto `iris-demo-drab.vercel.app` retornava
 204 e a função publicada identificava `daily-companion-v11`.
 
+A correção foi aplicada em 06/10/2026 com a lista abaixo, após confirmação da
+substituição pelo responsável. O preflight das duas funções passou a retornar
+204 para ambos os domínios, com `Access-Control-Allow-Origin` correspondente.
+A reflexão também confirmou `daily-companion-v11` no domínio atual.
+
+```dotenv
+AI_SUPPORT_ALLOWED_ORIGINS=https://iris-demo-drab.vercel.app,https://iris-landingpage.vercel.app
+```
+
+Essa é a lista explícita salva no Supabase. Outras origens precisam ser
+adicionadas antes de publicar o aplicativo nelas; HTTP de loopback continua
+seguindo a liberação própria do ambiente `development` no handler.
+
 No painel Supabase, abra **Edge Functions → Secrets** e inclua a origem exata
 `https://iris-landingpage.vercel.app` em `AI_SUPPORT_ALLOWED_ORIGINS`, separada
 por vírgula das origens existentes. Não inclua `/app`, fragmentos ou caminhos.
