@@ -1,10 +1,12 @@
 # Publicacao da demo na Vercel
 
-Endereco da demo: https://iris-demo-drab.vercel.app
+Endereco atual do aplicativo: https://iris-landingpage.vercel.app
+Endereco anterior da demo: https://iris-demo-drab.vercel.app
 
 Projeto Vercel: `iris-demo`, no escopo `nicolas-projects-2450ca53`.
-O dominio publico esta autorizado no Supabase para autenticacao e IA,
-junto com o Codespaces da apresentacao.
+A autorização de cada domínio deve ser conferida no Supabase: a lista de
+redirects da autenticação e `AI_SUPPORT_ALLOWED_ORIGINS` são configurações
+independentes. Uma origem autorizada no login pode continuar bloqueada na IA.
 
 ## Build local e publicacao
 
@@ -36,7 +38,7 @@ node scripts/build_web.mjs --check-config
 Execute a publicação somente se o build terminar com sucesso:
 
 ```sh
-bash scripts/build_vercel.sh &&
+IRIS_WEB_ORIGIN=https://iris-landingpage.vercel.app bash scripts/build_vercel.sh &&
 npx vercel@59.15.1 login &&
 npx vercel@59.15.1 deploy build/web --prod
 ```
@@ -49,6 +51,14 @@ Para integrar o repositorio pela Vercel, use Node.js 24, preset `Other` e as
 variaveis publicas acima no ambiente de build. O `vercel.json` configura o
 comando de build e a saida. `.vercelignore` limita os arquivos enviados pelo
 CLI a fontes e recursos necessarios para compilar.
+
+Com `IRIS_WEB_ORIGIN`, o build verifica o preflight de `ai-daily-companion` e
+`ai-support-recommend` antes de executar o Flutter. Um bloqueio em qualquer
+função interrompe o build. Na integração da Vercel em produção, a origem é
+obtida automaticamente de `VERCEL_PROJECT_PRODUCTION_URL`; domínios próprios
+podem ser definidos explicitamente em `IRIS_WEB_ORIGIN`. Previews precisam de
+uma origem explícita para essa verificação. `--check-config` continua sendo
+uma validação local das variáveis, sem requisições à rede.
 
 O callback web usa a propria origem da pagina. Um override opcional pode ser
 definido em `SUPABASE_AUTH_REDIRECT_URL` antes de compilar, mas deve ser uma
@@ -89,6 +99,43 @@ origens estiver indisponivel, somente seu hash sera registrado, e nao sera
 possivel restaura-la a partir desse arquivo.
 
 O comando nao altera migrations, chaves OpenAI ou rollout de IA.
+
+### Troca de domínio e falha CORS
+
+O erro `Response to preflight request doesn't pass access control check`
+significa que o navegador não consegue enviar o POST para a função. Em
+06/10/2026, o domínio `iris-landingpage.vercel.app` retornava HTTP 403 sem
+`Access-Control-Allow-Origin`, enquanto `iris-demo-drab.vercel.app` retornava
+204 e a função publicada identificava `daily-companion-v11`.
+
+A correção foi aplicada em 06/10/2026 com a lista abaixo, após confirmação da
+substituição pelo responsável. O preflight das duas funções passou a retornar
+204 para ambos os domínios, com `Access-Control-Allow-Origin` correspondente.
+A reflexão também confirmou `daily-companion-v11` no domínio atual.
+
+```dotenv
+AI_SUPPORT_ALLOWED_ORIGINS=https://iris-demo-drab.vercel.app,https://iris-landingpage.vercel.app
+```
+
+Essa é a lista explícita salva no Supabase. Outras origens precisam ser
+adicionadas antes de publicar o aplicativo nelas; HTTP de loopback continua
+seguindo a liberação própria do ambiente `development` no handler.
+
+No painel Supabase, abra **Edge Functions → Secrets** e inclua a origem exata
+`https://iris-landingpage.vercel.app` em `AI_SUPPORT_ALLOWED_ORIGINS`, separada
+por vírgula das origens existentes. Não inclua `/app`, fragmentos ou caminhos.
+O Supabase exibe apenas o hash dos secrets salvos: preserve a lista em uma
+configuração local protegida antes de substituí-la. O arquivo `.env` local
+não atualiza o secret remoto e não deve ser enviado ao frontend.
+
+Para conferir CORS e versão da reflexão sem sessão ou geração:
+
+```sh
+node scripts/check_daily_companion_web.mjs https://iris-landingpage.vercel.app
+```
+
+Essas verificações não comprovam consentimento, banco nem geração autenticada.
+Referência: [CORS nas Edge Functions](https://supabase.com/docs/guides/functions/cors).
 
 ## Contas ficticias
 

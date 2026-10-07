@@ -3,6 +3,7 @@ import { parseEnv } from 'node:util';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { prepareLanding } from './prepare_landing.mjs';
+import { buildWebOrigin, checkAiWebCors, httpOrigin } from './ai_web_cors.mjs';
 
 function fail(message) {
   console.error(`Erro de configuração: ${message}`);
@@ -48,6 +49,24 @@ if (redirect) {
 }
 // Valida antes de instalar o SDK ou iniciar a compilação.
 if (process.argv.includes('--check-config')) process.exit(0);
+// Confere o dominio estavel de producao, nao a URL unica de cada deploy.
+const webOrigin = buildWebOrigin({
+  IRIS_WEB_ORIGIN: value('IRIS_WEB_ORIGIN'),
+  VERCEL_ENV: value('VERCEL_ENV'),
+  VERCEL_PROJECT_PRODUCTION_URL: value('VERCEL_PROJECT_PRODUCTION_URL'),
+});
+if (webOrigin) {
+  try {
+    if (httpOrigin(webOrigin) !== webOrigin || !isHttps(webOrigin)) {
+      fail('IRIS_WEB_ORIGIN deve conter somente a origem HTTPS, sem caminho.');
+    }
+    if (!(await checkAiWebCors(url, webOrigin))) {
+      fail('Autorize a origem nas duas funções de IA antes de compilar para publicação.');
+    }
+  } catch {
+    fail('Não foi possível verificar o CORS da IA. Confira a origem e a conexão com o Supabase.');
+  }
+}
 function run(command, args) {
   // Node on Windows cannot spawn a .bat file directly without a shell.
   // Send arguments on stdin so a public build value cannot become shell code.

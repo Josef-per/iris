@@ -12,16 +12,17 @@ const publicConfig = {
   SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_test',
 };
 
-function checkConfig(t, { file, env = {}, filename = '.env' } = {}) {
+function checkConfig(t, { file, env = {}, filename = '.env', args = ['--check-config'] } = {}) {
   const cwd = mkdtempSync(join(tmpdir(), 'iris-build-config-'));
   t.after(() => rmSync(cwd, { recursive: true, force: true }));
   if (file !== undefined) writeFileSync(join(cwd, filename), file);
   const cleanEnv = { ...process.env };
   for (const name of [
     'IRIS_ENV_FILE', 'SUPABASE_URL', 'SUPABASE_PUBLISHABLE_KEY',
-    'SUPABASE_ANON_KEY', 'SUPABASE_AUTH_REDIRECT_URL',
+    'SUPABASE_ANON_KEY', 'SUPABASE_AUTH_REDIRECT_URL', 'IRIS_WEB_ORIGIN',
+    'VERCEL_ENV', 'VERCEL_PROJECT_PRODUCTION_URL',
   ]) delete cleanEnv[name];
-  const result = spawnSync(process.execPath, [script, '--check-config'], {
+  const result = spawnSync(process.execPath, [script, ...args], {
     cwd, env: { ...cleanEnv, ...env }, encoding: 'utf8',
   });
   assert.ifError(result.error);
@@ -83,4 +84,37 @@ test('aceita anon legada e rejeita chaves administrativas', (t) => {
     assert.match(result.stderr, /somente chave publicável ou anon/);
     assert.ok(!result.stderr.includes(SUPABASE_PUBLISHABLE_KEY));
   }
+});
+
+test('interrompe build antes do Flutter quando qualquer função bloqueia a origem', (t) => {
+  for (const blocked of ['ai-daily-companion', 'ai-support-recommend']) {
+    const mock = `globalThis.fetch = async (url, init) => new Response(null, {
+      status: url.endsWith(${JSON.stringify(blocked)}) ? 403 : 204,
+      headers: url.endsWith(${JSON.stringify(blocked)}) ? {} : {
+        'Access-Control-Allow-Origin': init.headers.Origin,
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'authorization,apikey,content-type,x-client-info'
+      }
+    });`;
+    const result = checkConfig(t, {
+      args: [], env: {
+        ...publicConfig, IRIS_WEB_ORIGIN: 'https://iris-landingpage.vercel.app',
+        IRIS_FLUTTER_BIN: 'flutter-must-not-run',
+        NODE_OPTIONS: `--import=data:text/javascript,${encodeURIComponent(mock)}`,
+      },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /ai-daily-companion: preflight HTTP/);
+    assert.match(result.stdout, /ai-support-recommend: preflight HTTP/);
+    assert.match(result.stderr, /Autorize a origem nas duas funções de IA/);
+    assert.doesNotMatch(result.stderr, /flutter-must-not-run|ENOENT/);
+  }
+});
+
+test('rejeita origem de publicação com caminho antes de executar Flutter', (t) => {
+  const result = checkConfig(t, {
+    args: [], env: { ...publicConfig, IRIS_WEB_ORIGIN: 'https://app.example/app' },
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /somente a origem HTTPS, sem caminho/);
 });
