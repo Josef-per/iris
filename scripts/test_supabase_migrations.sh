@@ -81,4 +81,8 @@ run_sql /workspace/supabase/migrations/0016_demo_patient_link.sql
 run_sql /workspace/supabase/migrations/0016_demo_patient_link.sql
 run_sql /workspace/supabase/tests/demo_patient_link.sql
 
+run_sql /workspace/supabase/migrations/0017_professional_evaluation_mode.sql
+run_sql /workspace/supabase/migrations/0017_professional_evaluation_mode.sql
+run_sql /workspace/supabase/tests/professional_evaluation_mode.sql
+
 echo "Migrations, fluxo profissional e apoio por IA validados."

@@ -65,7 +65,9 @@ As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
 9. `0012_daily_companion.sql`;
 10. `0013_daily_companion_refresh.sql`;
 11. `0014_daily_companion_complete_text.sql`;
-12. `0015_emergency_contact.sql`.
+12. `0015_emergency_contact.sql`;
+13. `0016_demo_patient_link.sql`;
+14. `0017_professional_evaluation_mode.sql`.
 
 Com o projeto Supabase vinculado pelo CLI:
 
@@ -108,9 +110,33 @@ A `0009` melhora a persistência do registro diário. A `0010` cria preferência
 tópicos confirmados, eventos, sugestões, RLS, rollout e os RPCs do apoio
 personalizado. A `0011` torna o GPT-5 mini a única fonte de seleção conectada.
 
-Novos profissionais começam com `credenciamento_status = 'pendente'`. Depois
-de validar especialidade e registro, um administrador pode aprovar pelo SQL
-Editor:
+### Modo de avaliação dos profissionais
+
+A migration `0017` ativa o modo de avaliação: novos profissionais recebem
+`credenciamento_status = 'ativo'` no cadastro e podem acessar o painel e gerar
+convites QR sem aguardar análise. Editar especialidade ou registro durante a
+avaliação também mantém o acesso de um profissional ativo. A confirmação de
+e-mail, quando exigida pelo Supabase Auth, continua necessária.
+
+A opção fica no banco e somente administradores podem alterá-la. Não cria
+vínculos nem libera dados de pacientes sem autorização. Cadastros existentes
+não são aprovados pela migration, e contas rejeitadas ou suspensas não são
+reativadas ao entrar novamente.
+
+Para encerrar a avaliação e retomar a análise manual, execute no SQL Editor:
+
+```sql
+update public.configuracao_avaliacao_profissional
+set habilitado = false
+where id = true;
+```
+
+Use `habilitado = true` para reativar a avaliação. Reaplicar a migration
+preserva essa escolha. Desativar o modo mantém as aprovações existentes;
+novos cadastros e alterações de credenciais voltam a ficar pendentes.
+
+Com a avaliação desativada, depois de validar especialidade e registro, um
+administrador pode aprovar pelo SQL Editor:
 
 ```sql
 select public.iris_set_professional_credential_status(
