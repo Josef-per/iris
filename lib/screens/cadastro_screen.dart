@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/forms/date_input_formatter.dart';
 import 'package:iris/core/supabase/database_tables.dart';
 import 'package:iris/core/supabase/supabase_config.dart';
 import 'package:iris/core/theme/app_theme.dart';
 import 'package:iris/features/auth/auth_service.dart';
 import 'package:iris/features/profile/patient_birth_date.dart';
-import 'package:iris/features/profile/patient_birth_date_input_formatter.dart';
 import 'package:iris/widgets/app_account_type_selector.dart';
 import 'package:iris/widgets/app_auth_layout.dart';
 
@@ -152,8 +152,8 @@ class _CadastroScreenState extends State<CadastroScreen> {
               TextFormField(
                 key: const Key('patient-signup-birth-date'),
                 controller: _birthDate,
-                keyboardType: TextInputType.datetime,
-                inputFormatters: const [PatientBirthDateInputFormatter()],
+                keyboardType: TextInputType.number,
+                inputFormatters: const [DateInputFormatter()],
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
                   labelText: 'Data de nascimento',

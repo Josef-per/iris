@@ -50,8 +50,9 @@ void main() {
 
     await tester.enterText(
       find.byKey(const Key('patient-profile-birth-date')),
-      '02/01/1996',
+      '02011996',
     );
+    expect(find.text('02/01/1996'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Salvar'));
     await tester.pumpAndSettle();
     expect(repository.saves, 1);

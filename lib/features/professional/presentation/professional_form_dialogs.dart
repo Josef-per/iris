@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
+import 'package:iris/core/forms/date_input_formatter.dart';
+import 'package:iris/features/profile/patient_birth_date.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
 import 'package:iris/features/professional/presentation/professional_shared_widgets.dart';
@@ -158,17 +160,31 @@ Future<bool> showProfessionalPatientForm(
                     _ResponsiveDialogFields(
                       children: [
                         TextFormField(
+                          key: const Key('professional-patient-birth-date'),
                           controller: birthDate,
+                          keyboardType: TextInputType.number,
+                          inputFormatters: const [DateInputFormatter()],
                           decoration: const InputDecoration(
                             labelText: 'Nascimento',
                             hintText: 'DD/MM/AAAA',
                           ),
-                          validator: _required,
+                          validator: (value) =>
+                              _required(value) ??
+                              (parsePatientBirthDate(value!) == null
+                                  ? 'Informe uma data válida em DD/MM/AAAA.'
+                                  : null),
                         ),
                         TextFormField(
+                          key: const Key(
+                            'professional-patient-next-appointment',
+                          ),
                           controller: nextAppointment,
+                          inputFormatters: const [
+                            DateInputFormatter(allowText: true),
+                          ],
                           decoration: const InputDecoration(
                             labelText: 'Próxima consulta',
+                            hintText: 'DD/MM/AAAA ou A definir',
                           ),
                           validator: _required,
                         ),
@@ -302,7 +318,9 @@ Future<bool> showProfessionalAppointmentForm(
   }
 
   final formKey = GlobalKey<FormState>();
-  var selectedDate = initialDate ?? DateTime.now();
+  final selectedDate = initialDate ?? DateTime.now();
+  final firstDate = DateUtils.dateOnly(DateTime.now());
+  final lastDate = firstDate.add(const Duration(days: 730));
   final date = TextEditingController(
     text: _formatAppointmentDate(selectedDate),
   );
@@ -345,25 +363,50 @@ Future<bool> showProfessionalAppointmentForm(
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
+                    key: const Key('professional-appointment-date'),
                     controller: date,
-                    readOnly: true,
-                    decoration: const InputDecoration(
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [DateInputFormatter()],
+                    decoration: InputDecoration(
                       labelText: 'Data',
-                      suffixIcon: Icon(Icons.calendar_today_outlined),
+                      hintText: 'DD/MM/AAAA',
+                      suffixIcon: IconButton(
+                        tooltip: 'Selecionar data no calendário',
+                        icon: const Icon(Icons.calendar_today_outlined),
+                        onPressed: () async {
+                          final typedDate = _parseAppointmentDate(date.text);
+                          final pickerDate =
+                              typedDate == null ||
+                                  typedDate.isBefore(firstDate) ||
+                                  typedDate.isAfter(lastDate)
+                              ? firstDate
+                              : typedDate;
+                          final picked = await showDatePicker(
+                            context: context,
+                            useRootNavigator: false,
+                            initialDate: pickerDate,
+                            firstDate: firstDate,
+                            lastDate: lastDate,
+                            initialEntryMode: DatePickerEntryMode.calendarOnly,
+                          );
+                          if (picked != null) {
+                            date.text = _formatAppointmentDate(picked);
+                          }
+                        },
+                      ),
                     ),
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        useRootNavigator: false,
-                        initialDate: selectedDate,
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime.now().add(const Duration(days: 730)),
-                      );
-                      if (picked == null) return;
-                      setDialogState(() {
-                        selectedDate = picked;
-                        date.text = _formatAppointmentDate(picked);
-                      });
+                    validator: (value) {
+                      final requiredError = _required(value);
+                      if (requiredError != null) return requiredError;
+                      final parsed = _parseAppointmentDate(value!);
+                      if (parsed == null) {
+                        return 'Use uma data válida em DD/MM/AAAA';
+                      }
+                      if (parsed.isBefore(firstDate) ||
+                          parsed.isAfter(lastDate)) {
+                        return 'Selecione uma data entre hoje e os próximos 2 anos';
+                      }
+                      return null;
                     },
                   ),
                   const SizedBox(height: 12),
@@ -378,8 +421,10 @@ Future<bool> showProfessionalAppointmentForm(
                     validator: (value) {
                       final requiredError = _required(value);
                       if (requiredError != null) return requiredError;
+                      final appointmentDate = _parseAppointmentDate(date.text);
+                      if (appointmentDate == null) return null;
                       final startsAt = _combineAppointmentDateAndTime(
-                        selectedDate,
+                        appointmentDate,
                         value!,
                       );
                       if (startsAt == null) return 'Use o formato HH:mm';
@@ -420,7 +465,7 @@ Future<bool> showProfessionalAppointmentForm(
                         if (!formKey.currentState!.validate()) return;
                         final cleanTime = time.text.trim();
                         final startsAt = _combineAppointmentDateAndTime(
-                          selectedDate,
+                          _parseAppointmentDate(date.text)!,
                           cleanTime,
                         );
                         if (startsAt == null ||
@@ -456,6 +501,18 @@ Future<bool> showProfessionalAppointmentForm(
   date.dispose();
   time.dispose();
   return saved;
+}
+
+DateTime? _parseAppointmentDate(String value) {
+  final match = RegExp(r'^(\d{2})/(\d{2})/(\d{4})$').firstMatch(value.trim());
+  if (match == null) return null;
+  final day = int.parse(match.group(1)!);
+  final month = int.parse(match.group(2)!);
+  final year = int.parse(match.group(3)!);
+  final date = DateTime(year, month, day);
+  return date.year == year && date.month == month && date.day == day
+      ? date
+      : null;
 }
 
 DateTime? _parseAppointmentTime(String value) {

@@ -79,6 +79,145 @@ void main() {
     expect(find.byType(TextFormField), findsNothing);
   });
 
+  testWidgets('digita data com máscara e salva a consulta na data informada', (
+    tester,
+  ) async {
+    final store = await _createStore();
+    addTearDown(store.dispose);
+    await pumpScreen(
+      tester,
+      Builder(
+        builder: (context) => FilledButton(
+          onPressed: () => showProfessionalAppointmentForm(context, store),
+          child: const Text('Agendar'),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Agendar'));
+    await tester.pumpAndSettle();
+    final dateField = find.byKey(const Key('professional-appointment-date'));
+    await tester.enterText(dateField, '31022027');
+    await tester.enterText(
+      find.byKey(const Key('professional-appointment-time')),
+      '09:30',
+    );
+    await tester.tap(find.byKey(const Key('professional-appointment-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Use uma data válida em DD/MM/AAAA'), findsOneWidget);
+    expect(store.appointments, isEmpty);
+
+    for (final days in [-1, 731]) {
+      final outside = DateUtils.dateOnly(
+        DateTime.now(),
+      ).add(Duration(days: days));
+      await tester.enterText(
+        dateField,
+        '${outside.day.toString().padLeft(2, '0')}'
+        '${outside.month.toString().padLeft(2, '0')}${outside.year}',
+      );
+      await tester.tap(find.byKey(const Key('professional-appointment-save')));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Selecione uma data entre hoje e os próximos 2 anos'),
+        findsOneWidget,
+      );
+      expect(store.appointments, isEmpty);
+    }
+
+    final future = DateUtils.dateOnly(
+      DateTime.now(),
+    ).add(const Duration(days: 2));
+    final text =
+        '${future.day.toString().padLeft(2, '0')}'
+        '${future.month.toString().padLeft(2, '0')}${future.year}';
+    await tester.enterText(dateField, text);
+    final formatted =
+        '${text.substring(0, 2)}/${text.substring(2, 4)}/${text.substring(4)}';
+    expect(find.text(formatted), findsOneWidget);
+    await tester.tap(find.byKey(const Key('professional-appointment-save')));
+    await tester.pumpAndSettle();
+    expect(
+      store.appointments.single.startsAt,
+      DateTime(future.year, future.month, future.day, 9, 30),
+    );
+  });
+
+  testWidgets('calendário preenche a mesma data mascarada', (tester) async {
+    final store = await _createStore();
+    addTearDown(store.dispose);
+    await pumpScreen(
+      tester,
+      Builder(
+        builder: (context) => FilledButton(
+          onPressed: () => showProfessionalAppointmentForm(context, store),
+          child: const Text('Agendar'),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Agendar'));
+    await tester.pumpAndSettle();
+    // Entrada inválida não deve impedir abrir o calendário.
+    await tester.enterText(
+      find.byKey(const Key('professional-appointment-date')),
+      '99',
+    );
+    await tester.tap(find.byTooltip('Selecionar data no calendário'));
+    await tester.pumpAndSettle();
+    final calendar = tester.widget<CalendarDatePicker>(
+      find.byType(CalendarDatePicker),
+    );
+    final picked = calendar.firstDate.add(const Duration(days: 3));
+    calendar.onDateChanged(picked);
+    await tester.pump();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    final field = tester.widget<TextFormField>(
+      find.byKey(const Key('professional-appointment-date')),
+    );
+    expect(
+      field.controller!.text,
+      '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}',
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('formulário legado mascara nascimento e próxima consulta', (
+    tester,
+  ) async {
+    final store = _LegacyFormStore();
+    await store.initialize();
+    addTearDown(store.dispose);
+    await pumpScreen(
+      tester,
+      Builder(
+        builder: (context) => FilledButton(
+          onPressed: () => showProfessionalPatientForm(
+            context,
+            store,
+            patient: store.patients.single,
+          ),
+          child: const Text('Editar'),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Editar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('professional-patient-birth-date')),
+      '02011996',
+    );
+    expect(find.text('02/01/1996'), findsOneWidget);
+    final next = find.byKey(const Key('professional-patient-next-appointment'));
+    await tester.enterText(next, '12082027, 09:30');
+    expect(find.text('12/08/2027, 09:30'), findsOneWidget);
+    await tester.enterText(next, 'A definir');
+    await tester.tap(find.byKey(const Key('professional-patient-save')));
+    await tester.pumpAndSettle();
+    expect(store.patients.single.birthDate, '02/01/1996');
+    expect(store.patients.single.nextAppointment, 'A definir');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'edição clínica mostra só dados que o profissional pode alterar',
     (tester) async {
@@ -327,6 +466,13 @@ Future<ProfessionalFrontendStore> _createStore() async {
   final store = ProfessionalFrontendStore.connected(_FormBackend());
   await store.initialize();
   return store;
+}
+
+class _LegacyFormStore extends ProfessionalFrontendStore {
+  _LegacyFormStore() : super.connected(_FormBackend());
+
+  @override
+  bool get isConnected => false;
 }
 
 class _FormBackend implements ProfessionalWorkspaceBackend {
