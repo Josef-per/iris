@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:iris/core/errors/app_error_messages.dart';
 import 'package:iris/core/forms/date_input_formatter.dart';
+import 'package:iris/core/forms/time_input_formatter.dart';
 import 'package:iris/features/profile/patient_birth_date.dart';
 import 'package:iris/features/professional/presentation/professional_frontend_store.dart';
 import 'package:iris/features/professional/presentation/professional_models.dart';
@@ -413,7 +414,8 @@ Future<bool> showProfessionalAppointmentForm(
                   TextFormField(
                     key: const Key('professional-appointment-time'),
                     controller: time,
-                    keyboardType: TextInputType.datetime,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: const [TimeInputFormatter()],
                     decoration: const InputDecoration(
                       labelText: 'Horário',
                       hintText: '14:30',
@@ -427,7 +429,9 @@ Future<bool> showProfessionalAppointmentForm(
                         appointmentDate,
                         value!,
                       );
-                      if (startsAt == null) return 'Use o formato HH:mm';
+                      if (startsAt == null) {
+                        return 'Informe um horário válido em HH:mm';
+                      }
                       if (!startsAt.isAfter(DateTime.now())) {
                         return 'Informe uma data e horário futuros';
                       }

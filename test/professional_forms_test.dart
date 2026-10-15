@@ -45,15 +45,57 @@ void main() {
 
     await tester.tap(find.byKey(const Key('professional-add-appointment')));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('professional-appointment-time')),
-      '09:30',
+    final timeField = find.byKey(const Key('professional-appointment-time'));
+    expect(
+      tester
+          .widget<TextField>(
+            find.descendant(of: timeField, matching: find.byType(TextField)),
+          )
+          .keyboardType,
+      TextInputType.number,
     );
+    await tester.enterText(timeField, '09');
+    expect(find.text('09:'), findsOneWidget);
+    await tester.enterText(timeField, '0930');
+    expect(find.text('09:30'), findsOneWidget);
     await tester.tap(find.byKey(const Key('professional-appointment-save')));
     await tester.pumpAndSettle();
 
     expect(store.appointments.length, initialCount + 1);
     expect(store.appointments.first.time, '09:30');
+  });
+
+  testWidgets('horário inválido recebe máscara e continua sendo rejeitado', (
+    tester,
+  ) async {
+    final store = await _createStore();
+    addTearDown(store.dispose);
+    await pumpScreen(
+      tester,
+      Builder(
+        builder: (context) => FilledButton(
+          onPressed: () => showProfessionalAppointmentForm(
+            context,
+            store,
+            initialDate: DateTime.now().add(const Duration(days: 1)),
+          ),
+          child: const Text('Agendar'),
+        ),
+      ),
+    );
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pump();
+    await tester.tap(find.text('Agendar'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('professional-appointment-time')),
+      '44444',
+    );
+    expect(find.text('44:44'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('professional-appointment-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('Informe um horário válido em HH:mm'), findsOneWidget);
+    expect(store.appointments, isEmpty);
   });
 
   testWidgets('exige QR Code para vincular paciente', (tester) async {
