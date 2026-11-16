@@ -189,6 +189,7 @@ Para responder sem se perder, use a sequência: **resposta direta → como funci
 
 ## Onde conferir no projeto
 
+- [Anotações explicando o código e os fluxos da implementação](anotacoes_codigo.md)
 - [Visão geral, configuração e publicação](../README.md)
 - [Roteiro da apresentação com cinco pessoas](apresentacao_iris_5_pessoas.md)
 - [Esquema e migrations do banco](../supabase/migrations)
