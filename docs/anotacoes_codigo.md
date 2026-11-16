@@ -2,6 +2,105 @@
 
 Estas anotações explicam a implementação do repositório para a apresentação à banca. Os trechos destacados são recortes do código; quando houver simplificação, ela estará identificada. Não é necessário decorar cada arquivo: procure conseguir acompanhar uma ação do usuário até sua persistência no banco.
 
+## Arquitetura do sistema
+
+### Como classificar a arquitetura do Íris
+
+O Íris usa uma **arquitetura cliente-servidor**, com um aplicativo Flutter consumindo serviços de backend do Supabase e funções de servidor para os recursos de IA.
+
+O **Supabase funciona como Backend as a Service (BaaS)**: fornece autenticação, APIs de acesso aos dados, PostgreSQL e armazenamento de arquivos. Sobre essa infraestrutura, o projeto implementa suas próprias tabelas, políticas de acesso, funções SQL e Edge Functions.
+
+As **Edge Functions seguem o modelo serverless**: o projeto publica funções no ambiente gerenciado do Supabase, sem precisar manter uma aplicação de servidor dedicada para cada integração com IA. Isso continua sendo backend e envolve configuração, limites, custos e manutenção.
+
+Dentro do aplicativo, há separação entre interface, estado, acesso aos dados e modelos, com organização por funcionalidades em `lib/features`. Essa descrição representa o código atual. Não há necessidade de classificá-lo como uma implementação integral de MVC, MVVM ou Clean Architecture, nem como um conjunto de microsserviços independentes.
+
+### 1. Visão dos componentes
+
+**Aplicativo Flutter — onde o usuário interage.** Contém os fluxos de paciente e profissional, formulários, navegação, estado da interface e repositórios. As áreas de paciente e profissional são partes da mesma aplicação; o papel da conta e as permissões determinam o acesso. As notificações locais de apoio usam recursos do aparelho em Android/iOS.
+
+**Supabase Auth — identidade e sessão.** Autentica a conta e fornece a sessão utilizada nas chamadas ao backend. `AuthService`, `AuthGate` e `SessionGate` conectam essa identidade aos perfis e à navegação da aplicação. A sessão identifica o usuário; as regras de acesso determinam quais dados ele pode usar.
+
+**API de dados e PostgreSQL — persistência e regras.** Os repositórios fazem consultas e gravações pela API do Supabase. O banco armazena dados relacionais, aplica RLS, chaves estrangeiras e constraints e executa funções SQL chamadas por RPC. O aplicativo não recebe uma conexão administrativa direta ao PostgreSQL.
+
+**Supabase Storage — arquivos.** Armazena as fotos dos registros alimentares. O banco mantém o caminho associado ao registro, enquanto os bytes ficam no serviço de armazenamento. Gravação no banco e upload são operações distintas e podem ter falhas parciais.
+
+**Edge Functions — integração e processamento no servidor.** Recebem requisições autenticadas, verificam as condições da funcionalidade, consultam o contexto autorizado e chamam a OpenAI. `ai-support-recommend` seleciona conteúdo de um catálogo; `ai-daily-companion` gera a reflexão diária dentro do contrato previsto.
+
+**OpenAI — fornecedor externo de IA.** Recebe da função o contexto permitido para a tarefa. Sua resposta é validada antes de influenciar a experiência. A chave de acesso ao modelo fica no backend.
+
+Fontes: [entrada do app](../lib/main.dart), [autenticação](../lib/features/auth/auth_service.dart), [banco e regras](../supabase/migrations), [fotos](../lib/features/food/food_record_repository.dart) e [funções de IA](../supabase/functions).
+
+### 2. Camadas lógicas dentro da aplicação
+
+As camadas abaixo descrevem responsabilidades; não significam que cada uma tenha seu próprio servidor ou processo.
+
+1. **Apresentação:** telas e widgets recebem ações e exibem resultados. Exemplos: `HomeScreen` e `CheckInDiarioBottomSheet`.
+2. **Estado e coordenação:** estado local e stores acompanham carregamento, dados disponíveis, navegação e operações. Exemplos: `ProfessionalFrontendStore` e `MockAiSupportStore` configurada no modo conectado.
+3. **Serviços e acesso aos dados:** repositórios e adaptadores encapsulam chamadas ao Supabase e validam entradas/saídas conforme o fluxo. Exemplos: `EmotionalDiaryRepository`, `PatientCarePlanRepository` e `SupabaseProfessionalWorkspaceBackend`.
+4. **Modelos e contratos:** objetos e interfaces descrevem dados e operações esperadas. Exemplos: `FoodRecord`, `PatientTodaySummary`, `EmotionalDiaryDataSource` e `ProfessionalWorkspaceBackend`.
+
+Na área profissional, a tela usa uma store, que delega ao contrato de backend. No check-in, o formulário chama diretamente o contrato do repositório. Portanto, **nem toda ação passa obrigatoriamente por uma store**.
+
+As regras também têm locais diferentes: a tela valida campos para orientar o usuário, o repositório prepara a operação e o banco aplica as condições que precisam valer mesmo fora da interface. As funções de IA acrescentam verificações específicas no servidor.
+
+### 3. Como os componentes se comunicam
+
+**Fluxo de registro clínico:**
+
+1. O usuário preenche o formulário Flutter.
+2. O repositório usa o SDK do Supabase para fazer a requisição autenticada à API de dados ou a uma RPC.
+3. O backend verifica o acesso e o PostgreSQL executa a operação e suas regras.
+4. O resultado retorna ao repositório e à interface, que atualiza seu estado ou apresenta um erro.
+
+**Fluxo de IA:**
+
+1. O aplicativo chama uma Edge Function com a sessão do usuário.
+2. A função verifica identidade, paciente, consentimentos e liberação da funcionalidade.
+3. O backend consulta o contexto autorizado no Supabase.
+4. A função chama a API da OpenAI, recebe e valida o resultado.
+5. Conforme o fluxo, persiste o resultado e devolve uma resposta controlada; o aplicativo também verifica o contrato recebido.
+
+**Fluxo de foto:** o repositório coordena o registro no PostgreSQL e o envio do arquivo ao Storage, associando o caminho ao registro.
+
+**Ponto importante para a banca:** as Edge Functions de IA não são uma passagem obrigatória de todos os dados. Registros, consultas e vínculos também usam a API de dados e RPCs do Supabase. O acesso do cliente a essa API faz parte da arquitetura e precisa estar protegido no banco.
+
+### 4. Fronteiras de confiança e segurança
+
+O **aplicativo é distribuído ao usuário**. Por isso, esconder campos, bloquear botões ou colocar um valor no build não cria uma proteção de servidor. As requisições podem ser reproduzidas fora da interface.
+
+Na **API de dados**, a sessão identifica quem está chamando e as políticas RLS restringem as linhas acessíveis. Nas **RPCs**, as validações internas e permissões de execução protegem operações como resgate de convite e atualização do registro diário.
+
+Nas **Edge Functions**, a identidade e as condições de uso precisam ser verificadas antes das consultas privilegiadas. A reflexão diária, por exemplo, valida a sessão e resolve o paciente antes de consultar o contexto com um cliente administrativo. Como esse cliente tem privilégios elevados, as verificações da função são parte essencial da autorização.
+
+Ao chamar a **OpenAI**, o contexto cruza a fronteira para outro fornecedor. O recomendador não envia texto livre do diário; a reflexão pode enviá-lo com consentimento específico. Chave publicável do Supabase, segredo administrativo e chave da OpenAI têm permissões e locais de uso diferentes.
+
+Fontes: [políticas e RPCs](../supabase/migrations/0006_professional_backend.sql), [handler da reflexão](../supabase/functions/ai-daily-companion/index.ts) e [contrato do recomendador](../supabase/functions/ai-support-recommend/README.md).
+
+### 5. Arquitetura de publicação
+
+Na configuração web do repositório, a **Vercel hospeda os arquivos compilados** da landing page e do Flutter Web. O navegador baixa esses arquivos e executa o cliente. A publicação apresenta a landing em `/` e o aplicativo em `/app`.
+
+O **Supabase hospeda os serviços de backend**: autenticação, PostgreSQL, Storage e Edge Functions. A **OpenAI executa o modelo externo** chamado pelas funções. Publicar os arquivos web na Vercel não publica automaticamente as migrations nem as funções do Supabase.
+
+Nos alvos mobile e desktop, o cliente é compilado para a plataforma e continua consumindo os serviços remotos configurados. Ter esses alvos no projeto não comprova distribuição ou homologação em todos eles.
+
+Existem, portanto, entregas separadas: **cliente**, **estrutura/regras do banco** e **funções de servidor**. Elas precisam manter contratos compatíveis. Uma versão nova do aplicativo pode falhar se chamar uma RPC que ainda não foi instalada no ambiente.
+
+Fontes: [configuração Vercel](../vercel.json), [build web](../scripts/build_web.mjs), [orientações de publicação](deploy_vercel.md) e [migrations](../supabase/migrations).
+
+### 6. Decisões arquiteturais e suas consequências
+
+- **Flutter compartilhado entre plataformas:** permite reaproveitar interface e lógica, mas integrações com câmera, notificações e navegação precisam de verificação em cada plataforma.
+- **Supabase como BaaS:** reduz a infraestrutura que a equipe precisa construir e operar, mas exige políticas de acesso corretas e cria dependência dos serviços e limites do fornecedor.
+- **Regras críticas no banco:** protegem integridade e autorização mesmo quando a interface é contornada, mas tornam migrations e testes SQL parte importante da manutenção.
+- **Interfaces e dependências por construtor:** facilitam testar e substituir implementações, sem remover o acoplamento ao Supabase de todos os arquivos; o SDK ainda aparece em partes do código da aplicação.
+- **IA em funções de servidor:** mantém segredos fora do cliente e concentra o controle do contexto, mas acrescenta latência, custo e uma dependência externa que pode falhar.
+- **Consultas e atualizações explícitas:** permitem recarregar os dados após operações. Isso não representa sincronização offline nem atualização automática de todos os dispositivos por Realtime.
+
+### 7. Resposta pronta para “qual é a arquitetura do sistema?”
+
+> O Íris usa uma arquitetura cliente-servidor. O cliente é feito em Flutter e organizado por funcionalidades, com telas, estado, modelos e repositórios. O backend utiliza o Supabase como serviço, com autenticação, PostgreSQL, Storage e regras de acesso no banco. Operações de negócio também usam funções SQL por RPC. A integração com IA passa por Edge Functions que verificam o contexto autorizado e chamam a OpenAI. Na web, a Vercel entrega os arquivos do cliente, enquanto os serviços de backend permanecem no Supabase.
+
 ## 1. Visão geral: quem faz o quê no código
 
 | Parte | Responsabilidade | Exemplo real |

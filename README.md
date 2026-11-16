@@ -341,7 +341,8 @@ tópicos do sistema, perguntas prováveis e limites da implementação, e o
 [roteiro da demonstração](docs/apresentacao_iris_5_pessoas.md).
 
 Para entender a implementação, veja as [anotações sobre o código](docs/anotacoes_codigo.md),
-com exemplos comentados de autenticação, registros, estado, banco e integração com IA.
+com a arquitetura do sistema e exemplos comentados de autenticação, registros,
+estado, banco e integração com IA.
 
 ## Validação
 
