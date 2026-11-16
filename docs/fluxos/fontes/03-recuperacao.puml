@@ -1,0 +1,22 @@
+@startuml
+autonumber
+actor Usuario
+participant "Flutter" as app
+participant "Supabase Auth" as auth
+Usuario -> app : Solicitar recuperação por email
+app -> auth : resetPasswordForEmail() com callback
+auth --> Usuario : Enviar link de recuperação
+Usuario -> app : Abrir link de recuperação
+auth --> app : Evento passwordRecovery com sessão
+app -> app : AuthGate abre PasswordRecoveryScreen
+Usuario -> app : Informar nova senha
+app -> auth : updateUser(password)
+alt Atualização rejeitada
+auth --> app : Erro
+app --> Usuario : Exibir mensagem
+else Atualização aceita
+auth --> app : Senha atualizada
+app -> auth : Encerrar sessão de recuperação
+app --> Usuario : Retornar ao login
+end
+@enduml

@@ -1,0 +1,38 @@
+@startuml
+autonumber
+actor Paciente
+participant "Flutter / Home" as app
+participant "ai-daily-companion" as fn
+database "Supabase" as db
+participant "OpenAI" as model
+Paciente -> app : Abrir ou atualizar reflexão
+app -> fn : Objeto vazio com sessão autenticada
+fn -> fn : Validar usuário e resolver paciente
+fn -> db : Consultar preferências e liberação
+db --> fn : Fontes autorizadas e rollout
+fn -> db : Carregar contexto permitido do dia
+db --> fn : Humor, temas e diário se autorizado
+alt Sinal explícito de risco reconhecido no diário
+fn --> app : needs_human_support sem reflexão gerada
+else Sem esse bloqueio
+fn -> db : Procurar cache válido
+alt Cache disponível
+db --> fn : Reflexão reutilizável
+fn --> app : ready com reflexão existente
+else Sem cache
+fn -> fn : Verificar contexto e participação no rollout
+fn -> model : Gerar reflexão com contexto autorizado
+model --> fn : Saída estruturada ou falha
+fn -> fn : Validar conteúdo e sinalização de apoio humano
+alt Reflexão aceita
+fn -> db : Persistir reflexão com versão e expiração
+fn --> app : ready
+else Não aceita ou indisponível
+fn --> app : Indisponível ou apoio humano conforme resultado
+end
+end
+end
+app --> Paciente : Apresentar estado e conteúdo permitido
+note over fn,model : diary_text autoriza até 1.800 caracteres do diário
+note over fn,db : Editar diário ou humor invalida a reflexão anterior
+@enduml

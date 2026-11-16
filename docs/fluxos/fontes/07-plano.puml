@@ -1,0 +1,23 @@
+@startuml
+autonumber
+actor Profissional
+participant "Flutter / Store" as app
+database "PostgreSQL / RPC" as db
+actor Paciente
+Profissional -> app : Salvar plano, metas e medicações
+app -> db : iris_save_care_plan()
+db -> db : Validar vínculo profissional ativo
+alt Sem autorização ou falha SQL
+db --> app : Erro; alterações não confirmadas
+app --> Profissional : Informar falha
+else Operação válida
+db -> db : Gravar plano e substituir itens na transação
+db --> app : Salvamento concluído
+app --> Profissional : Atualizar estado do plano
+end
+Paciente -> app : Abrir plano compartilhado
+app -> db : Consultar plano, metas e medicações
+db -> db : Aplicar RLS e compartilhar_paciente
+db --> app : Somente conteúdo permitido
+app --> Paciente : Exibir plano ou ausência de plano visível
+@enduml

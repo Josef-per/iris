@@ -4,6 +4,8 @@ Estas anotações explicam a implementação do repositório para a apresentaç�
 
 Para aprofundar as decisões do backend e treinar perguntas de recrutadores, consulte a [defesa técnica do backend](defesa_backend.md).
 
+Para acompanhar visualmente as chamadas entre aplicativo e servidor, consulte os [esquemas dos principais fluxos](fluxos/README.md).
+
 ## Arquitetura do sistema
 
 ### Como classificar a arquitetura do Íris

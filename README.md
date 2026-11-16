@@ -347,6 +347,10 @@ estado, banco e integração com IA.
 Quem apresenta o backend pode estudar a [defesa técnica do backend](docs/defesa_backend.md),
 com decisões, concorrência, permissões, falhas e perguntas de recrutadores.
 
+Os [esquemas dos principais fluxos](docs/fluxos/README.md) mostram autenticação,
+cadastro, recuperação de senha, registros, vínculo, permissões, plano e IA,
+com imagens, versões editáveis e perguntas para treinar.
+
 ## Validação
 
 Execute análise e testes antes de publicar:

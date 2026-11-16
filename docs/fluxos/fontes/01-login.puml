@@ -1,0 +1,25 @@
+@startuml
+autonumber
+actor Usuario
+participant "Flutter / AuthService" as app
+participant "Supabase Auth" as auth
+database "PostgreSQL / RPC" as db
+Usuario -> app : Informar email, senha e perfil
+app -> auth : signInWithPassword()
+alt Credenciais rejeitadas
+auth --> app : Erro de autenticação
+app --> Usuario : Exibir mensagem
+else Sessão recebida
+auth --> app : Usuário e sessão
+app -> db : iris_bootstrap_current_user()
+db --> app : Perfil preparado
+app -> db : Consultar tipo_usuario
+db --> app : Papel persistido
+alt Papel diferente do escolhido
+app -> auth : signOut()
+app --> Usuario : Informar divergência de perfil
+else Papel correto
+app --> Usuario : SessionGate abre a área correspondente
+end
+end
+@enduml

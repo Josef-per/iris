@@ -1,0 +1,26 @@
+@startuml
+autonumber
+actor Usuario
+participant "Flutter / AuthService" as app
+participant "Supabase Auth" as auth
+database "PostgreSQL / RPC" as db
+Usuario -> app : Preencher cadastro e tipo de conta
+app -> app : Validar e normalizar campos
+app -> auth : signUp() com metadados
+alt Cadastro rejeitado
+auth --> app : Erro
+app --> Usuario : Exibir mensagem
+else Cadastro aceito
+auth --> app : Identidade e possível sessão
+alt Sem sessão / confirmação necessária
+app --> Usuario : Solicitar confirmação de email
+Usuario -> auth : Confirmar email e obter sessão
+note over app,db : Bootstrap ocorrerá na entrada autenticada
+else Com sessão
+app -> db : Bootstrap do paciente ou profissional
+db --> app : Perfil da aplicação preparado
+app --> Usuario : Prosseguir para o fluxo autenticado
+end
+end
+note over app,db : Cadastro não cria automaticamente vínculo com profissional
+@enduml

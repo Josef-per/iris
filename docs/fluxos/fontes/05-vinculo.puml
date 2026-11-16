@@ -1,0 +1,31 @@
+@startuml
+autonumber
+actor Profissional
+participant "Flutter" as app
+database "PostgreSQL / RPCs" as db
+actor Paciente
+Profissional -> app : Gerar convite
+app -> db : iris_create_professional_invite()
+db -> db : Validar profissional e gerar token aleatório
+db -> db : Persistir hash, prazo e limite de usos
+db --> app : Token temporário
+app --> Profissional : Exibir QR
+Paciente -> app : Ler ou inserir convite
+app -> app : Validar formato do token
+app -> db : iris_preview_professional_invite()
+db --> app : Profissional e validade
+app --> Paciente : Pedir confirmação do vínculo
+Paciente -> app : Confirmar
+app -> db : iris_redeem_professional_invite()
+db -> db : Bloquear paciente e convite com FOR UPDATE
+db -> db : Validar prazo, revogação e usos
+alt Convite inválido ou indisponível
+db --> app : Erro
+app --> Paciente : Vínculo não concluído
+else Resgate permitido
+db -> db : Registrar resgate e atualizar vínculo na transação
+db -> db : Revogar autorização anterior se houver troca
+db --> app : Vínculo confirmado
+app --> Paciente : Atualizar acesso
+end
+@enduml

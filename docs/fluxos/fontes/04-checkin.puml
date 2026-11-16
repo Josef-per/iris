@@ -1,0 +1,26 @@
+@startuml
+autonumber
+actor Paciente
+participant "Formulário Flutter" as app
+participant "EmotionalDiaryRepository" as repo
+database "PostgreSQL" as db
+Paciente -> app : Selecionar humor e alimentação
+app -> app : Exigir seleções e converter índice em nota
+app -> repo : createCheckIn()
+repo -> repo : Validar notas entre 1 e 5
+repo -> db : RPC iris_upsert_daily_emotional_record
+db -> db : Resolver paciente por auth.uid()
+db -> db : Validar data, fuso e valores
+alt Validação ou gravação falha
+db --> repo : Erro
+repo --> app : Propagar falha
+app --> Paciente : Informar erro sem confirmar sucesso
+else Operação aceita
+db -> db : UPSERT por paciente_id e data_local
+db --> repo : Registro salvo
+repo --> app : Operação concluída
+app --> Paciente : Fechar formulário e confirmar
+app -> app : Reconsultar resumo e solicitar apoio opcional
+end
+note over repo,db : Salvar apenas diário preserva campos de check-in não enviados
+@enduml

@@ -1,0 +1,34 @@
+@startuml
+autonumber
+actor Paciente
+participant "Flutter / FoodRecordRepository" as app
+database "PostgreSQL" as db
+participant "Supabase Storage" as storage
+Paciente -> app : Salvar registro com foto opcional
+app -> db : Inserir dados do registro
+alt Gravação falha
+db --> app : Erro
+app --> Paciente : Informar falha de salvamento
+else Registro criado
+db --> app : ID do registro
+opt Foto selecionada
+app -> storage : uploadBinary() no bucket registro-alimentar
+alt Upload falha
+storage --> app : Erro
+app -> app : Registrar resultado parcial
+else Upload concluído
+storage --> app : Arquivo enviado
+app -> db : Associar caminho em foto_url
+alt Associação falha
+db --> app : Erro
+app -> storage : Tentar remover arquivo enviado
+app -> app : Registrar resultado parcial
+else Associação concluída
+db --> app : Foto associada
+end
+end
+end
+app --> Paciente : Informar resultado e eventual problema na foto
+end
+note over db,storage : Não existe transação única entre banco e Storage neste fluxo
+@enduml

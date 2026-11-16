@@ -1,0 +1,24 @@
+@startuml
+autonumber
+actor Profissional
+participant "Flutter / SDK Supabase" as app
+participant "API de dados" as api
+database "PostgreSQL / RLS" as db
+Profissional -> app : Abrir registros de paciente
+app -> api : Consulta com sessão e filtro do paciente
+api -> db : Executar com identidade autenticada
+db -> db : Conferir privilégios e políticas RLS
+db -> db : Resolver profissional ativo e credenciado
+db -> db : Exigir vínculo autorizado e acompanhamento ativo
+alt Linhas permitidas
+db --> api : Registros visíveis
+api --> app : Dados autorizados
+app --> Profissional : Exibir histórico
+else Sem linhas autorizadas
+db --> api : Nenhuma linha visível
+api --> app : Resultado vazio
+app --> Profissional : Não exibir registros protegidos
+end
+note over api,db : Algumas falhas geram erro; bloqueio de SELECT por RLS pode retornar vazio
+note over app,db : Trocar o ID no cliente não cria autorização
+@enduml

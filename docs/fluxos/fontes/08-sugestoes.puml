@@ -1,0 +1,31 @@
+@startuml
+autonumber
+actor Paciente
+participant "Flutter" as app
+participant "ai-support-recommend" as fn
+database "Supabase" as db
+participant "OpenAI" as model
+Paciente -> app : Solicitar sugestão
+app -> fn : requestId e trigger com Bearer token
+fn -> fn : Validar corpo e identidade com auth.getUser()
+fn -> db : Procurar execução anterior da requisição
+alt Execução anterior encontrada
+db --> fn : Resultado persistido
+fn --> app : Reutilizar resultado
+else Nova execução
+fn -> db : Consultar preferências, rollout e sinais permitidos
+db --> fn : Contexto estruturado
+alt Condições para chamar modelo atendidas
+fn -> model : Selecionar conteúdo elegível do catálogo
+model --> fn : Seleção estruturada ou falha
+fn -> fn : Validar seleção e possibilidade de exibição
+else Sem condições
+fn -> fn : Preparar resultado sem sugestão
+end
+fn -> db : Persistir resultado e métricas
+fn --> app : Seleção permitida ou silêncio
+end
+app -> app : Validar resposta e preferências
+app --> Paciente : Exibir conteúdo aceito ou nenhuma nova sugestão
+note over fn,model : Este recomendador não envia texto livre do diário
+@enduml

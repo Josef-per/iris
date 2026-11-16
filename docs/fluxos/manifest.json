@@ -1,0 +1,82 @@
+[
+  {
+    "id": "01-login",
+    "title": "Login e autenticação",
+    "documentId": "6a1f4a40-c312-4741-ab48-0207ebee9149",
+    "editUrl": "https://lucid.app/lucidchart/6a1f4a40-c312-4741-ab48-0207ebee9149/edit",
+    "image": "imagens/01-login.png",
+    "source": "fontes/01-login.puml"
+  },
+  {
+    "id": "02-cadastro",
+    "title": "Cadastro e criação de perfil",
+    "documentId": "8dcfa2d5-8cdc-43b6-aa98-9c29ce3c999e",
+    "editUrl": "https://lucid.app/lucidchart/8dcfa2d5-8cdc-43b6-aa98-9c29ce3c999e/edit",
+    "image": "imagens/02-cadastro.png",
+    "source": "fontes/02-cadastro.puml"
+  },
+  {
+    "id": "03-recuperacao",
+    "title": "Recuperação de senha",
+    "documentId": "5c54070e-97e4-4188-ad41-aa6793828d42",
+    "editUrl": "https://lucid.app/lucidchart/5c54070e-97e4-4188-ad41-aa6793828d42/edit",
+    "image": "imagens/03-recuperacao.png",
+    "source": "fontes/03-recuperacao.puml"
+  },
+  {
+    "id": "04-checkin",
+    "title": "Check-in e diário: gravação por RPC",
+    "documentId": "35bd947b-43c2-4c87-afb9-5faed268ada0",
+    "editUrl": "https://lucid.app/lucidchart/35bd947b-43c2-4c87-afb9-5faed268ada0/edit",
+    "image": "imagens/04-checkin.png",
+    "source": "fontes/04-checkin.puml"
+  },
+  {
+    "id": "05-vinculo",
+    "title": "Convite QR e vínculo autorizado",
+    "documentId": "a9e70c9c-5eef-4fce-9797-f95aefa56b3b",
+    "editUrl": "https://lucid.app/lucidchart/a9e70c9c-5eef-4fce-9797-f95aefa56b3b/edit",
+    "image": "imagens/05-vinculo.png",
+    "source": "fontes/05-vinculo.puml"
+  },
+  {
+    "id": "06-permissoes",
+    "title": "Autorização de consulta aos registros",
+    "documentId": "5cad7b1d-a843-4a45-b6f9-a77ee17eb4ef",
+    "editUrl": "https://lucid.app/lucidchart/5cad7b1d-a843-4a45-b6f9-a77ee17eb4ef/edit",
+    "image": "imagens/06-permissoes.png",
+    "source": "fontes/06-permissoes.puml"
+  },
+  {
+    "id": "07-plano",
+    "title": "Plano de cuidado e compartilhamento",
+    "documentId": "e384bff8-cdee-4b3a-a039-5bdb65c086a5",
+    "editUrl": "https://lucid.app/lucidchart/e384bff8-cdee-4b3a-a039-5bdb65c086a5/edit",
+    "image": "imagens/07-plano.png",
+    "source": "fontes/07-plano.puml"
+  },
+  {
+    "id": "08-sugestoes",
+    "title": "IA: seleção de sugestão de apoio",
+    "documentId": "deedbb66-5e41-4722-84d5-9589b4b1ab80",
+    "editUrl": "https://lucid.app/lucidchart/deedbb66-5e41-4722-84d5-9589b4b1ab80/edit",
+    "image": "imagens/08-sugestoes.png",
+    "source": "fontes/08-sugestoes.puml"
+  },
+  {
+    "id": "09-reflexao",
+    "title": "IA: reflexão diária com contexto autorizado",
+    "documentId": "a4b21750-83d9-4a87-9b8b-2fa44370edc5",
+    "editUrl": "https://lucid.app/lucidchart/a4b21750-83d9-4a87-9b8b-2fa44370edc5/edit",
+    "image": "imagens/09-reflexao.png",
+    "source": "fontes/09-reflexao.puml"
+  },
+  {
+    "id": "10-foto",
+    "title": "Registro alimentar e upload de foto",
+    "documentId": "48625332-561d-4c08-82fe-fe1c6709b7f6",
+    "editUrl": "https://lucid.app/lucidchart/48625332-561d-4c08-82fe-fe1c6709b7f6/edit",
+    "image": "imagens/10-foto.png",
+    "source": "fontes/10-foto.puml"
+  }
+]
