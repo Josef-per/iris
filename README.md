@@ -50,6 +50,21 @@ um convite QR; o profissional não cria uma identidade de paciente manualmente.
 - notificações locais para Android e iOS;
 - `qr_flutter` e `mobile_scanner`.
 
+## Ícones do aplicativo
+
+Os ícones Android, o favicon e os ícones de instalação web usam a flor vetorial
+de `assets/images/Login.svg` sobre o roxo do Íris. O Android inclui versões
+por densidade e um ícone adaptativo; a web inclui versões maskable e um
+`apple-touch-icon` de 180 px para adicionar à tela inicial no iPhone.
+
+Para regenerá-los, instale Python 3, PyGObject, pycairo e librsvg e execute:
+
+```bash
+python3 scripts/generate_app_icons.py
+```
+
+Os arquivos gerados são versionados e não exigem essas ferramentas no build.
+
 ## Configuração do Supabase
 
 As migrations estão em `supabase/migrations` e devem ser aplicadas na ordem:
