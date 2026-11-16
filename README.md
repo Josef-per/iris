@@ -334,6 +334,12 @@ O status de acompanhamento (`ativo` ou `inativo`) é separado da autorização
 de um paciente inativo autorizado, mas os registros clínicos só ficam
 disponíveis durante acompanhamento ativo.
 
+## Preparação para apresentação
+
+Consulte o [guia de estudo para a banca](docs/guia_banca.md), com os principais
+tópicos do sistema, perguntas prováveis e limites da implementação, e o
+[roteiro da demonstração](docs/apresentacao_iris_5_pessoas.md).
+
 ## Validação
 
 Execute análise e testes antes de publicar:
