@@ -344,6 +344,9 @@ Para entender a implementação, veja as [anotações sobre o código](docs/anot
 com a arquitetura do sistema e exemplos comentados de autenticação, registros,
 estado, banco e integração com IA.
 
+Quem apresenta o backend pode estudar a [defesa técnica do backend](docs/defesa_backend.md),
+com decisões, concorrência, permissões, falhas e perguntas de recrutadores.
+
 ## Validação
 
 Execute análise e testes antes de publicar:

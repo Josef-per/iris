@@ -2,6 +2,8 @@
 
 Estas anotações explicam a implementação do repositório para a apresentação à banca. Os trechos destacados são recortes do código; quando houver simplificação, ela estará identificada. Não é necessário decorar cada arquivo: procure conseguir acompanhar uma ação do usuário até sua persistência no banco.
 
+Para aprofundar as decisões do backend e treinar perguntas de recrutadores, consulte a [defesa técnica do backend](defesa_backend.md).
+
 ## Arquitetura do sistema
 
 ### Como classificar a arquitetura do Íris
@@ -397,6 +399,8 @@ O banco diferencia a permissão de escrita do paciente e a consulta pelo profiss
 - o profissional resolvido a partir da sessão;
 - `autorizacao_status = 'ativo'`;
 - `status = 'ativo'`.
+
+Nas migrations seguintes, a escrita direta em `registros_emocionais` é revogada para o cliente autenticado: check-in e diário passam pela RPC de upsert. A leitura continua controlada por RLS. Privilégio de operação e política de linha são verificações diferentes.
 
 `iris_current_professional_id()` também exige conta ativa, papel profissional e credenciamento ativo. `auth.uid()` fornece a identidade autenticada usada pelas funções do banco.
 

@@ -158,7 +158,7 @@ Use estas respostas como base para explicar com suas palavras.
 | Por que não usar apenas um diário comum? | O Íris acrescenta o acompanhamento por um profissional autorizado e a consulta ao plano compartilhado. |
 | Vocês desenvolveram o backend? | Desenvolvemos o esquema, migrations, políticas RLS, RPCs e funções da aplicação sobre a infraestrutura do Supabase. |
 | O profissional pode ver todos os pacientes? | Não. A autorização é verificada no banco; os registros clínicos exigem vínculo autorizado e acompanhamento ativo. |
-| O profissional altera o diário do paciente? | As políticas dos registros permitem escrita pelo próprio paciente e consulta pelo profissional autorizado. O profissional registra suas informações em anotações e planos próprios. |
+| O profissional altera o diário do paciente? | Não pelo fluxo previsto: a escrita emocional passa por uma RPC que resolve o próprio paciente autenticado; a consulta profissional depende de autorização. O profissional registra suas informações em anotações e planos próprios. |
 | E se alguém alterar o ID na requisição? | O ID enviado não concede acesso. As políticas devem conferir a identidade da sessão e sua relação com o dado solicitado. |
 | Posso ter nutricionista e psicólogo ao mesmo tempo? | A regra atual aceita um profissional autorizado por paciente por vez. Apoio multiprofissional simultâneo é uma evolução possível. |
 | Quem valida o profissional? | Há status de credenciamento e controle administrativo. No modo de avaliação, novos cadastros podem ser liberados automaticamente; não há comprovação de validação automática junto a conselhos. |
